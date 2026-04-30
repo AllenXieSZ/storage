@@ -11,19 +11,48 @@ Automated EBS performance testing tool that provisions EC2 instances + EBS volum
 - **HTML report**: AWS-styled visual report with comparison tables
 - **Cleanup tool**: Safely removes all resources created by the benchmark
 
+## Prerequisites
+
+- **Python 3.8+**
+- **boto3** — `pip3 install boto3`
+- **AWS credentials** with sufficient IAM permissions (see [IAM Permissions Required](#iam-permissions-required))
+- **Network**: The launched EC2 instance needs internet access so the SSM agent can register and fio can be installed via `yum`/`dnf`
+
+> **Note**: You do **not** need to install AWS CLI or the SSM Session Manager plugin locally. All SSM interactions use the boto3 SDK (`ssm:SendCommand` / `ssm:GetCommandInvocation`), not `aws ssm start-session`.
+
 ## Quick Start
 
+### On Amazon Linux 2023 / RHEL / Fedora
+
 ```bash
-# Install dependencies
+# Install pip and boto3
+sudo yum install python3-pip -y
 pip3 install boto3
 
-# Run benchmark (uses default AWS credentials)
-python3 ebs-bench.py --region us-east-2
+# Clone the repo and run
+git clone https://github.com/AllenXieSZ/storage.git
+cd storage/ebs-bench
+python3 ebs-bench.py --region us-east-1
+```
 
-# Or specify credentials
+### On Ubuntu / Debian
+
+```bash
+sudo apt update && sudo apt install python3-pip -y
+pip3 install boto3
+
+git clone https://github.com/AllenXieSZ/storage.git
+cd storage/ebs-bench
+python3 ebs-bench.py --region us-east-1
+```
+
+### Other Options
+
+```bash
+# Specify credentials explicitly
 python3 ebs-bench.py --access-key AKIA... --secret-key ... --region us-east-2
 
-# Or use AWS profile
+# Use a named AWS profile
 python3 ebs-bench.py --profile myprofile --region us-east-2
 ```
 
@@ -196,9 +225,10 @@ ebs-bench/
 ## Requirements
 
 - Python 3.8+
-- boto3 (`pip install boto3`)
-- AWS account with EC2/EBS/SSM/IAM permissions
-- The EC2 instance needs internet access (for SSM agent + fio install)
+- boto3 (`pip3 install boto3`)
+- AWS account with EC2/EBS/SSM/IAM permissions (see [IAM Permissions Required](#iam-permissions-required))
+- The launched EC2 instance needs internet access (SSM agent registration + fio install via yum/dnf)
+- **Not required**: AWS CLI, SSM Session Manager plugin (all SSM ops use boto3 API, not CLI)
 
 ## License
 
