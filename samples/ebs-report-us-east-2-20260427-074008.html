@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EBS Performance Report — us-east-2 — 2026-04-27 07:40 UTC</title>
+<style>
+    :root {
+        --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --border: #30363d;
+        --accent: #58a6ff; --green: #3fb950; --yellow: #d29922; --red: #f85149;
+        --purple: #bc8cff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+           background: var(--bg); color: var(--fg); padding: 2rem; line-height: 1.6; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.4rem; margin-bottom: 1rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+    .meta { color: #8b949e; margin-bottom: 2rem; }
+    .meta span { margin-right: 1.5rem; }
+    .config-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; margin-bottom: 2rem; }
+    .config-box dt { color: #8b949e; font-size: 0.85rem; }
+    .config-box dd { margin-bottom: 0.5rem; font-weight: 600; }
+    .volume-section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+    .config-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .pill { background: #21262d; border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.8rem; font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 2px solid var(--border); font-size: 0.85rem; color: #8b949e; }
+    td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); }
+    td.num { font-family: 'SF Mono', 'Fira Code', monospace; text-align: right; }
+    .badge { padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    .badge-iops { background: #1f3a5f; color: var(--accent); }
+    .badge-throughput { background: #1a3a2a; color: var(--green); }
+    .badge-latency { background: #3a2a1a; color: var(--yellow); }
+    .badge-mixed { background: #2a1a3a; color: var(--purple); }
+    details { margin-top: 1rem; }
+    summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+    .cmd-block { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem; margin: 0.5rem 0; }
+    .cmd-label { font-size: 0.8rem; color: #8b949e; margin-bottom: 0.3rem; }
+    code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.82rem; word-break: break-all; }
+    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); color: #8b949e; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>EBS Performance Test Report</h1>
+    <div class="meta">
+        <span>📍 us-east-2</span>
+        <span>📅 2026-04-27 07:40 UTC</span>
+        <span>⏱️ 20.0 min total</span>
+    </div>
+
+    <div class="config-box">
+        <h3>Test Environment</h3>
+        <dl>
+            <dt>Instance Type</dt><dd>c6i.4xlarge</dd>
+            <dt>fio Version</dt><dd>fio-3.32</dd>
+            <dt>Test Mode</dt><dd>Raw block device (no filesystem)</dd>
+            <dt>Runtime per Test</dt><dd>60s + 5s ramp</dd>
+            <dt>fio File Size</dt><dd>20G</dd>
+        </dl>
+    </div>
+
+    
+            <div class="volume-section">
+                <h2>gp3 — 100 GiB, 20,000 IOPS, 1,000 MB/s</h2>
+                <div class="config-pills">
+                    <span class="pill">Type: gp3</span>
+                    <span class="pill">Size: 100 GiB</span>
+                    <span class="pill">IOPS: 20,000, 1000 MB/s</span>
+                </div>
+                
+                <h3>Results</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Test</th>
+                            <th>IOPS</th>
+                            <th>BW (MB/s)</th>
+                            <th>Lat p50 (µs)</th>
+                            <th>Lat p99 (µs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                <tr class="cat-iops">
+                    <td><span class="badge badge-iops">IOPS</span></td>
+                    <td><strong>Random Read 4K</strong></td>
+                    <td class="num">19,999</td>
+                    <td class="num">78.1</td>
+                    <td class="num">11469</td>
+                    <td class="num">28443</td>
+                </tr>
+                <tr class="cat-iops">
+                    <td><span class="badge badge-iops">IOPS</span></td>
+                    <td><strong>Random Write 4K</strong></td>
+                    <td class="num">20,000</td>
+                    <td class="num">78.1</td>
+                    <td class="num">11469</td>
+                    <td class="num">34341</td>
+                </tr>
+                <tr class="cat-throughput">
+                    <td><span class="badge badge-throughput">Throughput</span></td>
+                    <td><strong>Sequential Read 1M</strong></td>
+                    <td class="num">1,005</td>
+                    <td class="num">1007.6</td>
+                    <td class="num">124256</td>
+                    <td class="num">229638</td>
+                </tr>
+                <tr class="cat-throughput">
+                    <td><span class="badge badge-throughput">Throughput</span></td>
+                    <td><strong>Sequential Write 1M</strong></td>
+                    <td class="num">1,006</td>
+                    <td class="num">1007.7</td>
+                    <td class="num">102236</td>
+                    <td class="num">274727</td>
+                </tr>
+                <tr class="cat-latency">
+                    <td><span class="badge badge-latency">Latency</span></td>
+                    <td><strong>Random Read 4K (Latency)</strong></td>
+                    <td class="num">1,747</td>
+                    <td class="num">6.8</td>
+                    <td class="num">561</td>
+                    <td class="num">774</td>
+                </tr>
+                <tr class="cat-latency">
+                    <td><span class="badge badge-latency">Latency</span></td>
+                    <td><strong>Random Write 4K (Latency)</strong></td>
+                    <td class="num">1,146</td>
+                    <td class="num">4.5</td>
+                    <td class="num">864</td>
+                    <td class="num">979</td>
+                </tr>
+                <tr class="cat-mixed">
+                    <td><span class="badge badge-mixed">Mixed</span></td>
+                    <td><strong>Mixed Random 70R/30W 4K</strong></td>
+                    <td class="num">R:13,982 / W:6,018<br>Total: 20,000</td>
+                    <td class="num">R:54.6 / W:23.5</td>
+                    <td class="num">R:10813 / W:11338</td>
+                    <td class="num">R:28967 / W:29491</td>
+                </tr></tbody>
+                </table>
+                
+                <details>
+                    <summary>fio Commands</summary>
+                    
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Read 4K</div>
+                    <code>fio --name=rand-read-4k --filename=/dev/nvme1n1 --bs=4k --rw=randread --ioengine=libaio --direct=1 --iodepth=64 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Write 4K</div>
+                    <code>fio --name=rand-write-4k --filename=/dev/nvme1n1 --bs=4k --rw=randwrite --ioengine=libaio --direct=1 --iodepth=64 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Sequential Read 1M</div>
+                    <code>fio --name=seq-read-1m --filename=/dev/nvme1n1 --bs=1m --rw=read --ioengine=libaio --direct=1 --iodepth=32 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Sequential Write 1M</div>
+                    <code>fio --name=seq-write-1m --filename=/dev/nvme1n1 --bs=1m --rw=write --ioengine=libaio --direct=1 --iodepth=32 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Read 4K (Latency)</div>
+                    <code>fio --name=rand-read-4k-lat --filename=/dev/nvme1n1 --bs=4k --rw=randread --ioengine=libaio --direct=1 --iodepth=1 --numjobs=1 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Write 4K (Latency)</div>
+                    <code>fio --name=rand-write-4k-lat --filename=/dev/nvme1n1 --bs=4k --rw=randwrite --ioengine=libaio --direct=1 --iodepth=1 --numjobs=1 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Mixed Random 70R/30W 4K</div>
+                    <code>fio --name=mixed-randrw-4k --filename=/dev/nvme1n1 --bs=4k --rw=randrw --ioengine=libaio --direct=1 --iodepth=64 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json --rwmixread=70</code>
+                </div>
+                </details>
+            </div>
+            <div class="volume-section">
+                <h2>io2 — 100 GiB, 20,000 IOPS</h2>
+                <div class="config-pills">
+                    <span class="pill">Type: io2</span>
+                    <span class="pill">Size: 100 GiB</span>
+                    <span class="pill">IOPS: 20,000</span>
+                </div>
+                
+                <h3>Results</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Test</th>
+                            <th>IOPS</th>
+                            <th>BW (MB/s)</th>
+                            <th>Lat p50 (µs)</th>
+                            <th>Lat p99 (µs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                <tr class="cat-iops">
+                    <td><span class="badge badge-iops">IOPS</span></td>
+                    <td><strong>Random Read 4K</strong></td>
+                    <td class="num">20,000</td>
+                    <td class="num">78.1</td>
+                    <td class="num">11731</td>
+                    <td class="num">25297</td>
+                </tr>
+                <tr class="cat-iops">
+                    <td><span class="badge badge-iops">IOPS</span></td>
+                    <td><strong>Random Write 4K</strong></td>
+                    <td class="num">20,000</td>
+                    <td class="num">78.1</td>
+                    <td class="num">10289</td>
+                    <td class="num">25559</td>
+                </tr>
+                <tr class="cat-throughput">
+                    <td><span class="badge badge-throughput">Throughput</span></td>
+                    <td><strong>Sequential Read 1M</strong></td>
+                    <td class="num">1,192</td>
+                    <td class="num">1193.8</td>
+                    <td class="num">103285</td>
+                    <td class="num">181404</td>
+                </tr>
+                <tr class="cat-throughput">
+                    <td><span class="badge badge-throughput">Throughput</span></td>
+                    <td><strong>Sequential Write 1M</strong></td>
+                    <td class="num">1,192</td>
+                    <td class="num">1193.7</td>
+                    <td class="num">103285</td>
+                    <td class="num">198181</td>
+                </tr>
+                <tr class="cat-latency">
+                    <td><span class="badge badge-latency">Latency</span></td>
+                    <td><strong>Random Read 4K (Latency)</strong></td>
+                    <td class="num">2,748</td>
+                    <td class="num">10.7</td>
+                    <td class="num">346</td>
+                    <td class="num">676</td>
+                </tr>
+                <tr class="cat-latency">
+                    <td><span class="badge badge-latency">Latency</span></td>
+                    <td><strong>Random Write 4K (Latency)</strong></td>
+                    <td class="num">2,858</td>
+                    <td class="num">11.2</td>
+                    <td class="num">338</td>
+                    <td class="num">510</td>
+                </tr>
+                <tr class="cat-mixed">
+                    <td><span class="badge badge-mixed">Mixed</span></td>
+                    <td><strong>Mixed Random 70R/30W 4K</strong></td>
+                    <td class="num">R:13,984 / W:6,015<br>Total: 20,000</td>
+                    <td class="num">R:54.6 / W:23.5</td>
+                    <td class="num">R:11469 / W:11469</td>
+                    <td class="num">R:25559 / W:25559</td>
+                </tr></tbody>
+                </table>
+                
+                <details>
+                    <summary>fio Commands</summary>
+                    
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Read 4K</div>
+                    <code>fio --name=rand-read-4k --filename=/dev/nvme1n1 --bs=4k --rw=randread --ioengine=libaio --direct=1 --iodepth=64 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Write 4K</div>
+                    <code>fio --name=rand-write-4k --filename=/dev/nvme1n1 --bs=4k --rw=randwrite --ioengine=libaio --direct=1 --iodepth=64 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Sequential Read 1M</div>
+                    <code>fio --name=seq-read-1m --filename=/dev/nvme1n1 --bs=1m --rw=read --ioengine=libaio --direct=1 --iodepth=32 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Sequential Write 1M</div>
+                    <code>fio --name=seq-write-1m --filename=/dev/nvme1n1 --bs=1m --rw=write --ioengine=libaio --direct=1 --iodepth=32 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Read 4K (Latency)</div>
+                    <code>fio --name=rand-read-4k-lat --filename=/dev/nvme1n1 --bs=4k --rw=randread --ioengine=libaio --direct=1 --iodepth=1 --numjobs=1 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Random Write 4K (Latency)</div>
+                    <code>fio --name=rand-write-4k-lat --filename=/dev/nvme1n1 --bs=4k --rw=randwrite --ioengine=libaio --direct=1 --iodepth=1 --numjobs=1 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json</code>
+                </div>
+                <div class="cmd-block">
+                    <div class="cmd-label">Mixed Random 70R/30W 4K</div>
+                    <code>fio --name=mixed-randrw-4k --filename=/dev/nvme1n1 --bs=4k --rw=randrw --ioengine=libaio --direct=1 --iodepth=64 --numjobs=4 --size=20G --runtime=60 --time_based --ramp_time=5 --group_reporting --output-format=json --rwmixread=70</code>
+                </div>
+                </details>
+            </div>
+
+    <div class="footer">
+        Generated by <strong>ebs-bench.py</strong> | Tests: 7 per volume × 2 volumes
+    </div>
+</div>
+</body>
+</html>
