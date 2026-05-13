@@ -1,5 +1,10 @@
 # S3 Benchmark: Standard vs Express One Zone
 
+![Python](https://img.shields.io/badge/python-3.8+-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
+![AWS](https://img.shields.io/badge/AWS-S3%20%7C%20EC2%20%7C%20SSM-orange?logo=amazonaws)
+
 Automated benchmark tool comparing **Amazon S3 Standard** and **S3 Express One Zone** performance.
 Pure Python (boto3) — no AWS CLI required.
 
@@ -40,8 +45,8 @@ Key optimizations:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Your Machine (with AWS credentials + boto3)            │
-│  └─ run_benchmark.py                                    │
+│  Your Machine (macOS / Linux / Windows)                 │
+│  └─ run_benchmark.py (boto3 API calls only)             │
 │       ├── Creates S3 Standard + Express One Zone bucket │
 │       ├── Creates IAM Role + Instance Profile           │
 │       ├── Launches EC2 (same AZ as Express bucket)      │
@@ -51,12 +56,15 @@ Key optimizations:
 └─────────────────────────────────────────────────────────┘
 ```
 
+**No SSH key needed** — uses AWS Systems Manager (SSM) for remote execution.  
+**Cross-platform** — orchestrator runs on any OS; benchmark runs on remote Linux EC2.
+
 ## Prerequisites
 
 - Python 3.8+
 - `boto3` (`pip install boto3`)
 - AWS credentials with admin-level permissions (EC2, S3, IAM, SSM)
-- **Works on macOS, Linux, and Windows** — the orchestrator (`run_benchmark.py`) only makes boto3 API calls locally; all benchmark workload runs on a remote EC2 instance via SSM
+- **Works on macOS, Linux, and Windows** — tested on all three platforms
 
 ## Quick Start
 
@@ -93,7 +101,7 @@ python run_benchmark.py
 | Multipart Upload (1 GB) | 773 MB/s | **884 MB/s** | +14% |
 | Range GET (1 GB) | 1190 MB/s | **1575 MB/s** | +32% |
 
-Express One Zone Range GET reached **1575 MB/s (12.6 Gbps)** — near the c6in.2xlarge network limit.
+> Express One Zone Range GET reached **1575 MB/s (12.6 Gbps)** — saturating the c6in.2xlarge network capacity.
 
 ## Files
 
@@ -103,6 +111,15 @@ Express One Zone Range GET reached **1575 MB/s (12.6 Gbps)** — near the c6in.2
 | `benchmark.py` | Core benchmark (runs on EC2) — latency + optimized throughput |
 | `optimize_throughput.py` | Throughput optimization explorer (tests chunk/concurrency/process combos) |
 | `sample_report.html` | Example HTML comparison report |
+
+## How It Works
+
+1. **You run** `python run_benchmark.py` on your laptop (macOS/Linux/Windows)
+2. Script creates AWS resources (EC2, S3 buckets, IAM role, security group)
+3. EC2 launches in the **same AZ** as the Express One Zone bucket
+4. Benchmark executes on EC2 via **SSM** (no SSH needed)
+5. HTML + JSON reports are downloaded to your local `reports/` directory
+6. **All AWS resources are automatically deleted** (even if the script crashes)
 
 ## Cost
 
