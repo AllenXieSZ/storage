@@ -16,6 +16,8 @@ import statistics
 import sys
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import Pool, cpu_count
+import multiprocessing
 
 # Configuration
 REGION = os.environ.get("BENCH_REGION", "us-east-2")
@@ -24,9 +26,9 @@ STANDARD_BUCKET = os.environ.get("BENCH_BUCKET_STD", "")
 EXPRESS_BUCKET = os.environ.get("BENCH_BUCKET_EXPRESS", "")
 ITERATIONS = int(os.environ.get("BENCH_ITERATIONS", "20"))
 LARGE_FILE_SIZE = 1024 * 1024 * 1024  # 1GB for throughput test
-MULTIPART_CHUNK = 8 * 1024 * 1024  # 8MB chunks
-RANGE_CHUNK = 8 * 1024 * 1024  # 8MB range reads
-CONCURRENCY = int(os.environ.get("BENCH_CONCURRENCY", "64"))
+MULTIPART_CHUNK = 64 * 1024 * 1024  # 64MB chunks (optimized from testing)
+RANGE_CHUNK = 64 * 1024 * 1024  # 64MB range reads (optimized from testing)
+CONCURRENCY = int(os.environ.get("BENCH_CONCURRENCY", "128"))
 THROUGHPUT_RUNS = 3
 
 OBJECT_SIZES = {
@@ -106,21 +108,29 @@ def test_multipart_upload(s3, bucket, key, total_size, chunk_size, concurrency):
     return elapsed, throughput_mbps
 
 
+def _range_get_worker(args):
+    """Worker for multiprocessing range GET (bypass GIL)."""
+    bucket, key, offset, end, region = args
+    s3 = boto3.client("s3", region_name=region)
+    resp = s3.get_object(Bucket=bucket, Key=key, Range=f"bytes={offset}-{end}")
+    resp["Body"].read()
+
+
 def test_range_get(s3, bucket, key, total_size, chunk_size, concurrency):
+    """Test range GET throughput using multiprocessing (bypass GIL)."""
     num_ranges = (total_size + chunk_size - 1) // chunk_size
+
+    worker_args = []
+    for i in range(num_ranges):
+        offset = i * chunk_size
+        end = min(offset + chunk_size - 1, total_size - 1)
+        worker_args.append((bucket, key, offset, end, REGION))
 
     start = time.perf_counter()
 
-    def get_range(range_num):
-        offset = range_num * chunk_size
-        end = min(offset + chunk_size - 1, total_size - 1)
-        resp = s3.get_object(Bucket=bucket, Key=key, Range=f"bytes={offset}-{end}")
-        resp["Body"].read()
-
-    with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = [executor.submit(get_range, i) for i in range(num_ranges)]
-        for f in as_completed(futures):
-            f.result()
+    num_workers = min(32, num_ranges, cpu_count() * 2)
+    with Pool(processes=num_workers) as pool:
+        pool.map(_range_get_worker, worker_args)
 
     elapsed = time.perf_counter() - start
     throughput_mbps = (total_size / (1024 * 1024)) / elapsed
@@ -451,6 +461,8 @@ def generate_html_report(results, output_path):
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("fork", force=True)
+
     if not STANDARD_BUCKET or not EXPRESS_BUCKET:
         print("ERROR: BENCH_BUCKET_STD and BENCH_BUCKET_EXPRESS env vars must be set")
         sys.exit(1)
