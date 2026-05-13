@@ -42,11 +42,11 @@
 <div class="meta">
   <span><strong>Region:</strong> us-east-2</span>
   <span><strong>AZ:</strong> use2-az1</span>
-  <span><strong>Time:</strong> 2026-05-13T06:45:27.488656+00:00</span>
+  <span><strong>Time:</strong> 2026-05-13T07:11:02.418012+00:00</span>
   <span><strong>Iterations:</strong> 20</span>
   <span><strong>Concurrency:</strong> 64</span><br>
-  <span><strong>Standard Bucket:</strong> s3-bench-std-20260513-064408</span><br>
-  <span><strong>Express Bucket:</strong> s3-bench-exp-20260513-064408--use2-az1--x-s3</span>
+  <span><strong>Standard Bucket:</strong> s3-bench-std-20260513-070943</span><br>
+  <span><strong>Express Bucket:</strong> s3-bench-exp-20260513-070943--use2-az1--x-s3</span>
 </div>
 
 <h2>📊 Object I/O Latency Comparison</h2>
@@ -55,36 +55,36 @@
 <h3>PUT Latency (ms)</h3>
 <table>
 <tr><th>Size</th><th>Standard Avg</th><th>Standard P50</th><th>Standard P90</th><th>Express Avg</th><th>Express P50</th><th>Express P90</th><th>Δ Avg</th></tr>
-<tr><td><strong>4KB</strong></td><td>28.88</td><td>25.96</td><td>59.16</td><td>9.94</td><td>7.7</td><td>8.33</td><td><span class="pct-badge pct-good">-65.6%</span></td></tr>
-<tr><td><strong>4MB</strong></td><td>61.71</td><td>58.77</td><td>74.57</td><td>42.27</td><td>42.45</td><td>43.63</td><td><span class="pct-badge pct-good">-31.5%</span></td></tr>
-<tr><td><strong>8MB</strong></td><td>96.19</td><td>94.85</td><td>104.02</td><td>75.84</td><td>76.36</td><td>78.36</td><td><span class="pct-badge pct-good">-21.2%</span></td></tr>
+<tr><td><strong>4KB</strong></td><td>25.15</td><td>22.51</td><td>43.97</td><td>9.74</td><td>7.71</td><td>8.12</td><td><span class="pct-badge pct-good">-61.3%</span></td></tr>
+<tr><td><strong>4MB</strong></td><td>56.35</td><td>56.12</td><td>58.74</td><td>42.96</td><td>42.86</td><td>44.77</td><td><span class="pct-badge pct-good">-23.8%</span></td></tr>
+<tr><td><strong>8MB</strong></td><td>94.69</td><td>92.58</td><td>105.41</td><td>75.49</td><td>76.32</td><td>78.07</td><td><span class="pct-badge pct-good">-20.3%</span></td></tr>
 </table>
 
 <h3>GET Latency (ms)</h3>
 <table>
 <tr><th>Size</th><th>Standard Avg</th><th>Standard P50</th><th>Standard P90</th><th>Express Avg</th><th>Express P50</th><th>Express P90</th><th>Δ Avg</th></tr>
-<tr><td><strong>4KB</strong></td><td>25.27</td><td>24.96</td><td>29.22</td><td>5.42</td><td>5.4</td><td>5.9</td><td><span class="pct-badge pct-good">-78.6%</span></td></tr>
-<tr><td><strong>4MB</strong></td><td>47.9</td><td>47.88</td><td>48.62</td><td>27.52</td><td>27.59</td><td>28.11</td><td><span class="pct-badge pct-good">-42.5%</span></td></tr>
-<tr><td><strong>8MB</strong></td><td>94.35</td><td>93.94</td><td>94.65</td><td>59.66</td><td>59.97</td><td>61.78</td><td><span class="pct-badge pct-good">-36.8%</span></td></tr>
+<tr><td><strong>4KB</strong></td><td>25.16</td><td>25.66</td><td>28.46</td><td>5.39</td><td>5.38</td><td>5.67</td><td><span class="pct-badge pct-good">-78.6%</span></td></tr>
+<tr><td><strong>4MB</strong></td><td>47.53</td><td>47.4</td><td>48.25</td><td>27.98</td><td>27.73</td><td>31.26</td><td><span class="pct-badge pct-good">-41.1%</span></td></tr>
+<tr><td><strong>8MB</strong></td><td>94.69</td><td>94.59</td><td>95.65</td><td>58.41</td><td>57.88</td><td>60.7</td><td><span class="pct-badge pct-good">-38.3%</span></td></tr>
 </table>
 
 <hr class="section-divider">
 <h2>🚀 Bucket Throughput Comparison</h2>
-<p>Large file (1024MB), chunk size 8MB, concurrency 64.</p>
+<p>Large file (1024MB), chunk size 64MB, concurrency 64.</p>
 <p class="legend">Higher is better for throughput.</p>
 
 <h3>Multipart Upload</h3>
 <div>
   <div class="throughput-card std">
-    <div class="value">645.6 MB/s</div>
+    <div class="value">773.01 MB/s</div>
     <div class="label">S3 Standard</div>
   </div>
   <div class="throughput-card exp">
-    <div class="value">919.74 MB/s</div>
+    <div class="value">883.75 MB/s</div>
     <div class="label">S3 Express One Zone</div>
   </div>
   <div class="throughput-card">
-    <div class="value" style="color: #2e7d32">+42.5%</div>
+    <div class="value" style="color: #2e7d32">+14.3%</div>
     <div class="label">Express vs Standard</div>
   </div>
 </div>
@@ -92,15 +92,15 @@
 <h3>Range GET (Parallel)</h3>
 <div>
   <div class="throughput-card std">
-    <div class="value">571.41 MB/s</div>
+    <div class="value">1190.67 MB/s</div>
     <div class="label">S3 Standard</div>
   </div>
   <div class="throughput-card exp">
-    <div class="value">588.26 MB/s</div>
+    <div class="value">1574.42 MB/s</div>
     <div class="label">S3 Express One Zone</div>
   </div>
   <div class="throughput-card">
-    <div class="value" style="color: #2e7d32">+2.9%</div>
+    <div class="value" style="color: #2e7d32">+32.2%</div>
     <div class="label">Express vs Standard</div>
   </div>
 </div>
@@ -108,27 +108,27 @@
 <h3>Detailed Throughput Runs</h3>
 <table>
 <tr><th>Test</th><th>Bucket</th><th>Run 1</th><th>Run 2</th><th>Run 3</th><th>Avg (MB/s)</th></tr>
-<tr><td><strong>Multipart Upload</strong></td><td>Standard</td><td>749.5</td><td>863.29</td><td>324.02</td><td><strong>645.6</strong></td></tr>
-<tr><td><strong>Multipart Upload</strong></td><td>Express</td><td>866.05</td><td>945.37</td><td>947.79</td><td><strong>919.74</strong></td></tr>
-<tr><td><strong>Range GET</strong></td><td>Standard</td><td>590.42</td><td>563.39</td><td>560.42</td><td><strong>571.41</strong></td></tr>
-<tr><td><strong>Range GET</strong></td><td>Express</td><td>596.87</td><td>582.04</td><td>585.88</td><td><strong>588.26</strong></td></tr>
+<tr><td><strong>Multipart Upload</strong></td><td>Standard</td><td>780.2</td><td>771.85</td><td>766.99</td><td><strong>773.01</strong></td></tr>
+<tr><td><strong>Multipart Upload</strong></td><td>Express</td><td>888.83</td><td>885.1</td><td>877.31</td><td><strong>883.75</strong></td></tr>
+<tr><td><strong>Range GET</strong></td><td>Standard</td><td>1190.41</td><td>1190.19</td><td>1191.41</td><td><strong>1190.67</strong></td></tr>
+<tr><td><strong>Range GET</strong></td><td>Express</td><td>1565.94</td><td>1575.77</td><td>1581.56</td><td><strong>1574.42</strong></td></tr>
 </table>
 
 <hr class="section-divider">
 <div class="summary-box">
 <h3>📋 Summary</h3>
 <ul>
-<li><strong>4KB</strong>: PUT -65.6%, GET -78.6% (Express vs Standard)</li>
-<li><strong>4MB</strong>: PUT -31.5%, GET -42.5% (Express vs Standard)</li>
-<li><strong>8MB</strong>: PUT -21.2%, GET -36.8% (Express vs Standard)</li>
-<li><strong>Multipart Upload</strong>: +42.5% (Express vs Standard)</li>
-<li><strong>Range GET</strong>: +2.9% (Express vs Standard)</li>
+<li><strong>4KB</strong>: PUT -61.3%, GET -78.6% (Express vs Standard)</li>
+<li><strong>4MB</strong>: PUT -23.8%, GET -41.1% (Express vs Standard)</li>
+<li><strong>8MB</strong>: PUT -20.3%, GET -38.3% (Express vs Standard)</li>
+<li><strong>Multipart Upload</strong>: +14.3% (Express vs Standard)</li>
+<li><strong>Range GET</strong>: +32.2% (Express vs Standard)</li>
 </ul>
 <p><em>Negative % = Express is faster (lower latency). Positive % = Express is faster (higher throughput).</em></p>
 </div>
 
 <div class="footer">
-  Generated by S3 Benchmark Script | 2026-05-13T06:45:27.488656+00:00 | Region: us-east-2 | AZ: use2-az1
+  Generated by S3 Benchmark Script | 2026-05-13T07:11:02.418012+00:00 | Region: us-east-2 | AZ: use2-az1
 </div>
 </div>
 </body>
