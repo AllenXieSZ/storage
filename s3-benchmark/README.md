@@ -56,10 +56,12 @@ Key optimizations:
 - Python 3.8+
 - `boto3` (`pip install boto3`)
 - AWS credentials with admin-level permissions (EC2, S3, IAM, SSM)
+- **Works on macOS, Linux, and Windows** — the orchestrator (`run_benchmark.py`) only makes boto3 API calls locally; all benchmark workload runs on a remote EC2 instance via SSM
 
 ## Quick Start
 
 ```bash
+# macOS / Linux / Windows
 pip install boto3
 python run_benchmark.py
 ```
