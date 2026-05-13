@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>S3 Standard vs Express One Zone - Benchmark Report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; color: #333; }
+  .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  h1 { color: #232f3e; border-bottom: 3px solid #ff9900; padding-bottom: 10px; }
+  h2 { color: #232f3e; margin-top: 40px; }
+  h3 { color: #555; }
+  .meta { background: #f0f4f8; padding: 15px 20px; border-radius: 6px; margin: 20px 0; font-size: 0.9em; }
+  .meta span { margin-right: 25px; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+  th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: right; }
+  th { background: #232f3e; color: white; }
+  td:first-child, th:first-child { text-align: left; }
+  tr:nth-child(even) { background: #f9f9f9; }
+  .better { color: #2e7d32; font-weight: bold; }
+  .worse { color: #c62828; }
+  .neutral { color: #555; }
+  .pct-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
+  .pct-good { background: #e8f5e9; color: #2e7d32; }
+  .pct-bad { background: #ffebee; color: #c62828; }
+  .pct-neutral { background: #f5f5f5; color: #555; }
+  .throughput-card { display: inline-block; background: #f5f5f5; padding: 20px 30px; border-radius: 8px; margin: 10px 10px 10px 0; text-align: center; min-width: 200px; }
+  .throughput-card .value { font-size: 1.8em; font-weight: bold; }
+  .throughput-card .label { color: #555; margin-top: 5px; font-size: 0.9em; }
+  .throughput-card.std .value { color: #1565c0; }
+  .throughput-card.exp .value { color: #ff6f00; }
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 0.9em; }
+  .legend { margin: 10px 0; font-size: 0.85em; color: #666; }
+  .section-divider { border: none; border-top: 2px solid #ff9900; margin: 40px 0; }
+  .summary-box { background: linear-gradient(135deg, #fff3e0, #e8f5e9); padding: 20px; border-radius: 8px; margin: 20px 0; }
+  .summary-box h3 { margin-top: 0; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🪣 S3 Standard vs Express One Zone — Benchmark Comparison</h1>
+
+<div class="meta">
+  <span><strong>Region:</strong> us-east-2</span>
+  <span><strong>AZ:</strong> use2-az1</span>
+  <span><strong>Time:</strong> 2026-05-13T06:45:27.488656+00:00</span>
+  <span><strong>Iterations:</strong> 20</span>
+  <span><strong>Concurrency:</strong> 64</span><br>
+  <span><strong>Standard Bucket:</strong> s3-bench-std-20260513-064408</span><br>
+  <span><strong>Express Bucket:</strong> s3-bench-exp-20260513-064408--use2-az1--x-s3</span>
+</div>
+
+<h2>📊 Object I/O Latency Comparison</h2>
+<p class="legend">Lower is better for latency. <span class="pct-badge pct-good">-XX%</span> = Express is faster, <span class="pct-badge pct-bad">+XX%</span> = Express is slower.</p>
+
+<h3>PUT Latency (ms)</h3>
+<table>
+<tr><th>Size</th><th>Standard Avg</th><th>Standard P50</th><th>Standard P90</th><th>Express Avg</th><th>Express P50</th><th>Express P90</th><th>Δ Avg</th></tr>
+<tr><td><strong>4KB</strong></td><td>28.88</td><td>25.96</td><td>59.16</td><td>9.94</td><td>7.7</td><td>8.33</td><td><span class="pct-badge pct-good">-65.6%</span></td></tr>
+<tr><td><strong>4MB</strong></td><td>61.71</td><td>58.77</td><td>74.57</td><td>42.27</td><td>42.45</td><td>43.63</td><td><span class="pct-badge pct-good">-31.5%</span></td></tr>
+<tr><td><strong>8MB</strong></td><td>96.19</td><td>94.85</td><td>104.02</td><td>75.84</td><td>76.36</td><td>78.36</td><td><span class="pct-badge pct-good">-21.2%</span></td></tr>
+</table>
+
+<h3>GET Latency (ms)</h3>
+<table>
+<tr><th>Size</th><th>Standard Avg</th><th>Standard P50</th><th>Standard P90</th><th>Express Avg</th><th>Express P50</th><th>Express P90</th><th>Δ Avg</th></tr>
+<tr><td><strong>4KB</strong></td><td>25.27</td><td>24.96</td><td>29.22</td><td>5.42</td><td>5.4</td><td>5.9</td><td><span class="pct-badge pct-good">-78.6%</span></td></tr>
+<tr><td><strong>4MB</strong></td><td>47.9</td><td>47.88</td><td>48.62</td><td>27.52</td><td>27.59</td><td>28.11</td><td><span class="pct-badge pct-good">-42.5%</span></td></tr>
+<tr><td><strong>8MB</strong></td><td>94.35</td><td>93.94</td><td>94.65</td><td>59.66</td><td>59.97</td><td>61.78</td><td><span class="pct-badge pct-good">-36.8%</span></td></tr>
+</table>
+
+<hr class="section-divider">
+<h2>🚀 Bucket Throughput Comparison</h2>
+<p>Large file (1024MB), chunk size 8MB, concurrency 64.</p>
+<p class="legend">Higher is better for throughput.</p>
+
+<h3>Multipart Upload</h3>
+<div>
+  <div class="throughput-card std">
+    <div class="value">645.6 MB/s</div>
+    <div class="label">S3 Standard</div>
+  </div>
+  <div class="throughput-card exp">
+    <div class="value">919.74 MB/s</div>
+    <div class="label">S3 Express One Zone</div>
+  </div>
+  <div class="throughput-card">
+    <div class="value" style="color: #2e7d32">+42.5%</div>
+    <div class="label">Express vs Standard</div>
+  </div>
+</div>
+
+<h3>Range GET (Parallel)</h3>
+<div>
+  <div class="throughput-card std">
+    <div class="value">571.41 MB/s</div>
+    <div class="label">S3 Standard</div>
+  </div>
+  <div class="throughput-card exp">
+    <div class="value">588.26 MB/s</div>
+    <div class="label">S3 Express One Zone</div>
+  </div>
+  <div class="throughput-card">
+    <div class="value" style="color: #2e7d32">+2.9%</div>
+    <div class="label">Express vs Standard</div>
+  </div>
+</div>
+
+<h3>Detailed Throughput Runs</h3>
+<table>
+<tr><th>Test</th><th>Bucket</th><th>Run 1</th><th>Run 2</th><th>Run 3</th><th>Avg (MB/s)</th></tr>
+<tr><td><strong>Multipart Upload</strong></td><td>Standard</td><td>749.5</td><td>863.29</td><td>324.02</td><td><strong>645.6</strong></td></tr>
+<tr><td><strong>Multipart Upload</strong></td><td>Express</td><td>866.05</td><td>945.37</td><td>947.79</td><td><strong>919.74</strong></td></tr>
+<tr><td><strong>Range GET</strong></td><td>Standard</td><td>590.42</td><td>563.39</td><td>560.42</td><td><strong>571.41</strong></td></tr>
+<tr><td><strong>Range GET</strong></td><td>Express</td><td>596.87</td><td>582.04</td><td>585.88</td><td><strong>588.26</strong></td></tr>
+</table>
+
+<hr class="section-divider">
+<div class="summary-box">
+<h3>📋 Summary</h3>
+<ul>
+<li><strong>4KB</strong>: PUT -65.6%, GET -78.6% (Express vs Standard)</li>
+<li><strong>4MB</strong>: PUT -31.5%, GET -42.5% (Express vs Standard)</li>
+<li><strong>8MB</strong>: PUT -21.2%, GET -36.8% (Express vs Standard)</li>
+<li><strong>Multipart Upload</strong>: +42.5% (Express vs Standard)</li>
+<li><strong>Range GET</strong>: +2.9% (Express vs Standard)</li>
+</ul>
+<p><em>Negative % = Express is faster (lower latency). Positive % = Express is faster (higher throughput).</em></p>
+</div>
+
+<div class="footer">
+  Generated by S3 Benchmark Script | 2026-05-13T06:45:27.488656+00:00 | Region: us-east-2 | AZ: use2-az1
+</div>
+</div>
+</body>
+</html>
