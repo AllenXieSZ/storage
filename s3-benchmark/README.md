@@ -141,6 +141,64 @@ For detailed usage and parameters, see [README-accelerate.md](README-accelerate.
 
 ---
 
+## CloudFront Signed URL Benchmarks
+
+Compare **direct S3 PUT** vs **CloudFront Signed URL PUT** upload speed (single PUT, no multipart).
+
+### cf_signed_url_upload.py — CloudFront Signed URL PUT vs S3 PUT
+
+Uploads a file via direct S3 PUT and via CloudFront Signed URL PUT, then prints speed comparison.
+
+```bash
+pip install boto3 cryptography requests
+python3 cf_signed_url_upload.py --size 500
+```
+
+### cf_signed_url_demo.py — S3 Upload + CloudFront Signed URL Download
+
+Uploads file to S3 (multipart), generates a CloudFront Signed URL, then downloads via the signed URL. Demonstrates the full workflow.
+
+```bash
+python3 cf_signed_url_demo.py --size 500
+```
+
+### How CloudFront Signed URL PUT works
+
+```
+Your machine (Shenzhen)
+    │
+    │  HTTP PUT https://<CLOUDFRONT_ID>.cloudfront.net/key?Signature=xxx
+    │  Body: [file data]
+    │
+    ▼
+CloudFront Edge (nearest: Hong Kong/Guangzhou)
+    │  ├─ Verify signature (RSA + Public Key)
+    │  ├─ Check expiration
+    │  └─ Forward PUT via AWS backbone
+    ▼
+S3 Bucket: zh-jlc (us-east-1)
+    └─ Write object → return 200
+```
+
+**Key differences from S3 Presigned URL:**
+
+| | S3 Presigned URL | CloudFront Signed URL |
+|---|---|---|
+| **Signing** | AWS SigV4 (HMAC-SHA256) | RSA-SHA1 (asymmetric key pair) |
+| **Traffic path** | Client → S3 direct | Client → CF Edge → AWS backbone → S3 |
+| **Acceleration** | None (unless Transfer Accelerate) | Edge node proximity + backbone |
+| **Use case** | Backend-signed URL for frontend direct upload | Global distribution + CDN acceleration |
+
+**Prerequisites:**
+- CloudFront distribution must allow PUT in `AllowedMethods`
+- A trusted key group with your RSA public key must be configured
+- `cf_private_key.pem` must be present locally (not committed to git)
+- Download it: `aws s3 cp s3://<BUCKET>/keys/cf_private_key.pem ./cf_private_key.pem`
+
+📖 [CloudFront Signed URLs User Guide](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html)
+
+---
+
 ## Files
 
 | File | Description |
@@ -150,6 +208,8 @@ For detailed usage and parameters, see [README-accelerate.md](README-accelerate.
 | `optimize_throughput.py` | Throughput optimization explorer (tests chunk/concurrency/process combos) |
 | `s3_accelerate_upload.py` | Transfer Accelerate vs Normal — SDK multipart upload |
 | `s3_presigned_upload.py` | Transfer Accelerate vs Normal — Presigned URL multipart upload |
+| `cf_signed_url_upload.py` | CloudFront Signed URL PUT vs direct S3 PUT |
+| `cf_signed_url_demo.py` | S3 upload + CloudFront Signed URL download demo |
 | `README-accelerate.md` | Detailed documentation for Transfer Accelerate scripts |
 | `sample_report.html` | Example HTML comparison report |
 
