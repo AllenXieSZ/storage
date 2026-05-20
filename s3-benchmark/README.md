@@ -103,13 +103,54 @@ python run_benchmark.py
 
 > Express One Zone Range GET reached **1575 MB/s (12.6 Gbps)** — saturating the c6in.2xlarge network capacity.
 
+## Transfer Accelerate Benchmarks
+
+Besides the Standard vs Express comparison, this directory includes two scripts for benchmarking **S3 Transfer Accelerate**:
+
+### s3_accelerate_upload.py — SDK Multipart Upload (Normal vs Accelerate)
+
+Uses `boto3` `upload_file` with `TransferConfig` for multipart upload. Compares normal S3 endpoint vs Transfer Accelerate endpoint.
+
+```bash
+pip install boto3
+python3 s3_accelerate_upload.py --bucket my-bucket --size 500
+```
+
+### s3_presigned_upload.py — Presigned URL Multipart Upload (Normal vs Accelerate)
+
+Uses **Presigned URLs** + `requests.put` for each part — simulates browser/client-side upload without AWS credentials on the client.
+
+```bash
+pip install boto3 requests
+python3 s3_presigned_upload.py --bucket my-bucket --size 500
+```
+
+### What is Transfer Accelerate?
+
+S3 Transfer Accelerate routes uploads through the nearest CloudFront Edge Location, then via AWS backbone to the target bucket. Useful for cross-continent uploads (e.g., China → us-east-2). The actual speedup depends on network conditions — run the scripts to measure your specific environment.
+
+📖 [Amazon S3 Transfer Acceleration User Guide](https://docs.aws.amazon.com/AmazonS3/latest/userguide/transfer-acceleration.html)
+
+**Prerequisite:** Target bucket must have Transfer Accelerate enabled:
+```bash
+aws s3api put-bucket-accelerate-configuration \
+  --bucket BUCKET --accelerate-configuration Status=Enabled
+```
+
+For detailed usage and parameters, see [README-accelerate.md](README-accelerate.md).
+
+---
+
 ## Files
 
 | File | Description |
 |------|-------------|
-| `run_benchmark.py` | Main entry — full lifecycle orchestrator |
+| `run_benchmark.py` | Main entry — full lifecycle orchestrator (Standard vs Express) |
 | `benchmark.py` | Core benchmark (runs on EC2) — latency + optimized throughput |
 | `optimize_throughput.py` | Throughput optimization explorer (tests chunk/concurrency/process combos) |
+| `s3_accelerate_upload.py` | Transfer Accelerate vs Normal — SDK multipart upload |
+| `s3_presigned_upload.py` | Transfer Accelerate vs Normal — Presigned URL multipart upload |
+| `README-accelerate.md` | Detailed documentation for Transfer Accelerate scripts |
 | `sample_report.html` | Example HTML comparison report |
 
 ## How It Works
