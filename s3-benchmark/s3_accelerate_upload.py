@@ -181,10 +181,10 @@ def main():
     print(f"{'='*60}")
 
     print(f"\n  💡 说明: Transfer Accelerate 的提升幅度取决于网络条件：")
-    print(f"     - 同 Region / 低延迟网络: 提升有限（可能仅 5-10%）")
-    print(f"     - 跨洲高延迟网络（如中国→美东）: 提升显著（通常 2-5x）")
-    print(f"     - 网络质量差/丢包率高的环境: 提升最明显")
-    print(f"     实际效果请以本机测试结果为准。")
+    print(f"     - 同 Region / 低延迟网络: 提升有限")
+    print(f"     - 跨洲高延迟网络（如中国→美东）: 可能有较明显提升")
+    print(f"     - 网络质量差/丢包率高的环境: 提升相对明显")
+    print(f"     具体提升幅度以实际测试结果为准，不同环境差异较大。")
 
     # 清理
     if not args.no_cleanup:
