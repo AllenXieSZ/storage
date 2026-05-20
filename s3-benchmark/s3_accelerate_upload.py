@@ -102,9 +102,9 @@ def main():
         """,
     )
     parser.add_argument("--bucket", default="<BUCKET>", help="S3 bucket 名称 (须已开启 Accelerate)")
-    parser.add_argument("--size", type=int, default=1024, help="测试文件大小 (MB), 默认 1024 (1GB)")
+    parser.add_argument("--size", type=int, default=500, help="测试文件大小 (MB), 默认 500")
     parser.add_argument("--concurrency", type=int, default=10, help="并发上传线程数, 默认 10")
-    parser.add_argument("--part-size", type=int, default=64, help="分片大小 (MB), 默认 64")
+    parser.add_argument("--part-size", type=int, default=16, help="分片大小 (MB), 默认 16")
     parser.add_argument("--accelerate-only", action="store_true", help="只测试 Accelerate, 跳过普通上传")
     parser.add_argument("--no-cleanup", action="store_true", help="测试完不删除 S3 对象")
     parser.add_argument("--file", default=None, help="使用已有文件而非生成随机文件")
@@ -180,10 +180,11 @@ def main():
 
     print(f"{'='*60}")
 
-    if normal_speed is not None and abs((accel_speed - normal_speed) / normal_speed * 100) < 20:
-        print(f"\n  💡 提示: 当前机器可能与 bucket 在同 Region，")
-        print(f"     Transfer Accelerate 对同 Region 传输提升有限。")
-        print(f"     从远距离（如中国→us-east-2）上传时，提升通常 2-5x。")
+    print(f"\n  💡 说明: Transfer Accelerate 的提升幅度取决于网络条件：")
+    print(f"     - 同 Region / 低延迟网络: 提升有限（可能仅 5-10%）")
+    print(f"     - 跨洲高延迟网络（如中国→美东）: 提升显著（通常 2-5x）")
+    print(f"     - 网络质量差/丢包率高的环境: 提升最明显")
+    print(f"     实际效果请以本机测试结果为准。")
 
     # 清理
     if not args.no_cleanup:

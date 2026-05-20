@@ -63,11 +63,11 @@ aws s3api get-bucket-accelerate-configuration --bucket YOUR_BUCKET
 ## 用法
 
 ```bash
-# 默认: 1GB 文件，10 并发，64MB 分片
+# 默认: 500MB 文件，10 并发，16MB 分片
 python3 s3_accelerate_upload.py
 
 # 指定 bucket 和文件大小 (MB)
-python3 s3_accelerate_upload.py --bucket my-bucket --size 512
+python3 s3_accelerate_upload.py --bucket my-bucket --size 1024
 
 # 调整并发线程和分片大小
 python3 s3_accelerate_upload.py --concurrency 20 --part-size 32
@@ -87,9 +87,9 @@ python3 s3_accelerate_upload.py --no-cleanup
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--bucket` | <BUCKET> | 目标 S3 bucket（须已开启 Accelerate） |
-| `--size` | 1024 | 测试文件大小 (MB) |
+| `--size` | 500 | 测试文件大小 (MB) |
 | `--concurrency` | 10 | 并发上传线程数 |
-| `--part-size` | 64 | Multipart 分片大小 (MB) |
+| `--part-size` | 16 | Multipart 分片大小 (MB) |
 | `--accelerate-only` | false | 只测试 Accelerate |
 | `--no-cleanup` | false | 不清理 S3 测试对象 |
 | `--file` | - | 使用已有文件 |
@@ -102,28 +102,34 @@ python3 s3_accelerate_upload.py --no-cleanup
 ============================================================
   S3 Multipart Upload 对比测试
   Bucket: <BUCKET>
-  File: 1024 MB (1.00 GB)
-  Part size: 64 MB | Concurrency: 10
+  File: 500 MB (0.49 GB)
+  Part size: 16 MB | Concurrency: 10
 ============================================================
 
 ────────────────────────────────────────────────────────────
   [1/2] 普通 S3 Multipart Upload
 ────────────────────────────────────────────────────────────
-  ✅ 完成 | 耗时: 15.30s | 速度: 66.9 MB/s
+  ✅ 完成 | 耗时: 7.82s | 速度: 63.9 MB/s
 
 ────────────────────────────────────────────────────────────
   [2/2] Transfer Accelerate Multipart Upload
 ────────────────────────────────────────────────────────────
-  ✅ 完成 | 耗时: 7.93s | 速度: 129.1 MB/s
+  ✅ 完成 | 耗时: 7.45s | 速度: 67.1 MB/s
 
 ============================================================
   📊 对比结果
 ============================================================
-  普通 S3 Multipart              15.30s      66.9 MB/s
-  Transfer Accelerate             7.93s     129.1 MB/s
+  普通 S3 Multipart               7.82s      63.9 MB/s
+  Transfer Accelerate             7.45s      67.1 MB/s
   ──────────────────────────────────────────────────────
-  Accelerate 比普通快: +92.9% (比值: 1.93x)
+  Accelerate 比普通快: +5.0% (比值: 1.05x)
 ============================================================
+
+  💡 说明: Transfer Accelerate 的提升幅度取决于网络条件：
+     - 同 Region / 低延迟网络: 提升有限（可能仅 5-10%）
+     - 跨洲高延迟网络（如中国→美东）: 提升显著（通常 2-5x）
+     - 网络质量差/丢包率高的环境: 提升最明显
+     实际效果请以本机测试结果为准。
 ```
 
 ---
