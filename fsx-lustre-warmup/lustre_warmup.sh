@@ -89,7 +89,7 @@ else
     COLLECTOR_PID=$!
     cat "$TEMP_ALL_FILES" | xargs -P "$PARALLEL_JOBS" -I{} bash -c '
         file="$1"
-        if lfs hsm_state "$file" 2>/dev/null | grep -q "released exists archived"; then
+        if lfs hsm_state "$file" 2>/dev/null | grep -q "released"; then
             echo "$file"
         fi
     ' -- {} > "$FIFO_IDENTIFY"
