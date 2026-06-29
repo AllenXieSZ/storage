@@ -90,6 +90,7 @@ echo "0" > "$PROGRESS_FILE"
 log "Scanning for files..."
 # CHANGE: one-shot find (write list directly) is far faster than the per-file bash while-loop
 # for millions of files; report start and completion so the user sees progress.
+log "Scanning may take a while for millions of files..."
 find "$DIRECTORY" -type f > "$TEMP_ALL_FILES"
 TOTAL_FILES=$(wc -l < "$TEMP_ALL_FILES")
 log "Found total $TOTAL_FILES files"
@@ -102,7 +103,6 @@ if [ "$FIRST_RUN" = true ]; then
 else
 # Find files that need release - using parallel processing
 log "Identifying release files in parallel..."
-log "Identifying may take a while for millions of files..."
 
 # Create a named pipe for collecting results
 FIFO_IDENTIFY="$TEMP_DIR/identify_fifo"
@@ -149,6 +149,12 @@ fi
 log "Starting warmup process with $PARALLEL_JOBS parallel jobs"
 log "Processing $HSM_RESTORE_BATCH files per hsm_restore command"
 
+# CHANGE (bugfix): mark when the *restore* phase actually begins, so the reported
+# rate reflects restore throughput only — NOT the whole script runtime (which
+# includes scan + identify and made the rate look ~7x too low, e.g. 51/s vs real 361/s).
+RESTORE_START_TIME=$(date +%s)
+export RESTORE_START_TIME
+
 # Create a named pipe for real-time progress monitoring
 PROGRESS_PIPE="$TEMP_DIR/progress_pipe"
 mkfifo "$PROGRESS_PIPE"
@@ -158,6 +164,10 @@ mkfifo "$PROGRESS_PIPE"
     # CHANGE: in-memory counters instead of "wc -l" on growing files (avoids O(n^2) slowdown)
     SUCCESS=0
     FAILED=0
+    # CHANGE (bugfix): track previous report point to compute an *interval* (instantaneous)
+    # rate over the last reporting window — the most useful signal for "is it speeding up?".
+    PREV_TIME=$RESTORE_START_TIME
+    PREV_PROCESSED=0
     while IFS= read -r line; do
         if [[ $line == SUCCESS* ]]; then
             echo "${line#SUCCESS }" >> "$TEMP_SUCCESS"
@@ -172,15 +182,28 @@ mkfifo "$PROGRESS_PIPE"
 
         if [ $((PROCESSED % 1000)) -eq 0 ] || [ "$PROCESSED" -eq "$RELEASED_FILES" ]; then
             CURRENT_TIME=$(date +%s)
-            ELAPSED_SO_FAR=$((CURRENT_TIME - START_TIME))
-            if [ $ELAPSED_SO_FAR -gt 0 ]; then
-                RATE=$(bc <<< "scale=2; $PROCESSED / $ELAPSED_SO_FAR")
+            # CHANGE (bugfix): average rate measured from RESTORE_START_TIME, not script START_TIME.
+            RESTORE_ELAPSED=$((CURRENT_TIME - RESTORE_START_TIME))
+            if [ $RESTORE_ELAPSED -gt 0 ]; then
+                AVG_RATE=$(bc <<< "scale=2; $PROCESSED / $RESTORE_ELAPSED")
             else
-                RATE="N/A"
+                AVG_RATE="N/A"
             fi
-            
+
+            # CHANGE (bugfix): interval rate over the last window (files since last report / seconds since last report).
+            INTERVAL_TIME=$((CURRENT_TIME - PREV_TIME))
+            INTERVAL_FILES=$((PROCESSED - PREV_PROCESSED))
+            if [ $INTERVAL_TIME -gt 0 ]; then
+                INST_RATE=$(bc <<< "scale=2; $INTERVAL_FILES / $INTERVAL_TIME")
+            else
+                INST_RATE="$AVG_RATE"
+            fi
+            PREV_TIME=$CURRENT_TIME
+            PREV_PROCESSED=$PROCESSED
+
             PROGRESS=$((PROCESSED * 100 / RELEASED_FILES))
-            log "Progress: $PROGRESS% ($PROCESSED/$RELEASED_FILES) - Rate: $RATE files/sec - Success: $SUCCESS - Failed: $FAILED"
+            # AvgRate = restore-only average; InstRate = throughput over the last window.
+            log "Progress: $PROGRESS% ($PROCESSED/$RELEASED_FILES) - AvgRate: $AVG_RATE files/sec - InstRate: $INST_RATE files/sec - Success: $SUCCESS - Failed: $FAILED"
         fi
     done < "$PROGRESS_PIPE"
 ) &
@@ -235,16 +258,27 @@ wait $MONITOR_PID
 END_TIME=$(date +%s)
 TOTAL_TIME=$((END_TIME - START_TIME))
 FORMATTED_TIME=$(format_time $TOTAL_TIME)
+# CHANGE (bugfix): also report restore-only time/rate so the headline number isn't
+# diluted by the scan + identify phases.
+RESTORE_TIME=$((END_TIME - RESTORE_START_TIME))
+FORMATTED_RESTORE_TIME=$(format_time $RESTORE_TIME)
 
 # Get final counts
 FINAL_SUCCESS=$(wc -l < "$TEMP_SUCCESS")
 FINAL_FAILED=$(wc -l < "$TEMP_FAILED")
 FINAL_PROCESSED=$((FINAL_SUCCESS + FINAL_FAILED))
+if [ $RESTORE_TIME -gt 0 ]; then
+    FINAL_RESTORE_RATE=$(bc <<< "scale=2; $FINAL_PROCESSED / $RESTORE_TIME")
+else
+    FINAL_RESTORE_RATE="N/A"
+fi
 
 # Final report
 log "Warmup process completed"
 log "----------------------------------------"
-log "Total time: $FORMATTED_TIME"
+log "Total time (incl. scan+identify): $FORMATTED_TIME"
+log "Restore-only time: $FORMATTED_RESTORE_TIME"
+log "Restore-only average rate: $FINAL_RESTORE_RATE files/sec"
 log "Total files processed: $FINAL_PROCESSED"
 log "Successfully warmup: $FINAL_SUCCESS"
 log "Failed to warmup: $FINAL_FAILED"

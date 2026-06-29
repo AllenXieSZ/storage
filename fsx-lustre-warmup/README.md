@@ -46,3 +46,19 @@ sudo ./lustre_warmup.sh -b -j 64 -f false -d /mnt/lustre/yourdir
 当文件累积到百万级时形成 **O(n²)** 开销，导致 restore 表观速率随时间单调衰减（实测 333/s → 37/s）。
 本版改为 **内存计数器**（monitor 循环内 `((SUCCESS++))`/`((FAILED++))`），消除该瓶颈。
 排查依据：客户端 CPU/网络/Lustre 资源全程低利用率，瓶颈定位为脚本侧进度统计而非 FSx 服务端。
+
+## 速率统计修复（2026-06-29）
+原版进度 monitor 用 `RATE = PROCESSED / (now - START_TIME)` 计算速率，而 `START_TIME` 是
+**整个脚本启动时刻**——包含了前面的 scan + identify 阶段（百万级文件时可达数小时）。
+结果：restore 刚开始时，restore 吞吐被前面的空等时间严重稀释（实测显示 51/s，而真实 restore 速率约 361/s，差约 7 倍）。
+
+本版修复：
+- 在真正进入 restore 阶段前打 `RESTORE_START_TIME`，**AvgRate** 改为仅基于 restore 段时间计算；
+- 新增 **InstRate**（瞬时速率）：最近一个上报窗口的「新增文件数 / 窗口秒数」，
+  是判断"是否在提速/降速"最直接的指标（累计均值会被历史拖平）；
+- 最终报告新增 `Restore-only time` 与 `Restore-only average rate`，headline 不再被扫描阶段污染。
+
+新版进度行示例：
+```
+Progress: 3% (586000/16982833) - AvgRate: 361.20 files/sec - InstRate: 333.00 files/sec - Success: 586000 - Failed: 0
+```
