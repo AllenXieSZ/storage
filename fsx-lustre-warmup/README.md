@@ -40,3 +40,9 @@ sudo ./lustre_warmup.sh -b -j 64 -f false -d /mnt/lustre/yourdir
   单客户端约 85–170 文件/s，多客户端 ~4 台即饱和、总吞吐硬顶 ~345 文件/s。
 - 与 metadata IOPS、存储容量/吞吐、客户端 RPC 调优均无关；唯一杠杆是加客户端（且很快饱和）。
 - `-f true` 省的是 identify 判定时间，不改变 restore 本身的速率上限。
+
+## 性能修复（重要）
+原版（及早期本改版）的进度 monitor 每处理一个文件就对 success.txt/failed.txt 执行 `wc -l`，
+当文件累积到百万级时形成 **O(n²)** 开销，导致 restore 表观速率随时间单调衰减（实测 333/s → 37/s）。
+本版改为 **内存计数器**（monitor 循环内 `((SUCCESS++))`/`((FAILED++))`），消除该瓶颈。
+排查依据：客户端 CPU/网络/Lustre 资源全程低利用率，瓶颈定位为脚本侧进度统计而非 FSx 服务端。

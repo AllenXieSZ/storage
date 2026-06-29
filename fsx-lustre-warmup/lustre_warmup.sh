@@ -105,10 +105,10 @@ fi
 log "Starting restore: $PARALLEL_JOBS parallel jobs, $HSM_RESTORE_BATCH files/cmd"
 PROGRESS_PIPE="$TEMP_DIR/progress_pipe"; mkfifo "$PROGRESS_PIPE"
 (
+    SUCCESS=0; FAILED=0          # 内存计数器，避免反复 wc -l 大文件（O(n^2)）
     while IFS= read -r line; do
-        if   [[ $line == SUCCESS* ]]; then echo "${line#SUCCESS }" >> "$TEMP_SUCCESS"
-        elif [[ $line == FAILED*  ]]; then echo "${line#FAILED }"  >> "$TEMP_FAILED"; fi
-        SUCCESS=$(wc -l < "$TEMP_SUCCESS"); FAILED=$(wc -l < "$TEMP_FAILED")
+        if   [[ $line == SUCCESS* ]]; then echo "${line#SUCCESS }" >> "$TEMP_SUCCESS"; ((SUCCESS++))
+        elif [[ $line == FAILED*  ]]; then echo "${line#FAILED }"  >> "$TEMP_FAILED";  ((FAILED++)); fi
         PROCESSED=$((SUCCESS + FAILED))
         if [ $((PROCESSED % 1000)) -eq 0 ] || [ "$PROCESSED" -eq "$RELEASED_FILES" ]; then
             NOW=$(date +%s); EL=$((NOW - START_TIME))
