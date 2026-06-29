@@ -1,6 +1,11 @@
 # FSx for Lustre — S3 Warmup (HSM restore)
 
-> **当前版本：`v2.0-lustre2.15.6`**（脚本头部 `SCRIPT_VERSION`，启动日志会打印版本号 + 客户端 `lfs --version`）
+> **版本对应的文件：**
+> | 文件 | 版本 | 说明 |
+> |---|---|---|
+> | `lustre_warmup_orig.sh` | upstream | [tzhu0704/s3warmup](https://github.com/tzhu0704/s3warmup) 原版 |
+> | `lustre_warmup.sh` | v1 | first_run 参数 + 内存计数器 + 速率统计修复（identify 仍逐文件 `lfs hsm_state`） |
+> | `lustre_warmup_v2.0-lustre2.15.6.sh` | **v2.0** | 在 v1 基础上把 identify 改为 `lfs find -L released`（~40x），带 `SCRIPT_VERSION` |
 
 基于 [tzhu0704/s3warmup](https://github.com/tzhu0704/s3warmup) 的 `lustre_warmup.sh` 改造，
 新增 `-f first_run` 参数，可在"首次全量预热"时跳过 identify 阶段，直接对全部文件 `lfs hsm_restore`。
