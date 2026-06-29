@@ -1,7 +1,21 @@
 # FSx for Lustre — S3 Warmup (HSM restore)
 
+> **当前版本：`v2.0-lustre2.15.6`**（脚本头部 `SCRIPT_VERSION`，启动日志会打印版本号 + 客户端 `lfs --version`）
+
 基于 [tzhu0704/s3warmup](https://github.com/tzhu0704/s3warmup) 的 `lustre_warmup.sh` 改造，
 新增 `-f first_run` 参数，可在"首次全量预热"时跳过 identify 阶段，直接对全部文件 `lfs hsm_restore`。
+
+## 快速识别优化（v2.0，2026-06-29）
+非首次预热（`-f false`）时，需要先识别哪些文件是 HSM **released**（数据已驱逐到 S3、本地只剩 stub）。
+
+- **旧实现**：对每个文件跑一次 `lfs hsm_state | grep released` —— 每文件一次 MDT 元数据 RPC，2000 万文件即 2000 万次 RPC，极慢。
+- **v2.0 实现**：改用 Lustre 原生的 **`lfs find -type f -L released`** 单次 MDT 扫描直接列出所有 released 文件，无需逐文件查询。
+- **实测加速 ~40x**（FSx for Lustre, lfs 2.15.6, 同环境下）：`lfs find -L released` ≈ **720 文件/s** vs 逐文件 `hsm_state` ≈ **17 文件/s**。
+- **正确性验证**：抽样确认 `-L released` 命中的文件状态确为 `(0x...d) released exists archived`；对已 restore 的目录返回 0，对未 restore 目录返回全量，行为正确。
+- **兼容性**：脚本通过 `lfs find --help` 检测客户端是否支持 `--layout|-L released`（lfs ≥ 2.13）；**不支持时自动回退**到旧的逐文件 `hsm_state` 扫描，老客户端也能跑。
+- 依据：Lustre 官方 `lfs find` 文档，`-L`/`--layout` 支持 `released` layout 类型；客户端 `lfs 2.15.6` 实测可用。
+
+> 注：`-f true`（首次全量预热）本来就跳过 identify，不受此优化影响；优化仅作用于 `-f false`。
 
 ## 用法
 ```bash
