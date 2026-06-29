@@ -90,7 +90,6 @@ echo "0" > "$PROGRESS_FILE"
 log "Scanning for files..."
 # CHANGE: one-shot find (write list directly) is far faster than the per-file bash while-loop
 # for millions of files; report start and completion so the user sees progress.
-log "Scanning may take a while for millions of files..."
 find "$DIRECTORY" -type f > "$TEMP_ALL_FILES"
 TOTAL_FILES=$(wc -l < "$TEMP_ALL_FILES")
 log "Found total $TOTAL_FILES files"
@@ -103,6 +102,7 @@ if [ "$FIRST_RUN" = true ]; then
 else
 # Find files that need release - using parallel processing
 log "Identifying release files in parallel..."
+log "Identifying may take a while for millions of files..."
 
 # Create a named pipe for collecting results
 FIFO_IDENTIFY="$TEMP_DIR/identify_fifo"
