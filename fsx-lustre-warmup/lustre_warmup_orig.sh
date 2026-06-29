@@ -7,7 +7,6 @@ PARALLEL_JOBS=32  # Number of parallel restore jobs
 BACKGROUND=false
 BATCH_SIZE=10000  # Process files in batches for progress reporting
 HSM_RESTORE_BATCH=5  # Number of files to process in each hsm_restore command
-FIRST_RUN=true  # CHANGE: first_run=true skips identify phase and restores ALL files directly (default)
 
 # Create logs directory if it doesn't exist
 mkdir -p "$LOG_DIR"
@@ -33,21 +32,19 @@ usage() {
     echo "  -j JOBS      Number of parallel jobs (default: 32)"
     echo "  -s SIZE      Batch size for progress reporting (default: 10000)"
     echo "  -n SIZE      Number of files to process in each hsm_restore command (default: 5)"
-    echo "  -f true|false  CHANGE: first_run; true skips identify and restores ALL files (default true)"
     echo "  -d DIR       Directory to process (required)"
     exit 1
 }
 
 # Parse command line arguments
 DIRECTORY=""
-while getopts "bd:j:s:n:f:h" opt; do
+while getopts "bd:j:s:n:h" opt; do
     case $opt in
         b) BACKGROUND=true ;;
         d) DIRECTORY=$OPTARG ;;
         j) PARALLEL_JOBS=$OPTARG ;;
         s) BATCH_SIZE=$OPTARG ;;
         n) HSM_RESTORE_BATCH=$OPTARG ;;
-        f) FIRST_RUN=$OPTARG ;;  # CHANGE: first_run flag
         h) usage ;;
         *) usage ;;
     esac
@@ -88,19 +85,21 @@ touch "$TEMP_ALL_FILES" "$TEMP_RELEASED_FILES" "$TEMP_SUCCESS" "$TEMP_FAILED"
 echo "0" > "$PROGRESS_FILE"
 
 log "Scanning for files..."
-# CHANGE: one-shot find (write list directly) is far faster than the per-file bash while-loop
-# for millions of files; report start and completion so the user sees progress.
-log "Scanning may take a while for millions of files..."
-find "$DIRECTORY" -type f > "$TEMP_ALL_FILES"
+# Use find with progress reporting for large directories
+total_files=0
+find "$DIRECTORY" -type f | while read -r file; do
+    echo "$file" >> "$TEMP_ALL_FILES"
+    ((total_files++))
+    
+    # Show progress every BATCH_SIZE files
+    if [ $((total_files % BATCH_SIZE)) -eq 0 ]; then
+        log "Scanning progress: $total_files files found so far..."
+    fi
+done
+
 TOTAL_FILES=$(wc -l < "$TEMP_ALL_FILES")
 log "Found total $TOTAL_FILES files"
 
-# CHANGE: when first_run=true, skip identify and treat ALL files as needing restore
-#         (already-restored files become a harmless no-op on hsm_restore).
-if [ "$FIRST_RUN" = true ]; then
-    log "first_run=true -> skip identify phase, restore ALL files directly"
-    cp "$TEMP_ALL_FILES" "$TEMP_RELEASED_FILES"
-else
 # Find files that need release - using parallel processing
 log "Identifying release files in parallel..."
 
@@ -134,7 +133,6 @@ cat "$TEMP_ALL_FILES" | xargs -P "$PARALLEL_JOBS" -I{} bash -c '
 
 # Wait for collector to finish
 wait $COLLECTOR_PID
-fi  # CHANGE: end of first_run if/else
 
 RELEASED_FILES=$(wc -l < "$TEMP_RELEASED_FILES")
 log "Found $RELEASED_FILES files that need warming up"
@@ -155,19 +153,16 @@ mkfifo "$PROGRESS_PIPE"
 
 # Start background process to monitor progress
 (
-    # CHANGE: in-memory counters instead of "wc -l" on growing files (avoids O(n^2) slowdown)
-    SUCCESS=0
-    FAILED=0
     while IFS= read -r line; do
         if [[ $line == SUCCESS* ]]; then
             echo "${line#SUCCESS }" >> "$TEMP_SUCCESS"
-            ((SUCCESS++))
         elif [[ $line == FAILED* ]]; then
             echo "${line#FAILED }" >> "$TEMP_FAILED"
-            ((FAILED++))
         fi
 
         # Calculate current progress
+        SUCCESS=$(wc -l < "$TEMP_SUCCESS")
+        FAILED=$(wc -l < "$TEMP_FAILED")
         PROCESSED=$((SUCCESS + FAILED))
 
         if [ $((PROCESSED % 1000)) -eq 0 ] || [ "$PROCESSED" -eq "$RELEASED_FILES" ]; then
