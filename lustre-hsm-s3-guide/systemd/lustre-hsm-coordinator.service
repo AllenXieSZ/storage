@@ -1,0 +1,13 @@
+[Unit]
+Description=Enable Lustre HSM Coordinator on MDT
+After=lnet.service
+RequiresMountsFor=/mnt/mdt
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sh -c 'until lctl get_param -N mdt.lustrefs-MDT0000.hsm_control >/dev/null 2>&1; do sleep 3; done'
+ExecStart=/usr/sbin/lctl set_param mdt.lustrefs-MDT0000.hsm_control=enabled mdt.lustrefs-MDT0000.hsm.default_archive_id=1 mdt.lustrefs-MDT0000.hsm.max_requests=6
+
+[Install]
+WantedBy=multi-user.target

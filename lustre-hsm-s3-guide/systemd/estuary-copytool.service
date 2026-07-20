@@ -1,0 +1,18 @@
+[Unit]
+Description=Estuary Lustre HSM S3 Copytool
+Documentation=https://git.ichec.ie/performance/storage/estuary
+After=network-online.target remote-fs.target
+Wants=network-online.target
+RequiresMountsFor=/mnt/lustre
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c 'until mountpoint -q /mnt/lustre; do echo waiting for /mnt/lustre; sleep 3; done'
+ExecStart=/usr/sbin/estuary_s3copytool -c /etc/estuary/config.cfg --archive=1 /mnt/lustre
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/var/log/estuary.log
+StandardError=append:/var/log/estuary.log
+
+[Install]
+WantedBy=multi-user.target
