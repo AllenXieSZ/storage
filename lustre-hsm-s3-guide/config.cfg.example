@@ -1,0 +1,10 @@
+# Estuary copytool config — 复制到 /etc/estuary/config.cfg 并填入真实值 (chmod 600)
+# 切勿把真实 AK/SK 提交到 git！
+
+access_key = "<YOUR_ACCESS_KEY>";
+secret_key = "<YOUR_SECRET_KEY>";
+host = "s3.us-east-2.amazonaws.com";
+bucket_prefix = "<YOUR_BUCKET>";
+bucket_count = 1;
+chunk_size = 104857600;
+ssl = true
