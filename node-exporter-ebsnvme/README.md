@@ -34,3 +34,8 @@ make build
 配套 Grafana dashboard 见仓库 `grafana-dashboards/disk-characteristics-ebsnvme.json`。
 
 > 注：collector 默认 disabled，需显式 `--collector.ebsnvme` 开启。读 NVMe log page 需要对应设备权限。
+
+## 上游 node_exporter README 中的 collector 描述行（提交版）
+```
+197:ebsnvme | Exposes [Amazon EBS detailed performance statistics](https://docs.aws.amazon.com/ebs/latest/userguide/nvme-detailed-performance-stats.html) read from the EBS NVMe device log page (IOPS, throughput, latency histograms, queue length), labelled by `volume_id`, `device`, and `mount_path`. Requires running on a Nitro-based EC2 instance with `CAP_SYS_ADMIN` (typically as root) to issue the NVMe admin ioctl. | Linux
+```
