@@ -34,6 +34,11 @@
 | **[node-exporter-ebsnvme](./node-exporter-ebsnvme/)** | 自研 Prometheus node_exporter collector，采集 EBS NVMe 详细性能统计（IOPS/吞吐/延迟直方图 + IOPS/吞吐限流时间）。已提交上游 prometheus/node_exporter |
 | **[grafana-dashboards](./grafana-dashboards/)** | Disk Characteristics dashboard，集成 `node_ebs_*` 指标，可视化磁盘性能/饱和度/EBS 限流 |
 
+### 🖥️ GPU / 分布式训练（Training）
+| 项目 | 内容 |
+|------|------|
+| **[training-sample](./training-sample/)** | 8×H100 (p5.48xlarge) 上从零训练 ViT-Huge 632M 图像分类的极简样例（PyTorch DDP + HF Trainer，checkpoint 存 FSx Lustre）。36 行脚本 + 完整 README，含续训/混合精度/NCCL NVLS 说明 |
+
 ### ☁️ 基础设施 & 样例
 | 项目 | 内容 |
 |------|------|
@@ -61,6 +66,7 @@ cd ebs-benchmark && python ebs-bench.py --region us-east-2   # EBS 基准
 - **6PB Lustre 预训练存储 de-risk**：warmup 速率由 MDT 并行度决定（非 metadata IOPS）；单客户端吞吐 = OSS 数 × single-flow 上限
 - **自建 Lustre HSM → S3**：开源 copytool 适配 Lustre 2.15.8 + SigV4 + restore 数据修复
 - **EBS NVMe 可观测性**：直接从 NVMe log page 读卷级 IOPS/吞吐限流信号，接入 Prometheus
+- **训练存储实战**：8×H100 分布式训练用 FSx Lustre 存 checkpoint；踩坑教训——Lustre 静默掉载会让 checkpoint 回退写根盘并撑爆（用 `stat -f` 校验挂载）
 
 ## 前提
 - Python 3.8+ / `boto3`
