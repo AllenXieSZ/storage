@@ -27,6 +27,7 @@
 | **[self-built-lustre-raid1](./self-built-lustre-raid1/)** | 自建 Lustre + mdadm RAID1 全套：部署 / 性能 / OST 故障 / RAID1 改造 / 换盘 / 扩展测试 / 无 RAID EBS 丢失测试 |
 | **[fsx-lustre-warmup](./fsx-lustre-warmup/)** | FSx Lustre warmup（S3→Lustre）脚本，含 v2 快速识别版（`lfs find -L released`，~40x 加速） |
 | **[lustre-hsm-s3-guide](./lustre-hsm-s3-guide/)** | 开源 Lustre 通过 HSM (Estuary copytool) 归档到 S3 的完整部署指南（含源码补丁、systemd 自启） |
+| **[fsx-lustre-efa-diag](./fsx-lustre-efa-diag/)** | FSx Lustre + EFA 一键诊断脚本 + 分层排障 SOP：四层自动检查（EFA设备/libfabric/LNet-Lustre/AWS基础设施），自动比对客户端 vs FSx AZ，定位 OST DISCONN / CREATE_AH err-22 / 内核漂移 |
 
 ### 📈 可观测性（Observability）
 | 项目 | 内容 |
@@ -67,6 +68,7 @@ cd ebs-benchmark && python ebs-bench.py --region us-east-2   # EBS 基准
 - **自建 Lustre HSM → S3**：开源 copytool 适配 Lustre 2.15.8 + SigV4 + restore 数据修复
 - **EBS NVMe 可观测性**：直接从 NVMe log page 读卷级 IOPS/吞吐限流信号，接入 Prometheus
 - **训练存储实战**：8×H100 分布式训练用 FSx Lustre 存 checkpoint；踩坑教训——Lustre 静默掉载会让 checkpoint 回退写根盘并撑爆（用 `stat -f` 校验挂载）
+- **EFA Lustre 排障方法论**：EFA 客户端必须与 FSx 同 AZ（跨 AZ → CREATE_AH err-22 → OST 全 DISCONN）；一次只改一个变量；OST 状态看 `ost_server_uuid` 非 `lnetctl peer state`
 
 ## 前提
 - Python 3.8+ / `boto3`
