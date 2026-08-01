@@ -20,6 +20,34 @@
 
 ---
 
+## 双向验证：升档 125→250 与降档 250→125 行为一致（2026-08-01 两次实测）
+
+同一 FS 做了两次变配，**升档和降档都会触发 OST 断连 + rc=-19 报错，断连约 1.5–2 分钟，Lustre recovery 自愈**：
+
+| 项 | 升档 125→250 | 降档 250→125 |
+|---|---|---|
+| 发起时刻 (UTC) | 10:19:38 | 16:20:17 |
+| 断连开始 | 10:20:41（发起后 ~63s） | 16:21:31（发起后 ~74s） |
+| 恢复完成 | ~10:22:37 | 16:23:39–40 |
+| 断连时长 | 约 90–110s | 约 2 分钟 |
+| 报错 | `rc = -19` + `Connection lost` | 同 |
+| 应用影响 | 在途 IO 挂起等 recovery（透明） | 同 |
+| OST 迁移 | — | **实测 OST0000 从 IP .210 → .7**（换文件服务器印证） |
+
+降档 250→125 的 dmesg 原文（含 `Connection restored` 恢复记录）：
+```
+16:21:31  LustreError 11-0: zmuqnb4v-OST0000-osc-xxxx: operation ost_read to node <OST-IP-A>@tcp failed: rc = -19
+16:21:31  Connection to zmuqnb4v-OST0000 (at <OST-IP-A>@tcp) was lost; in progress operations will wait for recovery to complete
+16:23:15  Connection restored to <OST-IP-B>@tcp (OST0003)
+16:23:30  Connection restored to <OST-IP-A>@tcp (OST0001)
+16:23:39  Connection restored ... (OST0002)
+16:23:40  OST0003 lost again → 立即 restored
+```
+
+**教训**：变配 IO 影响要**事后回查 dmesg**（历史留痕可靠），不能只靠实时 `ost_server_uuid` 抽查——断连窗口仅约 2 分钟，实时抽查极易错过，但 dmesg 一定有记录。
+
+---
+
 ## 报错信息（dmesg 原文）
 
 ```
