@@ -1,0 +1,105 @@
+# FSx for Lustre 在线变配吞吐（PerUnitStorageThroughput）对运行中 IO 的影响
+
+**测试日期**：2026-08-01
+**文件系统**：FSx for Lustre PERSISTENT_2，4.8 TiB，us-east-2b（脱敏 FS-ID）
+**客户端**：i7i.4xlarge（16 vCPU），Amazon Linux 2023，lustre-client 2.15.6
+**场景**：在 24 小时 fio 高压压测运行过程中，在线修改 `PerUnitStorageThroughput` 125 → 250 MBps/TiB，实测对运行中 IO 的影响。
+
+---
+
+## 结论速览（TL;DR）
+
+- **在线变配吞吐会导致 OST 短暂断连约 90–110 秒**（后台替换文件服务器）。
+- **报错信息**：dmesg 出现 `LustreError 11-0: ... operation ost_read ... failed: rc = -19`（ENODEV）+ `Connection to OSTxxxx was lost`。
+- **应用层表现**：**不是直接 IO 失败退出，而是"IO 挂起等待恢复"**。Lustre recovery 机制把在途操作挂起，OST 重连后自动 replay/继续。fio 进程数从 17 短暂掉到 0–1（线程阻塞），恢复后回到 17，**压测主进程全程存活，无需人工干预**。
+- **官方限制（已查 User Guide 证实）**：
+  - 变配期间文件系统「最长 1 小时不可用」（实测本次仅约 100 秒 OST 抖动，远小于上限）。
+  - 两次吞吐变配之间必须间隔 **6 小时**（`whichever is longer`：6h 或优化完成）。
+  - PERSISTENT_2 合法档位：125 / 250 / 500 / 1000 MBps/TiB。
+- **生产启示**：在线变配应安排在业务低峰；应用需能容忍约 1–2 分钟的 IO 停顿（挂起而非报错）。不能假设变配对在线业务零影响。
+
+---
+
+## 报错信息（dmesg 原文）
+
+```
+[Sat Aug  1 10:20:41 2026] LustreError: 11-0: zmuqnb4v-OST0002-osc-xxxx: operation ost_read to node <OST-IP>@tcp failed: rc = -19
+[Sat Aug  1 10:20:41 2026] Lustre: zmuqnb4v-OST0002-osc-xxxx: Connection to zmuqnb4v-OST0002 (at <OST-IP>@tcp) was lost; in progress operations using this service will wait for recovery to complete
+```
+
+**关键解读**：
+- `rc = -19` = `-ENODEV`：OST 对应的文件服务器正在被 FSx 后台替换，设备暂时不存在。
+- `in progress operations ... will wait for recovery to complete`：**这是 Lustre 的保护机制**——在途 IO 不会立刻失败，而是挂起等待重连恢复。这解释了为什么应用没崩溃。
+
+---
+
+## 时间线（OST 连接状态，客户端 `lctl get_param osc.*.ost_server_uuid`）
+
+变配发起：`2026-08-01T10:19:38Z`（125 → 250）
+
+| 时刻 (UTC) | 4×OST 状态 | fio 进程 | 说明 |
+|---|---|---|---|
+| 10:20:16 | 全 FULL | 17 | 变配刚发起，尚正常 |
+| 10:20:41 | (dmesg) OST0002 Connection lost, rc=-19 | — | **断连开始** |
+| 10:20:56 | 全 CONNECTING | 17 | 4 OST 全部进入重连 |
+| 10:21:56 | 2×DISCONN + 2×CONNECTING | 17 | 断连最严重点 |
+| 10:22:37 | 2×CONNECTING + 2×FULL | 17 | 开始恢复 |
+| 10:22:57 | **全 FULL（恢复）** | **1** | OST 全恢复；fio 线程因刚才阻塞掉到 1 |
+| 10:23:57 | 全 FULL | 17 | fio 恢复到满并发 |
+| 10:28:57 / 10:29:17 | 全 FULL | 0 | fio 在场景切换间隙（正常） |
+| 10:29:37+ | 全 FULL | 17 | 稳定 |
+
+**OST 断连持续时间**：约 10:20:41 → 10:22:37，**约 90–110 秒**。
+
+> 注：AWS 侧 `AdministrativeActions` 在 OST 恢复后仍显示 `State=UPDATING / IN_PROGRESS`——即"OST 恢复"只是变配第一阶段，完整换服务器 + 新吞吐生效还需更长时间。
+
+---
+
+## 应用（fio）表现
+
+- 压测脚本：16 并发 fio，覆盖 seq/rand/mixed/metadata 多场景轮转。
+- 变配期间 fio 进程数：17 → （断连期仍 17，线程阻塞在 IO 等待）→ 恢复瞬间掉到 1 → 1 分钟内回到 17。
+- **压测主进程（`lustre_stress_24h.sh`）全程存活**，未崩溃、未退出。
+- 手动验证：断连恢复后 `echo > /fsx/.../test && cat && rm` 读写正常，`lfs df` 4 OST + 2 MDT 全部在线。
+
+---
+
+## 吞吐前后对照（burst 耗尽 + 变配）
+
+同一 4.8 TiB FS，24h 压测各轮顺序读写（fio 1M，16 并发，direct=1）：
+
+| 轮次 | 顺序写 | 顺序读 | 状态 |
+|---|---|---|---|
+| Round 1–2（刚启动） | 1671 / 1655 MB/s | 2003 MB/s | **burst 额度充足** |
+| Round 3+（持续高压后） | ~648–656 MB/s | ~596–601 MB/s | **burst 耗尽，回落磁盘基线** |
+
+**磁盘基线验证**：PERSISTENT-125 磁盘吞吐 baseline = 125 MBps/TiB × 4.8 TiB = **600 MBps** ≈ 实测 648/599 MB/s。
+（官方：写 & 非缓存读性能 = min(网络吞吐, 磁盘吞吐)；burst 走 network I/O credit 机制，额度耗尽回落基线。）
+
+变配到 250 MBps/TiB 后，磁盘基线预期升到 1200 MBps（待变配完成后验证，另附）。
+
+---
+
+## 官方文档依据（FSx for Lustre User Guide）
+
+1. **变配不可用窗口**："Your file system will be unavailable for up to an hour during throughput capacity scaling."（后台 switches out the file servers）
+2. **6 小时最小间隔**："You can't make further throughput capacity changes until 6 hours after the last request, or until the throughput optimization process has completed, whichever is longer."
+3. **合法档位**：Persistent 2 = 125/250/500/1000 MBps/TiB。
+4. **burst 机制**："FSx for Lustre file systems provide burst read throughput using a network I/O credit mechanism..."
+
+---
+
+## 监控方法（供复现）
+
+- OST 连接状态（权威判据）：`lctl get_param -n osc.*.ost_server_uuid`（FULL/IDLE=正常，DISCONN/CONNECTING=断连中）。
+- 报错：`dmesg -T | grep -iE 'LustreError|Connection|rc = -|recovery'`。
+- 变配进度（AWS 侧）：`aws fsx describe-file-systems ... --query 'FileSystems[0].AdministrativeActions'`。
+
+### ⚠️ 监控脚本已知缺陷（诚实记录）
+
+本次用的 `throughput_change_watch.sh` 里，用「在压测 workdir 写探测文件 + 10s 超时」来判断 IO 是否可用，结果**全程误报 `RW_FAIL`**（即便 OST 全 FULL、IO 实际正常时也报）。原因：探测文件与满负荷 fio 争抢同一目录 + 10s 超时在高压下不够。
+**教训**：IO 健康探测应写到独立轻负载路径、超时给足（30s+），或直接以 `ost_server_uuid` 连接状态 + dmesg 为准，不要用"在高压目录里争抢写"来判断可用性。`RW_FAIL` 本次应忽略，以 dmesg + 手动测试 + lfs df 为准。
+
+---
+
+*生成：2026-08-01，配合 24h Lustre 压测（lustre_stress_24h.sh）与每 6 小时吞吐翻转实验。*
