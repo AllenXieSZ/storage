@@ -1,0 +1,54 @@
+[  198.242979] BUG: kernel NULL pointer dereference, address: <hex>
+[  198.243815] #PF: supervisor read access in kernel mode
+[  198.244514] #PF: error_code(0x0000) - not-present page
+[  198.245202] PGD 0 P4D 0 
+[  198.245544] Oops: Oops: 0000 [#1] SMP NOPTI
+[  198.246114] CPU: 11 UID: 0 PID: 0 Comm: swapper/11 Kdump: loaded Not tainted 6.18.38-76.139.amzn2023.x86_64 #2 PREEMPT(none) 
+[  198.247645] Hardware name: Amazon EC2 i7i.4xlarge/, BIOS 1.0 10/16/2017
+[  198.248538] RIP: 0010:__queue_work+0x1c/0x3c0
+[  198.249121] Code: 90 90 90 90 90 90 90 90 90 90 90 90 90 90 0f 1f 44 00 00 41 57 49 89 d7 41 56 41 55 41 54 41 89 fc 55 53 48 89 f3 48 83 ec 10 <f7> 86 00 01 00 00 00 80 01 00 0f 85 5e 02 00 00 48 bd eb 83 b5 80
+[  198.251663] RSP: 0018:<addr> EFLAGS: 00010086
+[  198.252371] RAX: <hex> RBX: <hex> RCX: <addr>
+[  198.253338] RDX: <addr> RSI: <hex> RDI: <hex>
+[  198.254309] RBP: <hex> R08: <hex> R09: <addr>
+[  198.255262] R10: <hex> R11: <addr> R12: <hex>
+[  198.256234] R13: <hex> R14: <hex> R15: <addr>
+[  198.257200] FS:  <hex>(0000) GS:<addr>(0000) knlGS:<hex>
+[  198.258298] CS:  0010 DS: 0000 ES: 0000 CR0: <hex>
+[  198.259065] CR2: <hex> CR3: <hex> CR4: <hex>
+[  198.260039] PKRU: 55555554
+[  198.260408] Call Trace:
+[  198.260729]  <IRQ>
+[  198.260999]  queue_work_on+0x4a/0x60
+[  198.261486]  iomap_dio_bio_end_io+0x50/0x80
+[  198.262049]  blk_mq_end_request_batch+0x10a/0x550
+[  198.262685]  ? sched_balance_rq+0x120/0x780
+[  198.263244]  ? kvm_sched_clock_read+0xd/0x20
+[  198.263821]  nvme_irq+0x8b/0xa0
+[  198.264249]  ? __pfx_nvme_pci_complete_batch+0x10/0x10
+[  198.264949]  __handle_irq_event_percpu+0x51/0x240
+[  198.265579]  ? ktime_get+0x37/0xc0
+[  198.266035]  handle_irq_event+0x34/0x70
+[  198.266559]  handle_edge_irq+0xc1/0x1b0
+[  198.267080]  __common_interrupt+0x41/0xf0
+[  198.267608]  common_interrupt+0x7a/0xa0
+[  198.268140]  </IRQ>
+[  198.268419]  <TASK>
+[  198.268696]  asm_common_interrupt+0x22/0x40
+[  198.269262] RIP: 0010:cpuidle_enter_state+0xc2/0x410
+[  198.269937] Code: 00 e8 d2 94 4d ff e8 dd f4 ff ff 8b 53 04 49 89 c5 0f 1f 44 00 00 31 ff e8 bb f2 4b ff 45 84 ff 0f 85 33 02 00 00 fb 45 85 f6 <0f> 88 75 01 00 00 49 63 ce 48 8d 04 49 48 8d 14 81 48 c1 e0 04 49
+[  198.272466] RSP: 0018:<addr> EFLAGS: 00000206
+[  198.273173] RAX: <addr> RBX: <addr> RCX: <hex>
+[  198.274145] RDX: <hex> RSI: <addr> RDI: <hex>
+[  198.275119] RBP: <hex> R08: <hex> R09: <hex>
+[  198.276076] R10: <addr> R11: <hex> R12: <addr>
+[  198.277045] R13: <hex> R14: <hex> R15: <hex>
+[  198.278012]  cpuidle_enter+0x29/0x40
+[  198.278494]  cpuidle_idle_call+0xa5/0x190
+[  198.279028]  do_idle+0x85/0xd0
+[  198.279451]  cpu_startup_entry+0x25/0x30
+[  198.279976]  start_secondary+0x114/0x140
+[  198.280499]  common_startup_64+0x13e/0x141
+[  198.281048]  </TASK>
+[  198.281351] Modules linked in: ext4 crc16 mbcache jbd2 mgc lustre mdc fid lov osc lmv fld ksocklnd ptlrpc obdclass lnet crc32_cryptoapi libcfs nls_ascii nls_cp437 vfat fat sunrpc ena ghash_clmulni_intel i8042 serio button sch_fq_codel dm_mod fuse configfs loop dmi_sysfs efivarfs fips140
+[  198.284795] CR2: <hex>
