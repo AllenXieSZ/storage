@@ -162,4 +162,35 @@ documentParameters: {"Protocol":"tcp","Port":"988","TrafficType":"egress","Durat
 ```
 监控 eviction：`dmesg -T | grep -iE 'evicted|167-0|server handle changed'`；`lctl get_param -n osc.*.ost_server_uuid mdc.*.mds_server_uuid mgc.*.mgs_server_uuid`。
 
+---
+
+## ⚠️ 重要稳定性发现：eviction 后客户端崩溃/重启（2026-08-02）
+
+**现象**：6 分钟黑洞触发 eviction 后约 13 分钟（03:27 evict → 03:40 崩溃），EC2 客户端**硬重启**（非正常关机，journal 在 03:40:13 戛然而止后 03:40:52 重新开机），所有进程（24h压测/PCC copytool/监控/fio）全部丢失，`/fsx` 与 PCC 缓存盘 nvme1n1 均需手动重挂（fstab 未配自动挂载）。
+
+**eviction 善后错误链（dmesg 铁证）**：
+```
+03:27:47  167-0: MDT0001-mdc: This client was evicted by MDT0001
+03:27:57  osc_init_grant() OST0002: granted 3407872 but already consumed 42205184   ← grant 记账错乱
+03:27:57  167-0: OST0002-osc: This client was evicted by OST0002
+03:28:12  Evicted from MGS after server handle changed 0x...db6a -> 0x...4b19
+03:28:12  ll_close_inode_openhandle() mdc close failed: rc = -5 (EIO)   ← 句柄清理失败 x15
+03:40:13  (journal 末尾: root 执行 lctl pcc list /fsx + find /mnt/pcc_nvme/cache)
+03:40:52  (系统重启)
+```
+
+**分析（含确定性标注）**：
+- ✅ **确定**：机器在 eviction 之后硬重启，测试全中断。
+- ✅ **确定**：eviction 善后出现 grant 记账错乱（`granted X but already consumed Y`）+ 大量 `mdc close failed rc=-5`。
+- ⚠️ **推测（未坐实内核 panic 具体栈）**：崩溃/重启很可能由 **eviction 后 Lustre 客户端状态错乱 + 叠加 PCC 操作（lctl pcc list / 访问本地缓存盘）** 共同触发。journal 正好断在 PCC 操作后。**PCC（依赖 HSM copytool + layout lock）在客户端已被 evict 的情况下继续访问，可能是稳定性隐患。**
+
+**教训 / 生产建议**：
+1. **eviction 不是"软"故障**：除了在途 IO 失败，其善后（grant/句柄清理）在叠加 PCC 时观察到客户端崩溃。
+2. **evict 后应主动 remount，而非继续用**：客户端被驱逐后 Lustre 状态可能不一致，继续 IO/PCC 操作有风险。
+3. **PCC + 网络分区/eviction 组合需谨慎**：PCC 缓存层在客户端失联恢复后的一致性/稳定性值得单独验证。
+4. **压测/测试环境务必把 /fsx 和本地缓存盘写进 fstab**（带 `_netdev` `nofail`），否则客户端一重启全丢、需手动重挂。
+5. 这也印证前述结论：**AI 训练必须 checkpoint**——客户端可能不只是 IO 失败，还可能直接重启。
+
+**恢复**：手动 `mount -t lustre ...@tcp:/<mountname> /fsx` + `mount /dev/nvme1n1 /mnt/pcc_nvme`，重启后 Lustre 是干净的新客户端状态（之前 eviction 错乱已随重启清除）。
+
 *配合 24h Lustre 压测（lustre_stress_24h.sh）+ PCC 缓存 + 吞吐变配实验一并进行。相关：`fsx-lustre-throughput-change/`、`fsx-lustre-efa-diag/`。*
