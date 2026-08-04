@@ -133,7 +133,10 @@ AWS Backup weekly snapshot (保留365天):
 | 日期 | VolumeBytesUsed (GB) | BackupRetentionStorageUsed (GB) | SnapshotStorageUsed (GB) | TotalBackupStorageBilled (GB) | 公式算费用 ($/月) | CE 实际费用 ($) | 偏差 |
 |---|---|---|---|---|---|---|---|
 | 2026-08-04 | 0.255 | — | — | 0 | $0.00 | — | — |
+| 2026-08-04 (采集) | 0.2554 | — | — | — | $0.00 | $0 | — |
 | _(待采集)_ | | | | | | | |
+
+> **2026-08-04 采集简评**：卷大小 0.2554 GB（较建成时 0.255 GB 基本持平，DML 首轮 05:00 UTC 已跑但表本身不膨胀，符合设计）。`BackupRetentionPeriodStorageUsed`/`SnapshotStorageUsed`/`TotalBackupStorageBilled` 三项 CloudWatch 指标**仍无数据点**——新建集群的备份计费指标发布有延迟（通常需 1–2 天首次出现），CE 实际费用 $0（备份量 < 免费额度，且账单数据有 24–48h 延迟）。**当前无法做公式 vs 实测对比**，需等指标发布 + 每日 20GB DML 累积几轮后才有有意义的计费量。
 
 ---
 
@@ -185,4 +188,4 @@ aws ce get-cost-and-usage --region us-east-1 \
 
 ---
 
-_文档由自动化测试环境生成，实测数据滚动更新。最后更新：2026-08-04（初始版本）_
+_文档由自动化测试环境生成，实测数据滚动更新。最后更新：2026-08-04（首次自动采集）_
