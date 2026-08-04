@@ -1,0 +1,23 @@
+{
+  "BackupPlanName": "aurora-backup-test-plan",
+  "Rules": [
+    {
+      "RuleName": "continuous-pitr",
+      "TargetBackupVaultName": "aurora-backup-test-vault",
+      "ScheduleExpression": "cron(0 6 ? * * *)",
+      "StartWindowMinutes": 60,
+      "CompletionWindowMinutes": 120,
+      "EnableContinuousBackup": true,
+      "Lifecycle": { "DeleteAfterDays": 35 }
+    },
+    {
+      "RuleName": "weekly-snapshot-1year",
+      "TargetBackupVaultName": "aurora-backup-test-vault",
+      "ScheduleExpression": "cron(0 6 ? * MON *)",
+      "StartWindowMinutes": 60,
+      "CompletionWindowMinutes": 180,
+      "EnableContinuousBackup": false,
+      "Lifecycle": { "DeleteAfterDays": 365 }
+    }
+  ]
+}
