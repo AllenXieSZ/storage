@@ -1,2 +1,7 @@
-/target
-Cargo.lock
+# build artifacts
+rust/target/
+rust/Cargo.lock
+java/target/
+go/s3go
+go/go.sum
+**/__pycache__/

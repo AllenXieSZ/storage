@@ -1,63 +1,59 @@
 #!/usr/bin/env python3
-"""生成 S3 下载吞吐对比图表 (2026-08-07 测试数据)"""
+"""生成 S3 100GB 下载 五方案对比图表 (2026-08-07, i7i.48xlarge 100Gbps)"""
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 
 plt.rcParams["font.sans-serif"] = ["DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
+fig, axes = plt.subplots(1, 3, figsize=(19, 5.5))
 
-# --- 图1: Rust 并发度 vs 吞吐 (打满100Gbps的关键) ---
+# --- 图1: 五方案 峰值吞吐排名 ---
 ax = axes[0]
-conc = [64, 128, 256]
-gbps_8mb = [24.3, 61.4, 94.8]
-gbps_16mb = [None, 94.5, 96.3]
-ax.plot(conc, gbps_8mb, "o-", lw=2.5, ms=9, color="#0067C5", label="part=8MB")
-ax.plot([128, 256], [94.5, 96.3], "s-", lw=2.5, ms=9, color="#F58220", label="part=16MB")
-ax.axhline(100, ls="--", color="#888", label="NIC limit 100 Gbps")
-ax.set_xlabel("Concurrency (in-flight byte-range GETs)", fontsize=12)
-ax.set_ylabel("Throughput (Gbps)", fontsize=12)
-ax.set_title("Rust: Concurrency drives throughput\n(single 100GB object, i7i.48xlarge)", fontsize=12, fontweight="bold")
-ax.set_xticks(conc)
-ax.set_ylim(0, 110)
-ax.grid(alpha=0.3); ax.legend(fontsize=10)
-for x, y in zip(conc, gbps_8mb):
-    ax.annotate(f"{y}", (x, y), textcoords="offset points", xytext=(0, 10), ha="center", fontsize=9)
-ax.annotate("96.3 Gbps\n(saturates 100G NIC)", (256, 96.3), textcoords="offset points",
-            xytext=(-20, -35), ha="center", fontsize=9, color="#F58220", fontweight="bold")
+methods = ["Rust\n(tokio 256)", "Java\n(SDK v2 256)", "Go\n(512 goroutine)",
+           "Python\nawscrt", "Python\nMP 128", "Python\nthreads 256"]
+gbps = [96.3, 95.1, 84.2, 53.8, 50.8, 4.8]
+colors = ["#2E9E5B", "#2E9E5B", "#5FB878", "#F58220", "#F58220", "#C0392B"]
+bars = ax.barh(range(len(methods)), gbps, color=colors)
+ax.set_yticks(range(len(methods))); ax.set_yticklabels(methods, fontsize=10)
+ax.invert_yaxis()
+ax.axvline(100, ls="--", color="#888", label="NIC 100 Gbps")
+ax.set_xlabel("Peak Throughput (Gbps)", fontsize=12)
+ax.set_title("Single-machine 100GB S3 download\nthroughput ranking (i7i.48xlarge)", fontsize=12, fontweight="bold")
+ax.set_xlim(0, 110); ax.legend(fontsize=9)
+for i, v in enumerate(gbps):
+    ax.annotate(f"{v} Gbps", (v, i), textcoords="offset points", xytext=(5, 0), va="center", fontsize=9, fontweight="bold")
 
-# --- 图2: Python awscrt vs Rust (单对象最佳) ---
+# --- 图2: 并发度 vs 吞吐 (三个无GIL语言 + Python threads) ---
 ax = axes[1]
-methods = ["Python awscrt\n(25G NIC)", "Python awscrt\n(100G NIC)", "Rust sdk-s3\n(100G NIC)"]
-best_gbps = [24.4, 53.8, 96.3]
-colors = ["#9aa5b1", "#5A6B82", "#2E9E5B"]
-bars = ax.bar(methods, best_gbps, color=colors, width=0.6)
+conc = [64, 128, 256, 512]
+rust = [None, None, 94.8, None]   # rust 8MB: 256=94.8
+go   = [None, 73.5, 76.0, 84.2]
+java = [None, 49.0, 85.2, 88.2]
+pyth = [None, 4.7, 4.8, 4.6]
+ax.plot([256], [94.8], "D", ms=11, color="#2E9E5B", label="Rust (8MB)")
+ax.plot([128,256,512], go[1:], "o-", lw=2, ms=8, color="#5FB878", label="Go (8MB)")
+ax.plot([128,256,512], java[1:], "s-", lw=2, ms=8, color="#0067C5", label="Java (8MB)")
+ax.plot([128,256,512], pyth[1:], "^-", lw=2, ms=8, color="#C0392B", label="Python threads (8MB)")
 ax.axhline(100, ls="--", color="#888")
-ax.set_ylabel("Peak Throughput (Gbps)", fontsize=12)
-ax.set_title("Best single-object download throughput\nPython awscrt vs Rust", fontsize=12, fontweight="bold")
-ax.set_ylim(0, 110)
-ax.grid(alpha=0.3, axis="y")
-for b, v in zip(bars, best_gbps):
-    ax.annotate(f"{v} Gbps\n{v/8:.1f} GB/s", (b.get_x()+b.get_width()/2, v),
-                textcoords="offset points", xytext=(0, 6), ha="center", fontsize=10, fontweight="bold")
+ax.set_xlabel("Concurrency", fontsize=12); ax.set_ylabel("Throughput (Gbps)", fontsize=12)
+ax.set_title("Concurrency vs throughput\n(no-GIL langs scale, Python GIL flat)", fontsize=12, fontweight="bold")
+ax.set_xticks(conc); ax.set_ylim(0, 110); ax.grid(alpha=0.3); ax.legend(fontsize=9)
+ax.annotate("Python GIL:\nflat ~5 Gbps", (350, 15), fontsize=9, color="#C0392B", fontweight="bold")
 
-# --- 图3: part_size 影响 (Python, 25G机型) ---
+# --- 图3: Python 多线程 vs 多进程 vs awscrt ---
 ax = axes[2]
-parts = ["8MB", "16MB", "32MB", "64MB"]
-# Python awscrt @100G机型 target=100: 8->50.4(用25G机型8MB25G=24.4更合适? 用100G机型统一), 16->41.7, 32->17.7, 64->17.8
-gbps_part = [50.4, 41.7, 17.7, 17.8]
-bars = ax.bar(parts, gbps_part, color="#6A5ACD", width=0.6)
-ax.set_xlabel("part_size", fontsize=12)
+pym = ["threads\n256 (GIL)", "multiproc\n128", "awscrt\n(best)"]
+pyg = [4.8, 50.8, 53.8]
+bars = ax.bar(pym, pyg, color=["#C0392B", "#F58220", "#6A5ACD"], width=0.6)
+ax.axhline(100, ls="--", color="#888", label="NIC 100 Gbps")
 ax.set_ylabel("Throughput (Gbps)", fontsize=12)
-ax.set_title("Python awscrt: larger part = slower\n(target=100Gbps, i7i.48xlarge)", fontsize=12, fontweight="bold")
-ax.set_ylim(0, 60)
-ax.grid(alpha=0.3, axis="y")
-for b, v in zip(bars, gbps_part):
-    ax.annotate(f"{v}", (b.get_x()+b.get_width()/2, v), textcoords="offset points",
-                xytext=(0, 5), ha="center", fontsize=10)
+ax.set_title("Python: why it can't saturate 100G\n(GIL caps threads; MP/awscrt ~50G)", fontsize=12, fontweight="bold")
+ax.set_ylim(0, 110); ax.grid(alpha=0.3, axis="y"); ax.legend(fontsize=9)
+for b, v in zip(bars, pyg):
+    ax.annotate(f"{v} Gbps", (b.get_x()+b.get_width()/2, v), textcoords="offset points",
+                xytext=(0, 5), ha="center", fontsize=10, fontweight="bold")
 
 plt.tight_layout()
 plt.savefig("s3_download_throughput_charts.png", dpi=110, bbox_inches="tight")

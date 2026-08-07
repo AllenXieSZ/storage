@@ -3,19 +3,28 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
-const BUCKET: &str = "<BUCKET>";
-const KEY: &str = "ckpt-bench/ckpt_100g.bin";
+// 从环境变量读取，避免硬编码 bucket 名:
+//   export S3_BUCKET=your-bucket S3_KEY=ckpt-bench/ckpt_100g.bin
+fn env_or(k: &str, d: &str) -> String {
+    std::env::var(k).unwrap_or_else(|_| d.to_string())
+}
 
 #[tokio::main]
 async fn main() {
+    let bucket = env_or("S3_BUCKET", "YOUR_BUCKET");
+    let key = env_or("S3_KEY", "ckpt-bench/ckpt_100g.bin");
+    let region_str = env_or("AWS_REGION", "us-east-2");
+
     let region = aws_config::meta::region::RegionProviderChain::default_provider()
-        .or_else("us-east-2");
+        .or_else(aws_config::Region::new(region_str));
     let cfg = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(region).load().await;
+        .region(region)
+        .load()
+        .await;
     let client = Client::new(&cfg);
 
     // HEAD 取对象大小
-    let head = client.head_object().bucket(BUCKET).key(KEY).send().await.unwrap();
+    let head = client.head_object().bucket(&bucket).key(&key).send().await.unwrap();
     let total: u64 = head.content_length().unwrap() as u64;
 
     // 测试矩阵: (part_size_MB, concurrency)
@@ -32,11 +41,13 @@ async fn main() {
             let end = std::cmp::min(start + part, total) - 1;
             let range = format!("bytes={}-{}", start, end);
             let c = client.clone();
+            let b = bucket.clone();
+            let k = key.clone();
             let cnt = counter.clone();
             let permit = sem.clone().acquire_owned().await.unwrap();
             handles.push(tokio::spawn(async move {
                 let _p = permit; // drop 时释放并发额度
-                let resp = c.get_object().bucket(BUCKET).key(KEY).range(range).send().await.unwrap();
+                let resp = c.get_object().bucket(&b).key(&k).range(range).send().await.unwrap();
                 let mut body = resp.body;
                 let mut n: u64 = 0;
                 // 流式读取 body 并丢弃(纯测 S3 -> 内存传输吞吐, 不落盘)
@@ -46,10 +57,14 @@ async fn main() {
                 cnt.fetch_add(n, Ordering::Relaxed);
             }));
         }
-        for h in handles { h.await.unwrap(); }
+        for h in handles {
+            h.await.unwrap();
+        }
         let dt = t0.elapsed().as_secs_f64();
         let gb = counter.load(Ordering::Relaxed) as f64 / 1e9;
-        println!("part={:>3}MB concurrency={:>3} | {:6.1}s | {:6.1}GB | {:5.2} GB/s ({:5.1} Gbps)",
-            part_mb, concurrency, dt, gb, gb/dt, gb*8.0/dt);
+        println!(
+            "part={:>3}MB concurrency={:>3} | {:6.1}s | {:6.1}GB | {:5.2} GB/s ({:5.1} Gbps)",
+            part_mb, concurrency, dt, gb, gb / dt, gb * 8.0 / dt
+        );
     }
 }
