@@ -1,0 +1,221 @@
+=== FSx Lustre DRA Export Test START 2026-08-06T23:00:07Z ===
+--- Adding SSH rule ---
+{
+    "Return": true,
+    "SecurityGroupRules": [
+        {
+            "SecurityGroupRuleId": "sgr-02170713f0ecbaf9a",
+            "GroupId": "sg-REDACTED",
+            "GroupOwnerId": "REDACTED_ACCOUNT",
+            "IsEgress": false,
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
+            "CidrIpv4": "0.0.0.0/0",
+            "SecurityGroupRuleArn": "arn:aws:ec2:us-east-2:REDACTED_ACCOUNT:security-group-rule/sgr-02170713f0ecbaf9a"
+        }
+    ]
+}
+--- Adding self-reference rule ---
+{
+    "Return": true,
+    "SecurityGroupRules": [
+        {
+            "SecurityGroupRuleId": "sgr-0fd5f681910ce20e0",
+            "GroupId": "sg-REDACTED",
+            "GroupOwnerId": "REDACTED_ACCOUNT",
+            "IsEgress": false,
+            "IpProtocol": "-1",
+            "FromPort": -1,
+            "ToPort": -1,
+            "ReferencedGroupInfo": {
+                "GroupId": "sg-REDACTED",
+                "UserId": "REDACTED_ACCOUNT"
+            },
+            "SecurityGroupRuleArn": "arn:aws:ec2:us-east-2:REDACTED_ACCOUNT:security-group-rule/sgr-0fd5f681910ce20e0"
+        }
+    ]
+}
+{
+    "UserId": "AIDAVTZIMK3HHIE6HC6LB",
+    "Account": "REDACTED_ACCOUNT",
+    "Arn": "arn:aws:iam::REDACTED_ACCOUNT:user/admin"
+}
+--- Launching EC2 c5n.4xlarge ---
+i-REDACTED
+=== GROUP 1 START 2026-08-06T23:00:32Z ===
+--- Creating FSx Lustre G1: 4800GB, 125MB/s/TiB (600MB/s total) ---
+fs-REDACTED
+PUBLIC_IP=REDACTED_IP
+--- uname + kernel ---
+6.1.177-224.371.amzn2023.x86_64
+NAME="Amazon Linux"
+VERSION="2023"
+--- Installing Lustre client ---
+[MIRROR] fsx-lustre-client-repo-latest.noarch.rpm: Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: 52.216.62.193)
+[FAILED] fsx-lustre-client-repo-latest.noarch.rpm: Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: 52.216.62.193)
+Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: 52.216.62.193)
+  Installing       : lustre-client-2.15.6-32.amzn2023.x86_64                1/1 
+  Running scriptlet: lustre-client-2.15.6-32.amzn2023.x86_64                1/1 
+  Verifying        : lustre-client-2.15.6-32.amzn2023.x86_64                1/1 
+
+Installed:
+  lustre-client-2.15.6-32.amzn2023.x86_64                                       
+
+Complete!
+lustre               1105920  0
+mdc                   294912  1 lustre
+lov                   356352  2 mdc,lustre
+lmv                   221184  1 lustre
+ptlrpc               1470464  7 fld,osc,fid,lov,mdc,lmv,lustre
+obdclass             3366912  8 fld,osc,fid,ptlrpc,lov,mdc,lmv,lustre
+lnet                  802816  6 osc,obdclass,ptlrpc,ksocklnd,lmv,lustre
+libcfs                217088  11 fld,lnet,osc,fid,obdclass,ptlrpc,ksocklnd,lov,mdc,lmv,lustre
+MODULE_OK
+--- G1 FS status ---
+CREATING
+--- Waiting for G1 AVAILABLE ---
+G1 AVAILABLE at 2026-08-06T23:07:40Z
+G1 DNS=fs-REDACTED.fsx.us-east-2.amazonaws.com MOUNT=ebjqpb4v
+--- Creating DRA G1 (AutoExport NEW,CHANGED,DELETED) ---
+
+usage: aws [options] <command> <subcommand> [<subcommand> ...] [parameters]
+To see help text, you can run:
+
+  aws help
+  aws <command> help
+  aws <command> <subcommand> help
+
+
+aws: [ERROR]: Unknown options: false
+
+aws: [ERROR]: An error occurred (BadRequest) when calling the CreateDataRepositoryAssociation operation: Missing required parameters.
+
+aws: [ERROR]: An error occurred (BadRequest) when calling the CreateDataRepositoryAssociation operation: Missing required parameters.
+--- Try /export path ---
+{
+    "Association": {
+        "AssociationId": "dra-REDACTED",
+        "ResourceARN": "arn:aws:fsx:us-east-2:REDACTED_ACCOUNT:association/fs-REDACTED/dra-REDACTED",
+        "FileSystemId": "fs-REDACTED",
+        "Lifecycle": "CREATING",
+        "FileSystemPath": "/export",
+        "DataRepositoryPath": "s3://<BUCKET>/lustre-export-1/",
+        "BatchImportMetaDataOnCreate": false,
+        "ImportedFileChunkSize": 1024,
+        "S3": {
+            "AutoExportPolicy": {
+                "Events": [
+                    "NEW",
+                    "CHANGED",
+                    "DELETED"
+                ]
+            }
+        },
+        "Tags": [
+G1_DRA=dra-REDACTED (path /export -> lustre-export-1/)
+--- Wait DRA G1 AVAILABLE ---
+G1 DRA AVAILABLE at 2026-08-06T23:12:29Z
+--- Mount G1 ---
+Filesystem                  Size  Used Avail Use% Mounted on
+<PRIVATE_IP>@tcp:/ebjqpb4v  4.5T   31M  4.5T   1% /fsx
+MOUNT_OK
+UUID                       bytes        Used   Available Use% Mounted on
+ebjqpb4v-MDT0000_UUID      137.4G        9.9M      137.4G   1% /fsx[MDT:0]
+ebjqpb4v-OST0000_UUID        1.1T        7.8M        1.1T   1% /fsx[OST:0]
+ebjqpb4v-OST0001_UUID        1.1T        7.8M        1.1T   1% /fsx[OST:1]
+ebjqpb4v-OST0002_UUID        1.1T        7.8M        1.1T   1% /fsx[OST:2]
+ebjqpb4v-OST0003_UUID        1.1T        7.8M        1.1T   1% /fsx[OST:3]
+
+filesystem_summary:         4.5T       31.0M        4.5T   1% /fsx
+
+G1_T0_start=1786057986 (2026-08-06T23:13:06Z)
+LAUNCHED pid 27768
+GEN_DONE files=102400
+T0_start=1786057989 T0_end=1786058084 dur=95
+G1_T0_end=1786058084 (2026-08-06T23:14:44Z) write_dur=95s
+--- Polling S3 lustre-export-1 for AutoExport (target 102400) ---
+G1 final objects=102501 total_bytes=107374182400
+G1 1MB-file-objects=102400
+=== G1 METRICS ===
+G1: cap=4800GB tput=125MB/s/TiB total=600MB/s write_dur=95s export_dur~=349s(first cross)/~427s(fully stable)
+G1 write throughput = 1077.9 MB/s
+G1 export dur (first cross 102400) = 349s => throughput = 293.4 MB/s
+G1 export dur (fully stable ~427s) = throughput = 239.8 MB/s
+G1 status: COMPLETE (102400 file objects exported)
+=== G1 CLEANUP 23:26:09 ===
+UNMOUNTED
+--- Delete DRA G1 (keep S3 data) ---
+DELETING
+=== GROUP 2 START 2026-08-06T23:26:22Z ===
+--- Creating FSx Lustre G2: 4800GB, 250MB/s/TiB (1200MB/s total) ---
+fs-REDACTED
+--- Delete G1 FS ---
+DELETING
+--- Wait G2 AVAILABLE ---
+G2 AVAILABLE at 2026-08-06T23:34:07Z
+G2 DNS=fs-REDACTED.fsx.us-east-2.amazonaws.com MOUNT=cnjapb4v
+--- Create DRA G2 ---
+dra-REDACTED
+G2 DRA AVAILABLE at 2026-08-06T23:38:02Z
+--- Mount G2 ---
+Filesystem                   Size  Used Avail Use% Mounted on
+<PRIVATE_IP>@tcp:/cnjapb4v  4.5T   31M  4.5T   1% /fsx
+MOUNT_OK
+=== G2 WRITE START 2026-08-06T23:38:18Z ===
+LAUNCHED pid 234282
+GEN_DONE files=102400
+T0_start=1786059501 T0_end=1786059597 dur=96
+G2_T0_start=1786059501 T0_end=1786059597 write_dur=96s
+--- Poll S3 lustre-export-2 (target >=102400 files) ---
+G2 stable N=102501 el=195s at 2026-08-06T23:43:42Z
+G2 1MB-file-objects=102400
+=== G2 METRICS ===
+G2 write throughput = 1066.7 MB/s
+G2 export dur (first cross ~117s) throughput = 875.2 MB/s
+G2 export dur (stable 195s) throughput = 525.1 MB/s
+=== G2 CLEANUP + G3 START 23:44:46 ===
+UNMOUNTED
+DELETING
+--- Create G3 FS: 9600GB, 125MB/s/TiB (1200MB/s total) ---
+fs-REDACTED
+--- Delete G2 FS ---
+DELETING
+G3 AVAILABLE at 2026-08-06T23:52:30Z
+G3 DNS=fs-REDACTED.fsx.us-east-2.amazonaws.com MOUNT=h5kqpb4v
+dra-REDACTED
+G3 DRA AVAILABLE at 2026-08-06T23:56:25Z
+Filesystem                   Size  Used Avail Use% Mounted on
+<PRIVATE_IP>@tcp:/h5kqpb4v  9.0T   62M  9.0T   1% /fsx
+MOUNT_OK
+=== G3 WRITE START 2026-08-06T23:56:37Z ===
+LAUNCHED pid 440722
+GEN_DONE files=102400
+T0_start=1786060599 T0_end=1786060687 dur=88
+G3_T0_start=1786060599 T0_end=1786060687 write_dur=88s
+--- Poll S3 lustre-export-3 ---
+G3 stable N=102501 el=186s at 2026-08-07T00:01:29Z
+G3 1MB-file-objects=102400
+=== G3 METRICS ===
+G3 write throughput = 1163.6 MB/s
+G3 export dur (first cross ~111s) throughput = 922.5 MB/s
+G3 export dur (stable 186s) throughput = 550.5 MB/s
+=== FINAL CLEANUP 00:02:31 ===
+UNMOUNTED
+--- Terminate EC2 ---
+shutting-down
+--- Delete G3 DRA ---
+DELETING
+--- Delete G3 FS ---
+DELETING
+=== FINAL VERIFY 2026-08-07T00:10:26Z ===
+--- Remaining FSx filesystems (should be none or DELETING) ---
+fs-REDACTED	DELETING
+--- EC2 state ---
+terminated
+--- S3 export data (retained) ---
+lustre-export-1: 102400 x 1MB files
+lustre-export-2: 102400 x 1MB files
+lustre-export-3: 102400 x 1MB files
+--- Confirm ZERO fsx-dra FS remain ---
+(empty above = all deleted)
