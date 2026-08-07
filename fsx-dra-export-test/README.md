@@ -67,7 +67,8 @@ aws fsx create-data-repository-association \
 
 ## 文件说明
 
-- `REPORT.md` — 完整测试报告（含分析与资源记录，已脱敏）
+- `REPORT.md` — 完整测试报告（测「导出多快」，含分析与资源记录，已脱敏）
+- `AUTOEXPORT-FIO-IMPACT.md` — **AutoExport 进行中 vs 完成后 对前端 fio 性能的影响对比**（2026-08-07，不同角度：测「导出过程中前端 IO 受多大影响」，实测 −13%~−25%）
 - `fsx_dra_export_charts.png` — 结果图表（导出耗时 / 吞吐对比 / 关键对照）
 - `gen_charts.py` — 图表生成脚本（matplotlib）
 - `test.log` — 测试执行日志（已脱敏）
