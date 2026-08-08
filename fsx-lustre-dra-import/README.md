@@ -42,7 +42,28 @@ metadata import = 建目录树 + stub（released 占位），**不含数据 rest
 
 ---
 
-## 三、`AgeOfOldestQueuedMessage` 指标要点
+## 三、如何观察 batch import 进度（重要：不走 CloudWatch）
+
+**DRA batch import 进度通过 FSx API `describe-data-repository-tasks` 轮询，而不是看 CloudWatch 指标。**
+
+```bash
+aws fsx describe-data-repository-tasks \
+  --region us-east-2 \
+  --task-ids <task-id> \
+  --query 'DataRepositoryTasks[0].[Lifecycle,Status.TotalCount,Status.SucceededCount,Status.FailedCount]' \
+  --output text
+```
+
+- `Lifecycle`：`PENDING` → `EXECUTING` → `SUCCEEDED`（或 `FAILED`）
+- `Status.TotalCount`：本次任务要处理的对象总数
+- `Status.SucceededCount`：已成功处理数（**进度就看这个**，每 30~60s 轮询算增量即得速率）
+- `Status.FailedCount`：失败数
+
+**速率算法**：连续两次采样 `(SucceededCount₂ − SucceededCount₁) / Δt`。实测该值在量大时稳定 ~2000 obj/s，累计曲线呈完美直线。
+
+> ⚠️ **关键区别**：batch import 走独立 import task 通道，进度只在 `describe-data-repository-tasks` 里可见；它**基本不进 AutoImport 事件队列**，所以 CloudWatch 的 `AgeOfOldestQueuedMessage` 全程 ≈0。想监控 import 进度**别去看 CloudWatch**，要轮询 task API。反之，AutoImport 增量同步没有 task，只能靠下面的 CloudWatch 指标。
+
+## 四、`AgeOfOldestQueuedMessage` 指标要点
 
 - **发布位置**：CloudWatch 命名空间 `AWS/FSx`，属于 "S3 repository metrics" 里的 AutoImport/AutoExport 指标。
 - **维度**：`FileSystemId` + `Publisher`（`AutoImport` 或 `AutoExport`）。
@@ -56,7 +77,7 @@ metadata import = 建目录树 + stub（released 占位），**不含数据 rest
 
 ---
 
-## 四、实践建议
+## 五、实践建议
 
 1. **首次灌大量数据 / 一次性大批量变更** → 用 **手动 import data repository task**（并行、~2000 obj/s），**不要**依赖 AutoImport 事件队列（会严重积压，甚至可能因超出保留窗口丢事件）。
 2. **AutoImport 适合**：S3 侧持续、涓涓细流式的增量变更（队列能实时追平，指标稳定接近 0）。
