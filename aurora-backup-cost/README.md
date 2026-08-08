@@ -137,6 +137,7 @@ AWS Backup weekly snapshot (保留365天):
 | 2026-08-05 | 1.2436 | 0.0000 | — | 0.0000 | $0.00 | $0 | 0（均 $0，一致） |
 | 2026-08-06 | 1.4459 | 0.0000 | — | 0.0000 | $0.0000 | $0 | 0（均 $0，一致） |
 | 2026-08-07 | 1.4571 | 1.4454 | — | 0.0000 | $0.0000 | $0 | 0（均 $0，一致） |
+| 2026-08-08 | 1.4572 | 2.9022 | — | 1.4451 | $0.0303 | $0 | 公式 $0.03/月 vs CE $0（CE 24–48h 延迟，待回填） |
 | _(待采集)_ | | | | | | | |
 
 > **2026-08-04 采集简评**：卷大小 0.2554 GB（较建成时 0.255 GB 基本持平，DML 首轮 05:00 UTC 已跑但表本身不膨胀，符合设计）。`BackupRetentionPeriodStorageUsed`/`SnapshotStorageUsed`/`TotalBackupStorageBilled` 三项 CloudWatch 指标**仍无数据点**——新建集群的备份计费指标发布有延迟（通常需 1–2 天首次出现），CE 实际费用 $0（备份量 < 免费额度，且账单数据有 24–48h 延迟）。**当前无法做公式 vs 实测对比**，需等指标发布 + 每日 20GB DML 累积几轮后才有有意义的计费量。
@@ -146,6 +147,8 @@ AWS Backup weekly snapshot (保留365天):
 > **2026-08-06 采集简评**：卷大小继续从 1.2436 GB 涨到 **1.4459 GB**（+~0.2 GB），08-06 05:00 UTC 那轮 DML 后高水位小幅上涨，涨幅较前一日放缓（存储层高水位增长趋于收敛）。`BackupRetentionPeriodStorageUsed` 仍为 0.0000 GB，`SnapshotStorageUsed` 无数据点（保留期内 snapshot 免费，尚无超期快照），`TotalBackupStorageBilled = 0`，CE 实际费用 = $0。**公式费用 vs CE 实测仍一致（均为 $0），偏差 0**。备份增量量仍远小于免费额度（卷大小 1.45 GB）。距首个 weekly snapshot（周一 08-10）超出 7 天保留期还需时间，届时才会出现首个非零计费量。
 >
 > **2026-08-07 采集简评**：卷大小小幅涨到 **1.4571 GB**（+~0.01 GB，高水位增长基本收敛）。关键变化：`BackupRetentionPeriodStorageUsed` 从 0.0000 **首次跳到 1.4454 GB**——automated/continuous backup 的增量总量指标开始反映真实备份量了（几乎等于卷大小，因为 7 天窗口内的所有 change records 累积后与卷高水位相当）。但由于该值（1.4454 GB）**仍略小于免费额度**（= VolumeBytesUsed 1.4571 GB），`TotalBackupStorageBilled = max(0, 1.4454 − 1.4571) = 0`，故 `TotalBackupStorageBilled = 0`、公式费用 = $0，CE 实际费用同为 $0，**偏差 0，公式与实测一致**。这验证了公式里"免费额度 = 集群卷大小"这一核心机制：只要 automated backup 增量 ≤ 卷大小，就不产生计费。真正的非零计费需等 ①每日 DML 让增量累积超过卷大小，或 ②首个 weekly snapshot（周一 08-10）超出 7 天保留期后计费。
+>
+> **2026-08-08 采集简评（首个非零计费量出现 🎯）**：卷大小基本持平于 **1.4572 GB**（高水位已收敛）。关键突破：`BackupRetentionPeriodStorageUsed` 从 1.4454 GB **翻倍跳到 2.9022 GB**——这是过去几轮每日 20GB DML 的 change records 在 7 天保留窗口内持续累积的结果，automated backup 增量终于**超过了免费额度**（= VolumeBytesUsed 1.4572 GB）。因此首次出现非零计费量：`TotalBackupStorageBilled = max(0, 2.9022 − 1.4572) = 1.4451 GB`（脚本直接取自 CloudWatch，与手算一致）。按公式 **月度费用 = 1.4451 × $0.021 ≈ $0.0303/月**。CE 实际费用当前仍显示 $0（Cost Explorer 有 24–48h 延迟，且金额极小 <$0.05 可能被舍入/延迟入账），需 1–2 天后回填对比真实偏差。**本次是本测试首次拿到公式可算的非零备份计费量**，标志 automated backup 增量增长阶段进入正式计费区间。后续关注点：SnapshotStorageUsed 何时出现（首个 weekly snapshot 周一 08-10 超 7 天保留期约在 08-17 前后开始计费），以及 CE 实际费用与公式 $0.03/月 的收敛情况。
 
 ---
 
@@ -197,4 +200,4 @@ aws ce get-cost-and-usage --region us-east-1 \
 
 ---
 
-_文档由自动化测试环境生成，实测数据滚动更新。最后更新：2026-08-07（自动采集）_
+_文档由自动化测试环境生成，实测数据滚动更新。最后更新：2026-08-08（自动采集）_
