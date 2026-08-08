@@ -22,7 +22,7 @@ from botocore.signers import CloudFrontSigner
 
 
 # ============ 配置 ============
-CF_DOMAIN = "<CLOUDFRONT_ID>.cloudfront.net"
+CF_DOMAIN = "<CLOUDFRONT_DOMAIN>"
 CF_KEY_PAIR_ID = "K3GBGTTVXQUCHQ"
 PRIVATE_KEY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cf_private_key.pem")
 S3_BUCKET = "zh-jlc"

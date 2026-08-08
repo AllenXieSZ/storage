@@ -167,7 +167,7 @@ python3 cf_signed_url_demo.py --size 500
 ```
 Your machine (Shenzhen)
     │
-    │  HTTP PUT https://<CLOUDFRONT_ID>.cloudfront.net/key?Signature=xxx
+    │  HTTP PUT https://<CLOUDFRONT_DOMAIN>/key?Signature=xxx
     │  Body: [file data]
     │
     ▼
