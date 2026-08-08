@@ -2,17 +2,26 @@
 
 ## 🏁 结论(先看这个)
 
-**最快路径 = 多进程下载 → NVMe → `safetensors.load_file(cuda)` = 28s**（20GB ckpt）
-比 naive 写法（S3→RAM→`torch.load(BytesIO)`→GPU = 130s）**快 4.6 倍**。
+**最快路径 = CRT `recv_filepath` 下载 → NVMe → `safetensors.load_file(cuda)` = 26s**（20GB ckpt）
+比 naive 写法（S3→RAM→`torch.load(BytesIO)`→GPU = 130s）**快 5 倍**。
 
 | 链路 | 总计 | 排名 |
 |------|------|------|
-| **多进程DL → NVMe → load_file(cuda)** | **28.0s** | 🥇 用这个 |
+| **CRT recv_filepath → NVMe → load_file(cuda)** | **26.1s** | 🥇 用这个(代码最简) |
+| 多进程boto3 DL → NVMe → load_file | 28.0s | 🥈 也很快 |
+| CRT recv_filepath → /dev/shm(RAM) → load_file | 30.7s | ❌ RAM盘反而更慢 |
 | 多进程DL → tmpfs → load_file | 30.2s | |
 | 多线程DL → NVMe → load_file | 91.9s | ❌ 慢(GIL) |
-| 多线程DL → tmpfs → load_file | 94.1s | ❌ 慢(GIL) |
 
-**一句话**：下载用多进程绕开 GIL(88s→25s，最大提速点)，加载用 `load_file(cuda)` 吃刚写完的热缓存(3s)。别用 tmpfs、别手动零拷贝——实测没用甚至更慢。
+**一句话**：下载用 CRT(recv_filepath，C 层直接写文件、自带并发绕 GIL)或多进程 boto3；加载用 `load_file(cuda)` 吃刚写完的热缓存(3s)。**别用 tmpfs/dev/shm、别手动零拷贝——实测全都没用甚至更慢。**
+
+### ⚠️ 反直觉实测(全都被推翻的"合理推论")
+- "数据直接进 RAM(/dev/shm)最快" → **实测反而慢 4.5s**(tmpfs 挤占 page cache，加载 7.2s vs NVMe 3.1s)
+- "内存直载比落盘快" → 实测落盘快(内存直载多一次大拷贝)
+- "safetensors 零拷贝远快于 torch.load" → 冷启动几乎一样(优势只在热缓存)
+- "手动整块 H2D 更快" → 实测更慢(实现有多余拷贝)
+
+**教训：一切结论必须实测。理论上"应该更快"常因隐藏开销(拷贝/GIL/缓存竞争)而更慢。**
 
 ## ▶️ 可运行代码(直接用)
 
@@ -44,10 +53,16 @@ torch.cuda.synchronize()
 
 | 链路 | 下载 | 加载显存 | 总计 |
 |------|------|---------|------|
-| 1 多线程DL → NVMe → load_file | 88.3s | 3.6s | 91.9s |
-| 2 多进程DL → NVMe → load_file | 25.1s | 2.9s | **28.0s** |
-| 3 多进程DL → tmpfs → load_file | 23.7s | 6.4s | 30.2s |
-| 4 多线程DL → tmpfs → load_file | 87.7s | 6.5s | 94.1s |
+| CRT recv_filepath → NVMe → load_file | 23.0s | 3.1s | **26.1s** 🥇 |
+| CRT recv_filepath → /dev/shm(RAM) → load_file | 23.5s | 7.2s | 30.7s |
+| 多进程boto3 DL → NVMe → load_file | 25.1s | 2.9s | 28.0s |
+| 多进程boto3 DL → tmpfs → load_file | 23.7s | 6.4s | 30.2s |
+| 多线程boto3 DL → NVMe → load_file | 88.3s | 3.6s | 91.9s |
+| 多线程boto3 DL → tmpfs → load_file | 87.7s | 6.5s | 94.1s |
+
+### CRT recv_filepath 与 "直接读进 RAM" 的现实
+
+需求"让 boto3/CRT 直接读进进程可访问 RAM"——**boto3/CRT 没有"交我一块 buffer 让 CRT 直接 DMA 写入"的官方接口**(Python 层限制)。最接近的做法是 CRT `recv_filepath` 写 `/dev/shm`(tmpfs=RAM) 再 mmap。但**实测 /dev/shm 反而比 NVMe 慢**(加载 7.2s vs 3.1s)：推测 tmpfs 占 20GB RAM 挤压了 page cache，而 NVMe 文件读时进 page cache 反而命中更快。`recv_filepath`(C 层直接写文件、自带并发绕 GIL)本身很高效，写 NVMe 即最优，且代码比手写多进程更简单。
 
 ### 三个原理
 
