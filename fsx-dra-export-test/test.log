@@ -52,9 +52,9 @@ PUBLIC_IP=REDACTED_IP
 NAME="Amazon Linux"
 VERSION="2023"
 --- Installing Lustre client ---
-[MIRROR] fsx-lustre-client-repo-latest.noarch.rpm: Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: 52.216.62.193)
-[FAILED] fsx-lustre-client-repo-latest.noarch.rpm: Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: 52.216.62.193)
-Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: 52.216.62.193)
+[MIRROR] fsx-lustre-client-repo-latest.noarch.rpm: Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: <S3_ENDPOINT_IP>)
+[FAILED] fsx-lustre-client-repo-latest.noarch.rpm: Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: <S3_ENDPOINT_IP>)
+Status code: 404 for https://fsx-lustre-client-repo.s3.amazonaws.com/al2023/fsx-lustre-client-repo-latest.noarch.rpm (IP: <S3_ENDPOINT_IP>)
   Installing       : lustre-client-2.15.6-32.amzn2023.x86_64                1/1 
   Running scriptlet: lustre-client-2.15.6-32.amzn2023.x86_64                1/1 
   Verifying        : lustre-client-2.15.6-32.amzn2023.x86_64                1/1 
