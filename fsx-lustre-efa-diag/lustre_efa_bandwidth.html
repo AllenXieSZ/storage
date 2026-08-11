@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Lustre Client ↔ OSS 吞吐带宽示意（EFA vs 无EFA）</title>
+<style>
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background:#F2F6FB; margin:0; padding:24px; color:#1A2B4A; }
+  h1 { font-size:22px; color:#0067C5; margin:0 0 4px; }
+  .sub { color:#5A6B82; font-size:13px; margin-bottom:20px; }
+  .wrap { display:flex; gap:24px; flex-wrap:wrap; }
+  .panel { background:#fff; border:2px solid #dbe6f2; border-radius:14px; padding:18px 20px; flex:1; min-width:440px; box-shadow:0 2px 8px rgba(0,60,120,.06); }
+  .panel h2 { font-size:16px; margin:0 0 14px; padding:6px 12px; border-radius:8px; color:#fff; display:inline-block; }
+  .noefa h2 { background:#5A6B82; }
+  .efa  h2 { background:#F58220; }
+  svg { width:100%; height:auto; display:block; }
+  .note { font-size:12px; color:#5A6B82; line-height:1.7; margin-top:12px; background:#F2F6FB; border-radius:8px; padding:10px 12px; }
+  .big { font-size:15px; font-weight:bold; }
+  .noefa .big { color:#5A6B82; }
+  .efa .big { color:#F58220; }
+  .foot { margin-top:20px; font-size:12px; color:#8a97a8; }
+  table { border-collapse:collapse; margin-top:14px; width:100%; font-size:13px; }
+  th,td { border:1px solid #d5e0ee; padding:7px 10px; text-align:center; }
+  th { background:#0067C5; color:#fff; }
+  tr:nth-child(even) td { background:#F2F6FB; }
+  .k { font-weight:bold; color:#0067C5; }
+</style>
+</head>
+<body>
+  <h1>Lustre Client ↔ OSS 吞吐带宽示意图</h1>
+  <div class="sub">场景：1 个 Client + 4 个 OSS。左：普通 TCP（无 EFA）　右：EFA（SRD 多路径）</div>
+
+  <div class="wrap">
+    <!-- 无 EFA -->
+    <div class="panel noefa">
+      <h2>无 EFA（走 TCP）</h2>
+      <svg viewBox="0 0 460 340">
+        <!-- client -->
+        <rect x="20" y="140" width="120" height="60" rx="10" fill="#eef3fa" stroke="#5A6B82" stroke-width="2"/>
+        <text x="80" y="166" text-anchor="middle" font-size="14" font-weight="bold" fill="#1A2B4A">Client</text>
+        <text x="80" y="186" text-anchor="middle" font-size="11" fill="#5A6B82">网卡带宽充足</text>
+
+        <!-- OSS nodes -->
+        <g font-size="12" fill="#1A2B4A" font-weight="bold">
+          <rect x="320" y="20"  width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="48" text-anchor="middle">OSS-1</text>
+          <rect x="320" y="98"  width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="126" text-anchor="middle">OSS-2</text>
+          <rect x="320" y="176" width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="204" text-anchor="middle">OSS-3</text>
+          <rect x="320" y="254" width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="282" text-anchor="middle">OSS-4</text>
+        </g>
+
+        <!-- thin single-flow lines -->
+        <g stroke="#5A6B82" stroke-width="3" fill="none">
+          <line x1="140" y1="160" x2="320" y2="43"/>
+          <line x1="140" y1="168" x2="320" y2="121"/>
+          <line x1="140" y1="176" x2="320" y2="199"/>
+          <line x1="140" y1="184" x2="320" y2="277"/>
+        </g>
+        <g font-size="10" fill="#5A6B82">
+          <text x="228" y="92"  text-anchor="middle">~0.6 GB/s</text>
+          <text x="228" y="138" text-anchor="middle">~0.6 GB/s</text>
+          <text x="228" y="210" text-anchor="middle">~0.6 GB/s</text>
+          <text x="228" y="258" text-anchor="middle">~0.6 GB/s</text>
+        </g>
+      </svg>
+      <div class="note">
+        每条 <b>client→OSS 连接</b> 受 <b>单流(single-flow) 带宽上限</b>约束（AWS 约 <b>5 Gbps ≈ 0.6 GB/s</b>）。<br>
+        无论 client 网卡多大，<b>单条 TCP flow 打不满</b>，只能靠 <b>多 OSS 并行叠加</b>。<br>
+        <span class="big">Client 总吞吐 ≈ 4 × 0.6 = 2.4 GB/s</span>
+      </div>
+    </div>
+
+    <!-- EFA -->
+    <div class="panel efa">
+      <h2>有 EFA（走 SRD）</h2>
+      <svg viewBox="0 0 460 340">
+        <rect x="20" y="140" width="120" height="60" rx="10" fill="#fff3e8" stroke="#F58220" stroke-width="2"/>
+        <text x="80" y="166" text-anchor="middle" font-size="14" font-weight="bold" fill="#1A2B4A">Client</text>
+        <text x="80" y="186" text-anchor="middle" font-size="11" fill="#c96a10">网卡带宽=瓶颈</text>
+
+        <g font-size="12" fill="#1A2B4A" font-weight="bold">
+          <rect x="320" y="20"  width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="48" text-anchor="middle">OSS-1</text>
+          <rect x="320" y="98"  width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="126" text-anchor="middle">OSS-2</text>
+          <rect x="320" y="176" width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="204" text-anchor="middle">OSS-3</text>
+          <rect x="320" y="254" width="120" height="46" rx="8" fill="#fff" stroke="#0067C5" stroke-width="2"/>
+          <text x="380" y="282" text-anchor="middle">OSS-4</text>
+        </g>
+
+        <!-- thick multipath lines -->
+        <g stroke="#F58220" stroke-width="8" fill="none" opacity="0.85">
+          <line x1="140" y1="158" x2="320" y2="43"/>
+          <line x1="140" y1="166" x2="320" y2="121"/>
+          <line x1="140" y1="174" x2="320" y2="199"/>
+          <line x1="140" y1="182" x2="320" y2="277"/>
+        </g>
+        <g font-size="10" fill="#c96a10" font-weight="bold">
+          <text x="228" y="90"  text-anchor="middle">满速</text>
+          <text x="228" y="137" text-anchor="middle">满速</text>
+          <text x="228" y="211" text-anchor="middle">满速</text>
+          <text x="228" y="259" text-anchor="middle">满速</text>
+        </g>
+      </svg>
+      <div class="note">
+        EFA/SRD <b>多路径并行</b>，单条 client→OSS 连接 <b>不再受 single-flow 限制</b>，可打满带宽。<br>
+        瓶颈转移到 <b>client 网卡带宽</b>（如 100 Gbps）或 OSS 后端供给能力。<br>
+        <span class="big">Client 总吞吐 ≈ min(网卡带宽, ΣOSS供给) 可达 ~10+ GB/s</span>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>对比项</th><th>无 EFA（TCP）</th><th>有 EFA（SRD）</th></tr>
+    <tr><td class="k">单条 client→OSS 上限</td><td>受单流限制 ~5 Gbps (~0.6 GB/s)</td><td>不受单流限制，可满速</td></tr>
+    <tr><td class="k">提吞吐的方式</td><td>靠增加 OSS 数量并行叠加</td><td>单连接即可高带宽，多 OSS 进一步叠加</td></tr>
+    <tr><td class="k">主要瓶颈</td><td>每条 flow 的单流带宽</td><td>client 网卡带宽 / OSS 后端供给</td></tr>
+    <tr><td class="k">4-OSS 客户端总吞吐（示例）</td><td>≈ 4 × 0.6 = <b>2.4 GB/s</b></td><td>≈ 打满网卡，<b>7~10+ GB/s</b></td></tr>
+  </table>
+
+  <div class="foot">
+    注：single-flow ~5 Gbps 是 AWS 网络对单条流的经验上限；EFA 满速取决于机型网卡（如 i7ie.48xlarge=100Gbps 实测读 ~7.4 GB/s，hpc6id.32xlarge=200Gbps 实测读 ~9.3 GB/s）。数值为量级示意，非精确 SLA。
+  </div>
+</body>
+</html>
