@@ -28,6 +28,7 @@
 | **[fsx-lustre-warmup](./fsx-lustre-warmup/)** | FSx Lustre warmup（S3→Lustre）脚本，含 v2 快速识别版（`lfs find -L released`，~40x 加速） |
 | **[lustre-hsm-s3-guide](./lustre-hsm-s3-guide/)** | 开源 Lustre 通过 HSM (Estuary copytool) 归档到 S3 的完整部署指南（含源码补丁、systemd 自启） |
 | **[fsx-lustre-efa-diag](./fsx-lustre-efa-diag/)** | FSx Lustre + EFA 一键诊断脚本 + 分层排障 SOP：四层自动检查（EFA设备/libfabric/LNet-Lustre/AWS基础设施），自动比对客户端 vs FSx AZ，定位 OST DISCONN / CREATE_AH err-22 / 内核漂移 |
+| **[fsx-ontap-storage-efficiency-scan](./fsx-ontap-storage-efficiency-scan/)** | FSx ONTAP Storage Efficiency 存量数据实测：SE 后开时 inline 只处理新写入，存量数据需手动 `volume efficiency start -scan-old-data true` 才压缩/去重（含命令速查 + 实测节省数据） |
 
 ### 📈 可观测性（Observability）
 | 项目 | 内容 |
