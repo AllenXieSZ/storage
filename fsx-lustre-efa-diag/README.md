@@ -4,20 +4,6 @@ EFA-enabled FSx for Lustre 客户端排障的一键诊断脚本 + 分层排障 S
 
 沉淀自真实排障经验（大半天死磕、反复误判 4 次后靠"同 AZ 对照实验"一击命中）。
 
-## EFA 对客户端连接吞吐的影响
-
-同一个 9.6TB @ 500MB/s/TiB 的 FSx Lustre 文件系统，**是否启用 EFA 决定了客户端到后端的传输路径，进而决定单客户端吞吐上限**：
-
-**NON-EFA**：客户端走 **Single-Flow TCP**，每条流受单流上限约束（图中 625MB/s），需靠多个 OSS（4×OSS，每 OSS 挂 2×1.2TB OST）并发才能叠加带宽，单客户端封顶约 **2.5GB/s**。
-
-![NON-EFA File System](images/non-efa-filesystem-arch.png)
-
-**EFA**：客户端经 **EFA + SRD**，单条高吞吐连接直达后端（OSS/OST 划分粒度更大），单客户端可达 **4.8GB/s**（受机型网卡带宽限制，单 EFA 100Gbps 机型实测读 ~7.4GB/s）。
-
-![EFA File System](images/efa-filesystem-arch.png)
-
-> 关键点：NON-EFA 的瓶颈是单流 TCP，必须靠多 OSS 并发才拉得起吞吐；EFA/SRD 单连接即可打满，绕过单流 TCP 限制。二者是同容量文件系统，差异纯在传输路径与 OST 划分粒度。
-
 ## 文件
 
 | 文件 | 说明 |
@@ -124,6 +110,20 @@ aws ec2 describe-subnets --subnet-ids <subnet> --query 'Subnets[].AvailabilityZo
 - DLAMI 预装 CUDA/driver/EFA/Lustre/GDS 工具，但 **nvidia-fs 内核模块需手动 build**（`git clone gds-nvidia-fs && make && insmod nvidia-fs.ko`）。configure-efa 用 `--optimized-for-gds`。
 - 验证：`gdscheck -p`（GPU supports GDS + Platform verification succeeded）；`gdsio -x 0`(GPUDirect) vs `-x 1`(CPUONLY)。读测试要求文件先存在（先 `-I 1` 写再 `-I 0` 读）。
 - **GDS 吞吐不一定高于 CPU 路径**（CPUONLY 会命中 page cache，GDS 故意绕过主机内存）。GDS 价值在绕过 CPU bounce buffer、省 CPU/内存带宽，高吞吐或 CPU 忙时才体现优势。公平对比要 drop_caches + 看 CPU 占用。
+
+## EFA 对客户端连接吞吐的影响
+
+同一个 9.6TB @ 500MB/s/TiB 的 FSx Lustre 文件系统，**是否启用 EFA 决定了客户端到后端的传输路径，进而决定单客户端吞吐上限**：
+
+**NON-EFA**：客户端走 **Single-Flow TCP**，每条流受单流上限约束（图中 625MB/s），需靠多个 OSS（4×OSS，每 OSS 挂 2×1.2TB OST）并发才能叠加带宽，单客户端封顶约 **2.5GB/s**。
+
+![NON-EFA File System](lustre_noefa_filesystem.png)
+
+**EFA**：客户端经 **EFA + SRD**，单条高吞吐连接直达后端（OSS/OST 划分粒度更大），单客户端可达 **4.8GB/s**（受机型网卡带宽限制，单 EFA 100Gbps 机型实测读 ~7.4GB/s）。
+
+![EFA File System](lustre_efa_filesystem.png)
+
+> 关键点：NON-EFA 的瓶颈是单流 TCP，必须靠多 OSS 并发才拉得起吞吐；EFA/SRD 单连接即可打满，绕过单流 TCP 限制。二者是同容量文件系统，差异纯在传输路径与 OST 划分粒度。
 
 ---
 
