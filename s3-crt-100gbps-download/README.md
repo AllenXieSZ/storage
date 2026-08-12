@@ -94,3 +94,9 @@ cd python && python3 s3_download.py threads   # 多线程(GIL)
 ```
 
 > 实例（i7i.48xlarge）+ S3 测试对象测完已清理。凭证走 EC2 IAM role，代码无任何硬编码密钥/真实 bucket 名。
+
+## 附录：AWS CRT（Common Runtime）依赖架构
+
+Python 方案里的 **awscrt** 以及各语言 SDK 的高性能传输底座，都建立在 AWS CRT（Common Runtime）这套 C 库之上。其中 **aws-c-s3** 负责 S3 的并行分片/自动多连接传输，是打满带宽的关键组件；下层依赖 `aws-c-http` / `aws-c-io` / `s2n`（TLS）/ `aws-c-common` 等。各语言（Rust/Java/Go/Python）通过 CRT Bindings 复用同一套 C 实现。
+
+![AWS CRT 依赖架构](aws-crt-dependency-architecture.jpg)
