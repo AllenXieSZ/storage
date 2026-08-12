@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>GPUDirect Storage (GDS) 数据路径示意 vs 传统 CPU bounce buffer</title>
+<style>
+  body { font-family: "Microsoft YaHei","PingFang SC",sans-serif; background:#F2F6FB; margin:0; padding:24px; color:#1A2B4A; }
+  h1 { font-size:22px; color:#0067C5; margin:0 0 4px; }
+  .sub { color:#5A6B82; font-size:13px; margin-bottom:20px; }
+  .wrap { display:flex; gap:24px; flex-wrap:wrap; }
+  .panel { background:#fff; border:2px solid #dbe6f2; border-radius:14px; padding:18px 20px; flex:1; min-width:460px; box-shadow:0 2px 8px rgba(0,60,120,.06); }
+  .panel h2 { font-size:16px; margin:0 0 12px; padding:6px 12px; border-radius:8px; color:#fff; display:inline-block; }
+  .trad h2 { background:#5A6B82; }
+  .gds h2  { background:#F58220; }
+  svg { width:100%; height:auto; display:block; }
+  .note { font-size:12px; color:#5A6B82; line-height:1.7; margin-top:12px; background:#F2F6FB; border-radius:8px; padding:10px 12px; }
+  .big { font-size:14px; font-weight:bold; }
+  .trad .big { color:#5A6B82; }
+  .gds .big { color:#F58220; }
+  .cmd { font-family:"DejaVu Sans Mono",Consolas,monospace; font-size:11.5px; background:#1A2B4A; color:#C9D6E6; border-radius:8px; padding:12px 14px; margin-top:16px; line-height:1.7; white-space:pre; overflow-x:auto; }
+  .cmd .k { color:#F5A623; }
+  .cmd .c { color:#7FB2E5; }
+  .cmd .g { color:#69C08A; }
+  .foot { margin-top:18px; font-size:12px; color:#8a97a8; }
+  table { border-collapse:collapse; margin-top:14px; width:100%; font-size:12.5px; }
+  th,td { border:1px solid #d5e0ee; padding:7px 10px; text-align:left; }
+  th { background:#0067C5; color:#fff; }
+  tr:nth-child(even) td { background:#F2F6FB; }
+  .key { font-weight:bold; color:#0067C5; }
+</style>
+</head>
+<body>
+  <h1>GPUDirect Storage (GDS) 数据路径示意</h1>
+  <div class="sub">GDS 绕过 CPU bounce buffer,让存储数据直达 GPU 显存 · AWS P5/P6 + EFA + 同 AZ FSx Lustre 实测(2026-07-29)</div>
+
+  <div class="wrap">
+    <!-- 传统路径 -->
+    <div class="panel trad">
+      <h2>传统路径（-x 1 CPUONLY）：两跳，经 CPU bounce buffer</h2>
+      <svg viewBox="0 0 480 300">
+        <!-- Storage -->
+        <rect x="15" y="120" width="105" height="60" rx="10" fill="#eef3fa" stroke="#5A6B82" stroke-width="2"/>
+        <text x="67" y="146" text-anchor="middle" font-size="13" font-weight="bold">存储</text>
+        <text x="67" y="165" text-anchor="middle" font-size="10" fill="#5A6B82">FSx Lustre</text>
+        <!-- CPU/host mem -->
+        <rect x="190" y="105" width="120" height="90" rx="10" fill="#dfe6ef" stroke="#5A6B82" stroke-width="2"/>
+        <text x="250" y="132" text-anchor="middle" font-size="13" font-weight="bold">CPU 主机内存</text>
+        <text x="250" y="150" text-anchor="middle" font-size="10" fill="#5A6B82">bounce buffer</text>
+        <text x="250" y="168" text-anchor="middle" font-size="10" fill="#D13A3A">(中转缓冲)</text>
+        <!-- GPU -->
+        <rect x="370" y="120" width="100" height="60" rx="10" fill="#eef3fa" stroke="#2E9E5B" stroke-width="2"/>
+        <text x="420" y="146" text-anchor="middle" font-size="13" font-weight="bold">GPU 显存</text>
+        <text x="420" y="165" text-anchor="middle" font-size="10" fill="#5A6B82">VRAM</text>
+        <!-- arrows -->
+        <defs><marker id="a1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5A6B82"/></marker></defs>
+        <line x1="120" y1="150" x2="188" y2="150" stroke="#5A6B82" stroke-width="3" marker-end="url(#a1)"/>
+        <text x="154" y="140" text-anchor="middle" font-size="10" fill="#5A6B82">①跳</text>
+        <line x1="310" y1="150" x2="368" y2="150" stroke="#5A6B82" stroke-width="3" marker-end="url(#a1)"/>
+        <text x="339" y="140" text-anchor="middle" font-size="10" fill="#5A6B82">②跳</text>
+        <text x="250" y="230" text-anchor="middle" font-size="11" fill="#D13A3A" font-weight="bold">数据两跳中转 → 占 CPU + 内存带宽</text>
+      </svg>
+      <div class="note">
+        数据先 DMA 到 <b>CPU 主机内存的 bounce buffer</b>,再从内存拷到 GPU 显存(<b>两跳</b>)。<br>
+        <span class="big">代价:多一次内存拷贝,消耗 CPU 周期 + 主机内存带宽。</span><br>
+        但 <b>命中 page cache 时反而快</b>(数据已在内存,少了存储读)。
+      </div>
+    </div>
+
+    <!-- GDS 路径 -->
+    <div class="panel gds">
+      <h2>GDS 路径（-x 0 GPUDirect）：一跳直达 DMA</h2>
+      <svg viewBox="0 0 480 300">
+        <rect x="15" y="120" width="105" height="60" rx="10" fill="#fff3e8" stroke="#F58220" stroke-width="2"/>
+        <text x="67" y="146" text-anchor="middle" font-size="13" font-weight="bold">存储</text>
+        <text x="67" y="165" text-anchor="middle" font-size="10" fill="#c96a10">FSx Lustre</text>
+        <!-- CPU bypassed -->
+        <rect x="190" y="105" width="120" height="90" rx="10" fill="#f0f0f0" stroke="#c9c9c9" stroke-width="2" stroke-dasharray="5,4"/>
+        <text x="250" y="145" text-anchor="middle" font-size="12" fill="#b0b0b0">CPU 主机内存</text>
+        <text x="250" y="163" text-anchor="middle" font-size="11" fill="#D13A3A" font-weight="bold">✗ 绕过</text>
+        <rect x="370" y="120" width="100" height="60" rx="10" fill="#fff3e8" stroke="#2E9E5B" stroke-width="2"/>
+        <text x="420" y="146" text-anchor="middle" font-size="13" font-weight="bold">GPU 显存</text>
+        <text x="420" y="165" text-anchor="middle" font-size="10" fill="#c96a10">VRAM</text>
+        <!-- direct arrow arc over CPU -->
+        <defs><marker id="a2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#F58220"/></marker></defs>
+        <path d="M120,140 C220,50 300,50 400,120" stroke="#F58220" stroke-width="7" fill="none" marker-end="url(#a2)"/>
+        <text x="250" y="60" text-anchor="middle" font-size="11" fill="#F58220" font-weight="bold">直达 DMA (一跳)</text>
+        <text x="250" y="240" text-anchor="middle" font-size="11" fill="#2E9E5B" font-weight="bold">存储 → 显存 直连 → 省 CPU / 内存带宽</text>
+      </svg>
+      <div class="note">
+        数据由 <b>DMA 引擎直接从存储写入 GPU 显存</b>,完全<b>绕过 CPU 主机内存</b>(一跳)。<br>
+        <span class="big">价值:消除 bounce buffer,省 CPU 周期 + 主机内存带宽。</span><br>
+        ⚠️ <b>吞吐不一定更高</b>:因绕过内存 = 也绕过 page cache。
+      </div>
+    </div>
+  </div>
+
+  <div class="cmd"><span class="c"># 1) 验证平台支持 GDS</span>
+<span class="k">gdscheck -p</span>          <span class="c"># 看 "GPU supports GDS" + "Platform verification succeeded"</span>
+
+<span class="c"># 2) gdsio 基准：先写后读（读测试要求文件先存在）</span>
+<span class="k">gdsio</span> -D /fsx/gdstest -d 0 -w 8 -s 10G -i 1M <span class="g">-I 1 -x 0</span>   <span class="c"># 写, -x 0 = GPUDirect(GDS)</span>
+<span class="k">gdsio</span> -D /fsx/gdstest -d 0 -w 8 -s 10G -i 1M <span class="g">-I 0 -x 0</span>   <span class="c"># 读, GPUDirect 路径</span>
+<span class="k">gdsio</span> -D /fsx/gdstest -d 0 -w 8 -s 10G -i 1M <span class="g">-I 0 -x 1</span>   <span class="c"># 读, -x 1 = CPUONLY 对照组</span>
+
+<span class="c"># 3) 公平对比：清 page cache + 看 CPU 占用</span>
+<span class="k">echo</span> 3 | sudo tee /proc/sys/vm/drop_caches    <span class="c"># 清缓存, 否则 CPUONLY 命中 cache 不公平</span>
+<span class="k">mpstat</span> 1                                       <span class="c"># 观察 GDS 是否真的省了 CPU</span>
+
+<span class="c"># 前置(DLAMI base-oss-nvidia-driver-gpu-ubuntu-24.04)：nvidia-fs 内核模块需手动 build</span>
+<span class="k">git clone</span> ...gds-nvidia-fs && <span class="k">make</span> && sudo <span class="k">insmod</span> nvidia-fs.ko   <span class="c"># apt 装 nvidia-gds 会拉错内核 flavor</span></div>
+
+  <table>
+    <tr><th>维度</th><th>传统路径 (-x 1 CPUONLY)</th><th>GDS 路径 (-x 0 GPUDirect)</th></tr>
+    <tr><td class="key">数据路径</td><td>存储 → CPU 内存 → GPU（两跳）</td><td>存储 → GPU 显存（一跳直达 DMA）</td></tr>
+    <tr><td class="key">CPU / 内存带宽</td><td>消耗（多一次内存拷贝）</td><td>省（绕过主机内存）</td></tr>
+    <tr><td class="key">page cache</td><td>可命中 → 可能更快</td><td>绕过 → 无缓存红利</td></tr>
+    <tr><td class="key">实测吞吐</td><td>基准（命中 cache 时占优）</td><td>反比 CPUONLY 低 ~7%（因绕过 cache）</td></tr>
+    <tr><td class="key">真正价值</td><td>—</td><td>高吞吐(几十~上百 GB/s)或 CPU 忙时省 CPU/内存带宽</td></tr>
+  </table>
+
+  <div class="foot">
+    结论要点：<b>GDS 吞吐不一定比 CPU 路径高</b>（实测 GPUDirect 反比 CPUONLY 低约 7%,因 CPUONLY 命中 page cache 而 GDS 故意绕过主机内存）。GDS 的价值是<b>消除 CPU bounce buffer、省 CPU 周期与主机内存带宽</b>,只在高吞吐或 CPU 繁忙场景才体现优势。公平对比必须 drop_caches + 用 mpstat 看 CPU 占用。<br>
+    环境：AWS P5/P5e/P5en/P6-B200（需 GPU + EFA + 同 AZ FSx Lustre）· DLAMI base-oss-nvidia-driver-gpu-ubuntu-24.04 · 2026-07-29 实测。数值为实测量级,非官方 SLA。
+  </div>
+</body>
+</html>
