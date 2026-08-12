@@ -4,6 +4,20 @@ EFA-enabled FSx for Lustre 客户端排障的一键诊断脚本 + 分层排障 S
 
 沉淀自真实排障经验（大半天死磕、反复误判 4 次后靠"同 AZ 对照实验"一击命中）。
 
+## EFA 对客户端连接吞吐的影响
+
+同一个 9.6TB @ 500MB/s/TiB 的 FSx Lustre 文件系统，**是否启用 EFA 决定了客户端到后端的传输路径，进而决定单客户端吞吐上限**：
+
+**NON-EFA**：客户端走 **Single-Flow TCP**，每条流受单流上限约束（图中 625MB/s），需靠多个 OSS（4×OSS，每 OSS 挂 2×1.2TB OST）并发才能叠加带宽，单客户端封顶约 **2.5GB/s**。
+
+![NON-EFA File System](images/non-efa-filesystem-arch.png)
+
+**EFA**：客户端经 **EFA + SRD**，单条高吞吐连接直达后端（OSS/OST 划分粒度更大），单客户端可达 **4.8GB/s**（受机型网卡带宽限制，单 EFA 100Gbps 机型实测读 ~7.4GB/s）。
+
+![EFA File System](images/efa-filesystem-arch.png)
+
+> 关键点：NON-EFA 的瓶颈是单流 TCP，必须靠多 OSS 并发才拉得起吞吐；EFA/SRD 单连接即可打满，绕过单流 TCP 限制。二者是同容量文件系统，差异纯在传输路径与 OST 划分粒度。
+
 ## 文件
 
 | 文件 | 说明 |
