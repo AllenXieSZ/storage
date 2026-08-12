@@ -44,7 +44,6 @@
 | 项目 | 内容 |
 |------|------|
 | **[aws-backup-tf](./aws-backup-tf/)** | 跨账号 AWS Backup 的 Terraform（management / member account） |
-| **[samples](./samples/)** | EBS 测试报告样例 (HTML + JSON) |
 
 ---
 

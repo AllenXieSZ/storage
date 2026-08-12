@@ -117,6 +117,8 @@ After a successful run:
 - `ebs-report-{region}-{timestamp}.html` — Visual HTML report (dark theme)
 - `ebs-report-{region}-{timestamp}.json` — Raw fio data + parsed metrics
 
+See [`samples/`](./samples/) for example output reports (HTML + JSON).
+
 ## Cost
 
 ~15-20 minutes runtime depending on number of volume configs. Cost is primarily EC2 on-demand pricing for the duration (~$0.20-$0.50). All resources are automatically deleted.
