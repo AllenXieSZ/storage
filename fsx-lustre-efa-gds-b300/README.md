@@ -10,10 +10,26 @@
 
 ## 0. 一句话结论
 
-**【实测】p6-b300.48xlarge 完全能跑 FSx for Lustre over EFA + GPUDirect Storage(GDS)。**
+> **说明**：截至 2026-08-13，AWS 官方 User Guide 与 configure 脚本的 GDS 支持机型列表**尚未收录 p6-b300.48xlarge**（仅列 p5/p5e/p5en/p6-b200）。因此下述并非"官方声明支持"，而是**本次在真机上实测配置并验证通过**的结果。
+
+**【实测】在 p6-b300.48xlarge 上，FSx for Lustre over EFA + NVIDIA GPUDirect Storage(GDS) 配置并验证通过。**
 16 个 EFA NI 全配上、2 个 OST 全 IDLE；FIO 顺读 **45.2 GB/s** / 顺写 **10.9 GB/s**；`lnetctl -v 4` 前后对比证实数据走 EFA；`gdscheck -p` → Platform verification succeeded，8×B300 全支持 GDS，gdsio GPUD 路径正常。
 
-配置流程与 p6-b200 完全相同（同一套 AWS 脚本），B300 只多两处非默认动作：把 b300 加进 GDS 白名单（见第 6 节）；用 Capacity Block 起实例的特殊参数（见第 7 节）。
+### 按官方文档，哪些要改 / 哪些已预装（用 DLAMI 的前提下）
+
+| 项目 | 官方 User Guide | 在 B300 上是否要动手 |
+|---|---|---|
+| Lustre client | Step 2 安装 | ✅ **DLAMI 已预装**（2.15.6），无需改 |
+| EFA driver | Step 2 安装 | ✅ **DLAMI 已预装**（3.0.0g / installer 1.47.0），无需改 |
+| CUDA / NVIDIA driver | — | ✅ **DLAMI 已预装**（driver 595.71.05 / CUDA 13.2），无需改 |
+| GDS 驱动 nvidia-fs (≥2.24.2) | Step 2 GDS 节安装 | ✅ **DLAMI 已预装**（2.29），无需改 |
+| **GDS 白名单** | 脚本内 `GDS_SUPPORTED_INSTANNCES` | ⚠️ **唯一需要改的一处**：手动把 `p6-b300.48xlarge` 加进白名单数组（因官方尚未收录 b300） |
+| EFA 配置 setup.sh | Step 3 运行 `setup.sh --optimized-for-gds` | ✅ 原样运行，加完白名单后逻辑不用改 |
+| 挂载 / FIO / lnet / gdscheck | Step 4 + 验证 | ✅ 官方命令原样用 |
+
+> **结论**：用 DLAMI 时，**脚本层面唯一改动 = 加 GDS 白名单**，其余驱动全预装、其余命令全原样。
+> （若用普通 AMI，则还需按 Step 2 自行安装 Lustre/EFA/nvidia-fs 驱动——那是环境准备，不是改这个 configure 脚本。）
+> 另有两件**脚本外的 EC2 层准备**（不属于本文档脚本范畴）：起实例时声明 16 个 EFA 网卡、用 Capacity Block 起实例的特殊参数——见附录 A/B。
 
 ---
 
