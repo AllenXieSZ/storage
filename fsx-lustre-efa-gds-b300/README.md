@@ -175,3 +175,24 @@ sudo lnetctl net show --net efa -v 4 | grep -E "nid:|send_count:|recv_count:"
 sudo gdscheck -p                 # 期望 Platform verification succeeded
 sudo gdsio -D /fsx/gdstest -d 0 -w 8 -s 4G -i 1M -x 0 -I 1   # GPUD 写
 ```
+
+---
+
+## 7. 【补充实测 2026-08-13】16 EFA 全量传输 + 单管理网卡（启动即配好，非补挂）
+
+第一次是"单网卡起 → stop → 逐个 attach EFA"补出 15 个 EFA。本次改用**正确姿势**：`run-instances` 时用 `--network-interfaces` 一次性声明 **17 张网卡**（card0=普通 interface 做 SSH，card1~16=16 个 efa 传数据），启动即到位，无需 stop/attach。完整命令+输出见 `transcript-16efa-rebuild.log`。
+
+### 本次新增/确认的坑
+1. **多网卡不能带 `AssociatePublicIpAddress`**：`run-instances --network-interfaces` 声明 >1 张网卡时带该参数报 `InvalidParameterCombination`。→ 去掉，起实例后给 card0 的主 ENI 关联 EIP（多网卡实例不会自动分配公网 IP）。
+2. **DLAMI 默认没装 fio**：`--skip-driver` 路径下脚本原来的 `apt install fio` 静默失败被吞，导致首轮 FIO 三个全 `command not found`。已修脚本：fio 安装独立、失败即 `exit 1`。
+3. **挂载后 OST 先 CONNECTING**：挂载完立刻跑 IO 会失败/无流量，需等 OST 转 FULL/IDLE。已修脚本：加 OST 就绪轮询。
+
+### 16 EFA 实测结果【实测】
+- `setup.sh --optimized-for-gds` 配满 **16 个 @efa NI**（`cpu_npartitions=16`，16 个 CPT 干净映射到 2 个 NUMA，无 "No EFA devices found" 报错）。
+- FIO（direct, libaio）：**顺写 10.9 GB/s、顺读 45.2 GB/s、随机读 3.26 GB/s**。顺读 ≈ 362 Gbps，略高于 15 EFA 的 41.7 GB/s。
+- EFA 收发包（`lnetctl net show --net efa -v 4` 前后对比）：send_count **196,819 → 998,780**（+80 万），recv_count **262,355 → 1,211,772**（+95 万）→ 铁证数据走 EFA。
+- GDS：`gdscheck -p` → **Platform verification succeeded**，8×B300 全 supports GDS；gdsio GPUD 读 3.53 / 写 3.73 GiB/s，CPUONLY 读 4.56 / 写 4.88 GiB/s（此配置下 CPUONLY 略高，正常）。
+
+### 网卡拓扑（官方 describe-instance-types 实测）
+- p6-b300.48xlarge：MaximumNetworkCards=**17**、MaximumEfaInterfaces=**16**、每 card 最多 4 NI；card0=350Gbps，card1~16 各 400Gbps。
+- 因此"16 EFA 传数据 + 1 管理网卡 SSH"= 17 张 card 刚好用满，是该机型的推荐布局。
