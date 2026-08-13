@@ -148,14 +148,20 @@ sudo fio --name=rr --directory=/fsx/fiotest --rw=randread --bs=64k --size=4G \
 
 ## 5. 用 LNet 验证数据确实走 EFA【实测·铁证】
 
-**最直接的证明方法** = 对比 FIO 前后每个 EFA NI 的 LNet 统计（`lnetctl net show -v 4` 是官方 troubleshooting 的最详细级别，输出每个 NI 的 `send_count/recv_count/drop_count`）：
+**最直接的证明方法** = 对比 FIO 前后每个 EFA NI 的 LNet 统计（`lnetctl net show -v 4` 是官方 troubleshooting 的最详细级别，输出每个 NI 的 `send_count/recv_count/drop_count`）。提供两条命令，各有用途：
 
+**① 汇总总量**（快速判断整体有没有在收发——FIO 前后各跑一次看总数是否暴涨）：
 ```bash
-# 每个 EFA NI 的 nid + send_count/recv_count（FIO 前后各跑一次对比）
+sudo lnetctl net show -v 4 | awk '/net type: efa/,0' \
+  | awk '/send_count:/{s+=$2}/recv_count:/{r+=$2}END{print "send_count="s" recv_count="r}'
+```
+
+**② 分 NI 明细**（看每张 EFA 卡各自分担多少，判断 16 卡是否均摊）：
+```bash
 sudo lnetctl net show -v 4 | awk '/net type: efa/,0' | grep -E 'nid:|send_count|recv_count'
 ```
 
-输出形如（每个 @efa NI 一段，带 nid 标题，一眼看清哪些卡在传）：
+②的输出形如（每个 @efa NI 一段，带 nid 标题，一眼看清哪些卡在传）：
 ```
 - nid: <efa-nid-1>@efa
       send_count: 88471
@@ -166,7 +172,7 @@ sudo lnetctl net show -v 4 | awk '/net type: efa/,0' | grep -E 'nid:|send_count|
 ... （16 个 EFA NI）
 ```
 
-FIO 前后汇总对比（16 NI 累加）：
+①的 FIO 前后汇总对比（16 NI 累加）：
 
 | LNet efa 计数（16 NI 汇总） | FIO 前 | FIO 后 | 增量 |
 |---|---|---|---|
@@ -174,7 +180,7 @@ FIO 前后汇总对比（16 NI 累加）：
 | recv_count | 262,355 | **1,211,772** | +949,417 |
 
 > 大量 FIO 读写后 send/recv_count 暴涨 → **铁证 Lustre 数据面在 EFA NI 上收发**。
-> 【实测】16 个 EFA NI 的 send_count **比较均衡**（各约 8.8 万），说明 16 卡都在分担流量。
+> 【实测】用②看明细：16 个 EFA NI 的 send_count **比较均衡**（各约 8.8 万），说明 16 卡都在分担流量。
 > （注：单个 NI 承载多少取决于 OST 数量与并发；OST 越多、并发越高，各 NI 越均摊。）
 
 ---
