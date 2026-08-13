@@ -222,8 +222,8 @@ fio --version
 # 采集函数：LNet efa NI 的 send/recv/drop_count（主）+ /sys hw_counters（辅）
 snap_efa_counters(){
   local tag="$1"; echo "=== EFA 收发计数快照 [$tag] ==="
-  echo "  [LNet] lnetctl net show --net efa -v 4 的 statistics:"
-  sudo lnetctl net show --net efa -v 4 2>/dev/null \
+  echo "  [LNet] 每个 efa NI 的 send_count/recv_count:"
+  sudo lnetctl net show -v 4 2>/dev/null | awk '/net type: efa/,0' \
     | grep -E "nid:|send_count:|recv_count:|drop_count:" | sed 's/^/    /' || echo "    (无 efa NI?)"
   echo "  [硬件] /sys hw_counters:"
   for dev in /sys/class/infiniband/*; do

@@ -151,9 +151,22 @@ sudo fio --name=rr --directory=/fsx/fiotest --rw=randread --bs=64k --size=4G \
 **最直接的证明方法** = 对比 FIO 前后每个 EFA NI 的 LNet 统计（`lnetctl net show -v 4` 是官方 troubleshooting 的最详细级别，输出每个 NI 的 `send_count/recv_count/drop_count`）：
 
 ```bash
-# FIO 前后各跑一次，对比增量
-sudo lnetctl net show --net efa -v 4 | awk '/send_count:/{s+=$2}/recv_count:/{r+=$2}END{print s,r}'
+# 每个 EFA NI 的 nid + send_count/recv_count（FIO 前后各跑一次对比）
+sudo lnetctl net show -v 4 | awk '/net type: efa/,0' | grep -E 'nid:|send_count|recv_count'
 ```
+
+输出形如（每个 @efa NI 一段，带 nid 标题，一眼看清哪些卡在传）：
+```
+- nid: <efa-nid-1>@efa
+      send_count: 88471
+      recv_count: 108468
+- nid: <efa-nid-2>@efa
+      send_count: 88536
+      recv_count: 108517
+... （16 个 EFA NI）
+```
+
+FIO 前后汇总对比（16 NI 累加）：
 
 | LNet efa 计数（16 NI 汇总） | FIO 前 | FIO 后 | 增量 |
 |---|---|---|---|
@@ -161,7 +174,8 @@ sudo lnetctl net show --net efa -v 4 | awk '/send_count:/{s+=$2}/recv_count:/{r+
 | recv_count | 262,355 | **1,211,772** | +949,417 |
 
 > 大量 FIO 读写后 send/recv_count 暴涨 → **铁证 Lustre 数据面在 EFA NI 上收发**。
-> 【实测细节】流量主要集中在部分 EFA NI 上（因本次只有 2 个 OST，Lustre 只在部分 NI 建活跃 OSC 连接）；要 16 卡全均摊需更多 OST 或更高并发。【推测，待验证】
+> 【实测】16 个 EFA NI 的 send_count **比较均衡**（各约 8.8 万），说明 16 卡都在分担流量。
+> （注：单个 NI 承载多少取决于 OST 数量与并发；OST 越多、并发越高，各 NI 越均摊。）
 
 ---
 
