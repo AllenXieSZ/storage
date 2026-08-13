@@ -1,0 +1,2419 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "FUSE ops/s",
+      "description": "Total FUSE request rate (all types). NOTE: read requests are split by the kernel into ~256KB chunks (measured p50 249KB from 1MiB app reads), so this does not equal the application's IO operation count.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(histogram_count(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "ops/s",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "S3 API req/s",
+      "description": "Measured cross-check: 63 req/s UploadPart x 8MiB part = 504 MB/s, matching FUSE write throughput exactly -> default --write-part-size 8388608 with no retry waste.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(s3_request_count_total[$__rate_interval]))",
+          "legendFormat": "req/s",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Throughput (FUSE layer only)",
+      "description": "!! NOT application throughput. Page-cache hits never reach FUSE, so this UNDER-REPORTS by a varying factor: measured 6.8x low in a cache-friendly read-only run (64 MB/s here vs 437 MB/s in fio) and 1.7x low under mixed read+write (474 MB/s here vs ~787 MB/s app-side). The gap tracks cache hit rate, so treat it as a floor, never as the capacity-planning number.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(histogram_sum(rate(fuse_io_size_bytes[$__rate_interval])))",
+          "legendFormat": "B/s",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "FUSE errors/s (app-visible)",
+      "description": "HIGHEST-SIGNAL error metric: a non-zero value means the application actually received an I/O error. Stayed at 0 through the entire 2026-07-27 load test even while the S3 layer showed transient events (Mountpoint retried them all).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(fuse_request_errors_total[$__rate_interval]))",
+          "legendFormat": "err/s",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.001
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "S3 real errors/s",
+      "description": "Excludes http_status 404 and -1, both of which are NORMAL behaviour (404 = O_CREAT existence probe; -1 = Mountpoint cancelling a duplicate lookup). Only 5xx / throttling / genuine failures land here.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(s3_request_errors_total{http_status!~\"404|-1\"}[$__rate_interval]))",
+          "legendFormat": "real err/s",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.001
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Mountpoint RSS",
+      "description": "Measured growth: 80MB idle -> 617MB write -> 978MB read on a 7.8GB c6i.xlarge (12x). Reads cost more memory than writes. Watch for OOM on small instances.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "max(process_memory_usage_bytes)",
+          "legendFormat": "RSS",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2147483648
+              },
+              {
+                "color": "red",
+                "value": 4294967296
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "S3 benign events by status (404 = O_CREAT probe, -1 = cancelled dup lookup)",
+      "description": "Counted in s3_request_errors_total but NOT failures. Verified with --debug --debug-crt on 2026-07-27: 149x CRT 14343 (all response status=404) + 19x CRT 14347 AWS_ERROR_S3_CANCELED 'Request successfully cancelled' (all HeadObject, 0 UploadPart). All 42,865 UploadPart calls returned 200.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (s3_request, http_status) (rate(s3_request_errors_total{http_status=~\"404|-1\"}[$__rate_interval]))",
+          "legendFormat": "{{s3_request}} / {{http_status}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "S3 bottleneck indicator — TOTAL p99 / TTFB p99",
+      "description": "Ratio ~1 => S3/network is the bottleneck. Ratio >> 1 => TTFB is fine but the body transfer is slow, i.e. LOCAL bandwidth/concurrency limit, NOT S3 being slow. Measured 2026-07-27: UploadPart 9.8x (TTFB 138ms vs TOTAL 1.34s), GetObject 26.1x. Without this ratio the natural (wrong) conclusion is 'S3 got slower'.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (s3_request) (rate(s3_request_total_latency_microseconds[$__rate_interval]))) / histogram_quantile(0.99, sum by (s3_request) (rate(s3_request_first_byte_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "{{s3_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "scaleDistribution": {
+              "type": "log",
+              "log": 2
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 8
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "FUSE Request Latency (native histogram)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "heatmap",
+      "title": "FUSE latency distribution — heatmap (all requests)",
+      "description": "Native-histogram bucket distribution over time. Bright = where latency concentrates. Measured under load this is clearly BIMODAL: a dense band at 128us-1ms plus sparse points out past 300ms.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(fuse_request_latency_microseconds[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "µs",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "FUSE latency percentiles (all requests)",
+      "description": "True quantiles from exponential histogram buckets. Measured heavy write: p50 250us / p99 213,634us (855x). Measured mixed read+write: p50 64us / p90 311us / p99 23,947us / p99.9 390,052us / p99.99 1,226,967us -> p99.99 is 19,231x p50. The mean is hidden by default: it read 1,670us vs a p50 of 64us (26x inflated by the tail), i.e. it describes neither the typical nor the worst request.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p50",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.90, sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p90",
+          "range": true,
+          "refId": "B",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p99",
+          "range": true,
+          "refId": "C",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.999, sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p99.9",
+          "range": true,
+          "refId": "D",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.9999, sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p99.99",
+          "range": true,
+          "refId": "E",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_avg(sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "avg (hidden — misleading)",
+          "range": true,
+          "refId": "F",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "scaleDistribution": {
+              "type": "log",
+              "log": 2
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg (hidden — misleading)"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "FUSE p99 latency by request type",
+      "description": "LOG AXIS is mandatory: measured 11 op types spanning 5 decades in one chart (releasedir 26us / release 57us / opendir 1,327us / getattr 1,384us / read 13,742us / mknod 14,116us / write 46,669us / readdirplus 169,685us / open 557,957us / lookup 616,637us / flush 1,931,987us) -- a 74,307x spread. On a linear axis eight of these collapse onto the zero line and look perfectly flat.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (fuse_request) (rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "{{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "FUSE time contribution by request type (where wall-clock actually goes)",
+      "description": "histogram_sum, NOT histogram_count: total microseconds spent per op type. Added because ops/s is misleading about importance. Measured under mixed load: read 4,042,068 us/s (66% of time, 2932 ops/s) but flush 673,281 us/s (11% of time from only 0.5 ops/s = 0.017% of requests). flush is the classic case a count-weighted average dilutes into invisibility.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (fuse_request) (histogram_sum(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "{{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "FUSE ops/s by request type",
+      "description": "Request COUNT only -- do not infer importance from this. Measured under mixed load: read 2932 ops/s and write 259 ops/s vs flush 0.5 ops/s, yet flush still burns 11% of all wall-clock time (0.017% of requests). Always pair with the time-contribution panel above.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (fuse_request) (histogram_count(rate(fuse_request_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "{{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "heatmap",
+      "title": "FUSE read latency — heatmap",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(fuse_request_latency_microseconds{fuse_request=\"read\"}[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "µs",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 17,
+      "type": "heatmap",
+      "title": "FUSE write latency — heatmap",
+      "description": "Measured: write p50 barely moves with load (261us light -> 254us heavy, data is buffered) while p99 explodes 304us -> 140,680us when the buffer periodically fills.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(fuse_request_latency_microseconds{fuse_request=\"write\"}[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "µs",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 18,
+      "type": "heatmap",
+      "title": "FUSE flush latency — heatmap (close() waiting on CompleteMultipartUpload)",
+      "description": "flush is the slowest FUSE op (measured p99 2.13s under load, still 156ms when nearly idle). It is inherent to S3 object semantics: close() must wait for the multipart upload to complete. Applications doing frequent open/close of small files experience SECONDS of latency, not the 185ms that 'write' suggests.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(fuse_request_latency_microseconds{fuse_request=\"flush\"}[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "µs",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "FUSE IO Size",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "type": "heatmap",
+      "title": "FUSE IO size distribution — heatmap",
+      "description": "Bytes per FUSE request. Reveals small-IO vs large-IO workload mix.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(fuse_io_size_bytes[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "bytes",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "FUSE IO size percentiles",
+      "description": "FUSE-visible size != application request size. Writes pass through 1:1 (avg 1024KB from 1MiB app writes). READS get split/merged by the kernel and the amount VARIES with app block size and concurrency -- measured p50 249KB / avg 213KB for a single 1MiB sequential reader, but p50 4KB / avg 74KB once a 64K reader and concurrent writers were added. Never assume the app's bs value here, and do not treat any single ratio as a constant.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (fuse_request) (rate(fuse_io_size_bytes[$__rate_interval])))",
+          "legendFormat": "p50 {{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (fuse_request) (rate(fuse_io_size_bytes[$__rate_interval])))",
+          "legendFormat": "p99 {{fuse_request}}",
+          "range": true,
+          "refId": "B",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Throughput by FUSE request type",
+      "description": "FUSE-layer bytes only; excludes page-cache hits (see Overview note).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (fuse_request) (histogram_sum(rate(fuse_io_size_bytes[$__rate_interval])))",
+          "legendFormat": "{{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Avg IO size by request type",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_avg(sum by (fuse_request) (rate(fuse_io_size_bytes[$__rate_interval])))",
+          "legendFormat": "{{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "row",
+      "title": "S3 API Requests",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "panels": []
+    },
+    {
+      "id": 25,
+      "type": "heatmap",
+      "title": "S3 first-byte latency (TTFB) — heatmap",
+      "description": "Time from S3 request start until first byte received. This reflects S3 server-side responsiveness. Measured: barely changed between light and heavy load (UploadPart 158ms -> 138ms), i.e. S3 did NOT degrade.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 60
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(s3_request_first_byte_latency_microseconds[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "µs",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "S3 TTFB percentiles by API",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (s3_request) (rate(s3_request_first_byte_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p50 {{s3_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (s3_request) (rate(s3_request_first_byte_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p99 {{s3_request}}",
+          "range": true,
+          "refId": "B",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "scaleDistribution": {
+              "type": "log",
+              "log": 2
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "heatmap",
+      "title": "S3 total latency — heatmap",
+      "description": "Full request duration including body transfer. Measured heavy write: UploadPart TOTAL p99 1.34s vs TTFB p99 138ms -> the extra ~1.2s is spent pushing the 8MB body over the wire (local bandwidth), not waiting on S3.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 69
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(s3_request_total_latency_microseconds[$__rate_interval]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Turbo",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5,
+          "fill": "dark-orange"
+        },
+        "yAxis": {
+          "unit": "µs",
+          "axisPlacement": "left",
+          "reverse": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": true,
+          "yHistogram": true
+        },
+        "legend": {
+          "show": true
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            }
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "S3 total latency percentiles by API",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 69
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (s3_request) (rate(s3_request_total_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p50 {{s3_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (s3_request) (rate(s3_request_total_latency_microseconds[$__rate_interval])))",
+          "legendFormat": "p99 {{s3_request}}",
+          "range": true,
+          "refId": "B",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µs",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "scaleDistribution": {
+              "type": "log",
+              "log": 2
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "timeseries",
+      "title": "S3 request rate by API",
+      "description": "Per-API S3 call rate. Watch multipart quartet CreateMPU/UploadPart/CompleteMPU: on healthy writes they rise together with DeleteObject≈0. DeleteObject rising in lockstep = create-then-delete waste (see Write Amplification row).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 78
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (s3_request) (rate(s3_request_count_total[$__rate_interval]))",
+          "legendFormat": "{{s3_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "S3 errors by API / HTTP status (full breakdown incl. benign)",
+      "description": "Keep the http_status breakdown -- this is the panel that prevents misdiagnosis. 404 and -1 are benign (see Overview). Real trouble looks like 503 (SlowDown -> reduce concurrency / spread prefixes) or other 5xx.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 78
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (s3_request, http_status) (rate(s3_request_errors_total[$__rate_interval]))",
+          "legendFormat": "{{s3_request}} / {{http_status}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "row",
+      "title": "Mountpoint Internals",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 95
+      },
+      "panels": []
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "FUSE worker thread pool (--max-threads default 16)",
+      "description": "Idle threads near 0 = FUSE thread pool saturated -> raise --max-threads. Measured avg idle: 14.0 write-only, 10.4 read-only, 11.0 mixed read+write. p1 idle (worst case) is the line that matters: it hit 4.0 under mixed load (alert threshold is 3) while avg still read a comfortable 11.0 -- the average hides transient saturation. NOTE: queried WITHOUT rate() -- idle_threads is an instantaneous distribution, not a cumulative counter; wrapping it in rate() (as v1/v2 did) was wrong. experimental_fuse_total_threads_ratio is intentionally omitted: it DOES report data but is constant at 16 (= --max-threads), so it carries no information. (v2 wrongly called it a dead series -- that was an instant-query sampling gap.)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 96
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_avg(experimental_fuse_idle_threads)",
+          "legendFormat": "avg idle",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.01, experimental_fuse_idle_threads)",
+          "legendFormat": "p1 idle (worst case)",
+          "range": true,
+          "refId": "B",
+          "format": "time_series"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "16 - histogram_avg(experimental_fuse_idle_threads)",
+          "legendFormat": "in use (16 - idle)",
+          "range": true,
+          "refId": "C",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Process memory (RSS)",
+      "description": "Measured 80MB idle -> 617MB write -> 978MB read (12x) on a 7.8GB instance, still climbing during the read phase. Easily the most overlooked alertable signal here.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 96
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "process_memory_usage_bytes",
+          "legendFormat": "RSS",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2147483648
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "FUSE errors by request type (app-visible failures)",
+      "description": "Stayed empty through the whole 2026-07-27 test: the S3 layer had transient events but Mountpoint retried every one of them, so the application saw zero errors. Any line appearing here is a genuine problem.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 96
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (fuse_request) (rate(fuse_request_errors_total[$__rate_interval]))",
+          "legendFormat": "{{fuse_request}}",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 35,
+      "type": "row",
+      "title": "Write Amplification & Waste (O_WRONLY success vs O_RDWR fail)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 85
+      },
+      "panels": []
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "S3 DeleteObject rate — cleanup / wasted writes",
+      "description": "Sustained DeleteObject usually means writes that were created then immediately deleted. MEASURED 2026-07-28: a failed fio write test (O_RDWR, rejected by Mountpoint) produced 1470 CreateMPU+UploadPart+CompleteMPU+DeleteObject — 27k+ S3 calls, ZERO useful throughput, but still billed. A healthy O_WRONLY sequential write (593 MB/s) showed DeleteObject=0. If this line is > 0 during a pure-write workload, you are paying for create-then-delete churn.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 86
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(s3_request_count_total{s3_request=\"DeleteObject\"}[$__rate_interval]))",
+          "legendFormat": "DeleteObject",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "timeseries",
+      "title": "Write amplification — metadata reqs per UploadPart",
+      "description": "Ratio of metadata probes (ListObjectsV2 + HeadObject) to actual data uploads (UploadPart). Low = efficient bulk write. MEASURED: healthy seq write ~0.02 (89155 UploadPart vs ~1767 meta); failed write test ~14 (10556+10556 meta vs 1470 UploadPart) — massive metadata amplification with no data landing. Spikes here flag pathological small-file or failing-open patterns.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM_MP}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 86
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM_MP}"
+          },
+          "editorMode": "code",
+          "expr": "( sum(rate(s3_request_count_total{s3_request=~\"ListObjectsV2|HeadObject\"}[$__rate_interval])) ) / clamp_min(sum(rate(s3_request_count_total{s3_request=\"UploadPart\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "List+Head per UploadPart",
+          "range": true,
+          "refId": "A",
+          "format": "time_series"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "mountpoint-s3",
+    "otlp",
+    "native-histogram",
+    "s3"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus-Mountpoint",
+          "value": ""
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "DS_PROM_MP",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Mountpoint-S3 Metrics (OTLP / native histogram)",
+  "uid": "mountpoint-s3-otlp",
+  "version": 3,
+  "weekStart": ""
+}
