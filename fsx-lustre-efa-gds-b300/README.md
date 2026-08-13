@@ -1,5 +1,7 @@
 # B300 (p6-b300.48xlarge) + FSx Lustre over EFA + GPUDirect Storage 配置与验证
 
+> 🌏 English version: [`README.en.md`](README.en.md)
+>
 > 实测时间：2026-08-13（UTC）  区域：us-west-2a  
 > 目标读者：需要在 B300 上把 FSx for Lustre over EFA + NVIDIA GPUDirect Storage(GDS) 配起来并验证的人。  
 > 配套脚本：`configure-fsx-lustre-efa-gds.sh`（真机验证版，严格对齐 AWS 官方 User Guide）。  
