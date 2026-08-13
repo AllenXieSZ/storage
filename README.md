@@ -40,6 +40,7 @@
 | 项目 | 内容 |
 |------|------|
 | **[training-sample](./training-sample/)** | 8×H100 (p5.48xlarge) 上从零训练 ViT-Huge 632M 图像分类的极简样例（PyTorch DDP + HF Trainer，checkpoint 存 FSx Lustre）。36 行脚本 + 完整 README，含续训/混合精度/NCCL NVLS 说明 |
+| **[gds-gpudirect-storage](./gds-gpudirect-storage/)** | FSx Lustre + GPUDirect Storage (GDS) 端到端搭建与验证（P5/8×H100 + EFA + 同 AZ FSx）：Capacity Block 申请、Base DLAMI、手动编译 nvidia-fs.ko、gdscheck/gdsio 验证；含"GDS 小规模吞吐反低于 CPU 路径"的实测发现与原因分析 |
 
 ### ☁️ 基础设施 & 样例
 | 项目 | 内容 |
