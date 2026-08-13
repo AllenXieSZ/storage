@@ -191,6 +191,14 @@ if mountpoint -q "$MNT"; then
 else
   sudo mount -t lustre -o relatime,flock "${FSX_DNS}@tcp:/${FSX_MOUNTNAME}" "$MNT"
 fi
+# 【坑·实测】挂载后 OST 会先短暂 CONNECTING，需等它转 FULL/IDLE 再跑 IO，
+# 否则 FIO 会因 OST 未就绪而失败/无流量（第一次真机跑就栽在这）。
+echo "--- 等 OST 全部就绪（FULL/IDLE）---"
+for i in $(seq 1 30); do
+  ST=$(lctl get_param -n osc.*.ost_server_uuid 2>/dev/null)
+  echo "$ST" | grep -qE "DISCONN|CONNECTING|NEW" || { echo "OST 已就绪"; break; }
+  echo "  [$i] OST 未就绪，等 3s..."; sleep 3
+done
 echo "--- OST 状态（FULL/IDLE=连通；DISCONN=断，多半跨AZ或SG自引用没开）---"
 lctl get_param -n osc.*.ost_server_uuid || true
 lfs df -h "$MNT" || true
@@ -203,7 +211,13 @@ log "Step 6: 跑 FIO + 验证 EFA 真有收发包（lnetctl net show -v 4 的 se
 #   (-v 4 是 Lustre/Whamcloud 官方 troubleshooting 的最详细级别)
 # 在跑 FIO【前】【后】各采一次，对比 send_count/recv_count 增量。大量读写后若这两个
 # 计数器显著增长 → 铁证数据走 EFA。/sys hw_counters(rx_pkts/tx_pkts) 作硬件层辅证。
-command -v fio >/dev/null 2>&1 || { echo "装 fio..."; (apt-get install -y fio || yum install -y fio) >/dev/null 2>&1 || true; }
+# 【坑·实测】DLAMI 默认没装 fio，且此处安装不能静默失败（否则后面 FIO 全 command not found）。
+if ! command -v fio >/dev/null 2>&1; then
+  echo "装 fio..."
+  (sudo apt-get update -y && sudo apt-get install -y fio) || sudo yum install -y fio || {
+    echo "FATAL: fio 安装失败，无法做 FIO 验证"; exit 1; }
+fi
+fio --version
 
 # 采集函数：LNet efa NI 的 send/recv/drop_count（主）+ /sys hw_counters（辅）
 snap_efa_counters(){

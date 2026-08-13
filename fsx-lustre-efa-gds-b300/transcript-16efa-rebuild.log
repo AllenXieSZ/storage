@@ -1,0 +1,208 @@
+############ B300 重建：启动即 16 EFA + 1 管理网卡 （2026-08-13 15:02:40 UTC） ############
+
+=== 0. 当前 EIP（复用，避免再分配）===
+$ aws ec2 describe-addresses --region us-west-2 --allocation-ids <EIP_ALLOC_ID> --query 'Addresses[].{IP:PublicIp,Alloc:AllocationId,Assoc:AssociationId}' --output json
+[
+    {
+        "IP": "<PUBLIC_IP>",
+        "Alloc": "<EIP_ALLOC_ID>",
+        "Assoc": "<EIP_ASSOC_ID>"
+    }
+]
+
+=== 1. terminate 当前实例（EFA ENI DeleteOnTermination=true 会自动清）===
+$ aws ec2 terminate-instances --region us-west-2 --instance-ids <INSTANCE_ID> --query 'TerminatingInstances[].{Id:InstanceId,Cur:CurrentState.Name}' --output json
+[
+    {
+        "Id": "<INSTANCE_ID>",
+        "Cur": "shutting-down"
+    }
+]
+
+=== 2. 确认 CR 仍 active/有容量 ===
+$ aws ec2 describe-capacity-reservations --region us-west-2 --capacity-reservation-ids <CAPACITY_RESERVATION_ID> --query 'CapacityReservations[].{State:State,Avail:AvailableInstanceCount,Total:TotalInstanceCount}' --output json
+[
+    {
+        "State": "active",
+        "Avail": 0,
+        "Total": 1
+    }
+]
+
+=== 等旧实例 terminated + CR 容量释放 ===
+[1] instance=shutting-down  CR_avail=0
+[2] instance=shutting-down  CR_avail=0
+[3] instance=shutting-down  CR_avail=0
+[4] instance=shutting-down  CR_avail=0
+[5] instance=shutting-down  CR_avail=0
+[6] instance=shutting-down  CR_avail=0
+[7] instance=shutting-down  CR_avail=0
+[8] instance=shutting-down  CR_avail=0
+[9] instance=shutting-down  CR_avail=0
+[10] instance=shutting-down  CR_avail=0
+[11] instance=shutting-down  CR_avail=0
+[12] instance=shutting-down  CR_avail=0
+[13] instance=shutting-down  CR_avail=0
+[14] instance=shutting-down  CR_avail=0
+[15] instance=shutting-down  CR_avail=0
+[16] instance=shutting-down  CR_avail=0
+[17] instance=shutting-down  CR_avail=0
+[18] instance=shutting-down  CR_avail=0
+[19] instance=shutting-down  CR_avail=0
+[20] instance=shutting-down  CR_avail=0
+
+=== 3. 一次性声明 17 张网卡起实例（card0=普通SSH网卡+公网IP, card1~16=16个EFA）===
+网卡声明：card0=interface(公网), card1~16=efa (共17张)
+run-instances 返回: 
+aws: [ERROR]: An error occurred (InvalidParameterCombination) when calling the RunInstances operation: The associatePublicIPAddress parameter cannot be specified when launching with multiple network interfaces.
+  ↑ 坑：多网卡不能带 AssociatePublicIpAddress，去掉该参数（改用起后挂 EIP）
+run-instances 返回 InstanceId: <INSTANCE_ID>
+
+=== 4. 等 running ===
+[1] pending
+[2] pending
+[3] pending
+[4] running
+
+=== 5. 验证网卡：应 17 张（card0 interface + card1~16 efa）===
+总网卡数: 17
+Counter({'efa': 16, 'interface': 1})
+
+=== 6. 挂 EIP 到主 ENI（card0）——多网卡起实例无公网IP，必须挂 EIP ===
+主 ENI (card0) = en<INSTANCE_ID>
+{
+    "AssocId": "<EIP_ASSOC_ID>"
+}
+公网IP = <PUBLIC_IP>
+=== 7. 等 SSH 通 ===
+[1] ssh: connect to host <PUBLIC_IP> port 22: Connection timed out
+[2] ssh: connect to host <PUBLIC_IP> port 22: Connection timed out
+[3] ssh: connect to host <PUBLIC_IP> port 22: Connection refused
+[4] OK
+=== 8. FSx 状态 ===
+{
+    "State": "AVAILABLE",
+    "Mount": "<MOUNTNAME>"
+}
+
+=== 9. 实例内环境核对（GPU / EFA 设备数 / NUMA）===
+--- nvidia-smi ---
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:8WyksUZcLx4s4fW7lU5jDLBLqR38h1Fvj8OUq9qn8z0.
+Please contact your system administrator.
+Add correct host key in /home/ubuntu/.ssh/known_hosts to get rid of this message.
+Offending ED25519 key in /home/ubuntu/.ssh/known_hosts:78
+  remove with:
+  ssh-keygen -f '/home/ubuntu/.ssh/known_hosts' -R '<PUBLIC_IP>'
+Password authentication is disabled to avoid man-in-the-middle attacks.
+Keyboard-interactive authentication is disabled to avoid man-in-the-middle attacks.
+UpdateHostkeys is disabled because the host key is not trusted.
+NVIDIA B300 SXM6 AC, 275040 MiB
+NVIDIA B300 SXM6 AC, 275040 MiB
+--- EFA 设备数（应 16 个 driver=efa）---
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:8WyksUZcLx4s4fW7lU5jDLBLqR38h1Fvj8OUq9qn8z0.
+Please contact your system administrator.
+Add correct host key in /home/ubuntu/.ssh/known_hosts to get rid of this message.
+Offending ED25519 key in /home/ubuntu/.ssh/known_hosts:78
+  remove with:
+  ssh-keygen -f '/home/ubuntu/.ssh/known_hosts' -R '<PUBLIC_IP>'
+Password authentication is disabled to avoid man-in-the-middle attacks.
+Keyboard-interactive authentication is disabled to avoid man-in-the-middle attacks.
+UpdateHostkeys is disabled because the host key is not trusted.
+EFA 设备数 = 16
+--- 全部 infiniband 设备 ---
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:8WyksUZcLx4s4fW7lU5jDLBLqR38h1Fvj8OUq9qn8z0.
+Please contact your system administrator.
+Add correct host key in /home/ubuntu/.ssh/known_hosts to get rid of this message.
+Offending ED25519 key in /home/ubuntu/.ssh/known_hosts:78
+  remove with:
+  ssh-keygen -f '/home/ubuntu/.ssh/known_hosts' -R '<PUBLIC_IP>'
+Password authentication is disabled to avoid man-in-the-middle attacks.
+Keyboard-interactive authentication is disabled to avoid man-in-the-middle attacks.
+UpdateHostkeys is disabled because the host key is not trusted.
+ibp198s0f0
+ibp199s0f0
+rdmap101s0
+rdmap102s0
+rdmap116s0
+rdmap117s0
+rdmap131s0
+rdmap132s0
+rdmap146s0
+rdmap147s0
+rdmap161s0
+rdmap162s0
+rdmap176s0
+rdmap177s0
+rdmap191s0
+rdmap192s0
+rdmap86s0
+rdmap87s0
+--- NUMA ---
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:8WyksUZcLx4s4fW7lU5jDLBLqR38h1Fvj8OUq9qn8z0.
+Please contact your system administrator.
+Add correct host key in /home/ubuntu/.ssh/known_hosts to get rid of this message.
+Offending ED25519 key in /home/ubuntu/.ssh/known_hosts:78
+  remove with:
+  ssh-keygen -f '/home/ubuntu/.ssh/known_hosts' -R '<PUBLIC_IP>'
+Password authentication is disabled to avoid man-in-the-middle attacks.
+Keyboard-interactive authentication is disabled to avoid man-in-the-middle attacks.
+UpdateHostkeys is disabled because the host key is not trusted.
+NUMA node(s):                            2
+NUMA node0 CPU(s):                       0-47,96-143
+NUMA node1 CPU(s):                       48-95,144-191
+
+=== 10. scp 配置脚本到实例 ===
+Warning: Permanently added '<PUBLIC_IP>' (ED25519) to the list of known hosts.
+
+=== 11. 后台跑配置+测试（GDS 模式, DLAMI 已预装驱动 --skip-driver）===
+命令: sudo FSX_DNS=<FSX_ID>.fsx.us-west-2.amazonaws.com FSX_MOUNTNAME=<MOUNTNAME> MNT=/fsx bash /tmp/configure-fsx-lustre-efa-gds.sh --gds --skip-driver
+Warning: Permanently added '<PUBLIC_IP>' (ED25519) to the list of known hosts.
+started
+
+=== 12. 【修正时序】OST 现已 IDLE，手动重跑 FIO + EFA 收发包前后对比 ===
+--- OST 状态确认 ---
+<MOUNTNAME>-OST0000_UUID	IDLE
+<MOUNTNAME>-OST0001_UUID	IDLE
+--- EFA 计数 [FIO 前] ---
+efa总 send_count=196819 recv_count=262355
+--- 跑 FIO seqwrite 8G×8 ---
+
+=== 12. 【真机验证】FIO + EFA 收发包前后对比（fio 已装, OST IDLE）===
+--- EFA 计数 [FIO 前] ---
+send_count=196819 recv_count=262355
+--- 顺写 8G×8 ---
+  WRITE: bw=10.2GiB/s (10.9GB/s), 10.2GiB/s-10.2GiB/s (10.9GB/s-10.9GB/s), io=64.0GiB (68.7GB), run=6281-6281msec
+--- 顺读 8G×8 ---
+   READ: bw=42.1GiB/s (45.2GB/s), 42.1GiB/s-42.1GiB/s (45.2GB/s-45.2GB/s), io=64.0GiB (68.7GB), run=1520-1520msec
+--- 随机读 64k×4 ---
+   READ: bw=3112MiB/s (3264MB/s), 3112MiB/s-3112MiB/s (3264MB/s-3264MB/s), io=16.0GiB (17.2GB), run=5264-5264msec
+--- EFA 计数 [FIO 后] ---
+send_count=998780 recv_count=1211772
