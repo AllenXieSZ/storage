@@ -23,11 +23,25 @@
 |---|---|
 | 实例类型 | p6-b300.48xlarge（us-west-2a） |
 | GPU | 8 × NVIDIA B300 SXM6 AC（每卡 275040 MiB / ~268 GB，bar1 512 GiB） |
-| **AMI** | **`ami-0a7b058a8e9a433af`**（AWS Deep Learning AMI, Ubuntu 24.04.4, kernel 6.17.0-1019-aws；预装 Lustre client / EFA driver / CUDA / GDS 工具） |
+| **AMI** | **`ami-0a7b058a8e9a433af`**（AWS Deep Learning AMI, Ubuntu 24.04.4, kernel 6.17.0-1019-aws；预装 Lustre client / EFA driver / CUDA / GDS 工具，见下方版本表） |
 | CPU/NUMA | 192 vCPU，2 NUMA 节点 |
 | 网卡布局 | card0 = 1 普通 interface（SSH/管理）+ card1~16 = **16 个 EFA**（传数据） |
 | FSx Lustre | PERSISTENT_2，250 MB/s/TiB，`EfaEnabled=true`，同 AZ(us-west-2a)，2×OST 各 18.4T，共 36.8T |
-| 软件版本 | Lustre client 2.15.6 / EFA driver 3.0.0 / kefalnd 1.2.2 / nvidia-fs 2.29 / libcufile 2.12 / GDS 1.13.1.3 |
+
+### 软件 / 内核 / 驱动版本（实例内实测）
+
+| 组件 | 版本【实测】 |
+|---|---|
+| OS 发行版 | **Ubuntu 24.04.4 LTS (Noble Numbat)**（VERSION_ID 24.04） |
+| Kernel | **6.17.0-1019-aws**（x86_64） |
+| NVIDIA driver | **595.71.05**（Nvidia Open Driver） |
+| CUDA（driver 支持） | **13.2**（Cuda Driver Version 13020；实例含 cuda-12.8/12.9/13.0/13.2 多版本，`/usr/local/cuda`→默认） |
+| EFA 内核模块 (efa kmod) | **3.0.0g** |
+| EFA installer | **1.47.0** |
+| kefalnd（P6+ LNet EFA 驱动） | **1.2.2**（要求 ≥1.1.1） |
+| Lustre client（userspace + kmod） | **2.15.6** |
+| nvidia-fs（GDS 内核模块） | **2.29**（已 insmod，要求 ≥2.24.2） |
+| libcufile（GDS 用户态） | **2.12** |
 
 > **AMI 强烈建议用 DLAMI**：Lustre client、EFA driver、CUDA、GDS 工具都已预装，脚本可加 `--skip-driver` 跳过装驱动步骤。
 
