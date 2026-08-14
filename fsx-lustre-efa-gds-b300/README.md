@@ -15,7 +15,7 @@
 > **说明**：截至 2026-08-13，AWS 官方 User Guide 与 configure 脚本的 GDS 支持机型列表**尚未收录 p6-b300.48xlarge**（仅列 p5/p5e/p5en/p6-b200）。因此下述并非"官方声明支持"，而是**本次在真机上实测配置并验证通过**的结果。
 
 **【实测】在 p6-b300.48xlarge 上，FSx for Lustre over EFA + NVIDIA GPUDirect Storage(GDS) 配置并验证通过。**
-16 个 EFA NI 全配上、2 个 OST 全 IDLE；FIO 顺读 **45.2 GB/s** / 顺写 **10.9 GB/s**；`lnetctl -v 4` 前后对比证实数据走 EFA；`gdscheck -p` → Platform verification succeeded，8×B300 全支持 GDS，gdsio GPUD 路径正常。
+16 个 EFA NI 全配上、2 个 OST 全 IDLE；FIO 顺读 **45.2 GB/s** / 顺写 **10.9 GB/s**；`lnetctl -v 4` 前后对比证实数据走 EFA；`gdscheck -p` → Platform verification succeeded，8×B300 全支持 GDS。⚠️ 但 GDS **只能 compat mode**（EFA 非标准 verbs RDMA，走不了存储直达显存的 direct path，见 ubuntu24 文档附录 B 实测）。
 
 ### 按官方文档，哪些要改 / 哪些已预装（用 DLAMI 的前提下）
 
@@ -209,7 +209,7 @@ Nvidia Driver Info Status: Supported (Nvidia Open Driver Installed)
 | **GPUD (GPUDirect Storage，存储直达显存)** | **3.53 GiB/s** | **3.73 GiB/s** |
 | CPUONLY | 4.56 GiB/s | 4.88 GiB/s |
 
-> GPUD 路径正常跑通（存储直达显存，绕过 CPU bounce buffer）。**本配置下 CPUONLY 略快属正常** —— GDS 的价值在更高并发 / 更大 IO / 省 CPU 内存带宽的场景才凸显；此处核心是**证明 GPUD 全栈可用**。
+> ⚠️ **GDS 只能 compat mode（后续实测坐实，见 `ubuntu24_vs_dlami_test.md` 附录 B）**：`use_compat_mode: true`，gdsio 传 `-x 1`(GPUD) 实际降级为 CPUONLY，数据经主机内存中转而非存储直达显存。根因是 FSx Lustre 走 **EFA**（transport `unspecified`，SRD/libfabric），非 cuFile 需要的标准 verbs RDMA。`Platform verification succeeded` 只代表 GDS 软件栈就绪，**不代表走了真 direct path**。此处 gdsio 数字均为 compat 路径。
 
 ---
 
