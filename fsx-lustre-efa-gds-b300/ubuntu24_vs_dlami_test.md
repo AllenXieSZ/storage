@@ -189,9 +189,9 @@ sudo mount -t lustre -o relatime,flock fs-XXXX.fsx.us-west-2.amazonaws.com@tcp:/
 | FIO 顺读(8 jobs 1M direct) | **2362 MiB/s (2477 MB/s)** |
 | EFA send/recv 计数 | 从 1 → 33024/48115（**证明流量确实走 EFA**）✅ |
 | gdscheck -p | **Platform verification succeeded**，8×B300 全 supports GDS ✅ |
-| gdsio GPUD/CPUONLY | 均可执行，~2.2–2.9 GiB/s（当前 compat mode） |
+| gdsio GPUD/CPUONLY | 均可执行，~2.2–2.9 GiB/s（**实为 compat mode，见附录 B**） |
 
-> GDS 当前为 `use_compat_mode: true`（cufile.json 未填 lustre mount 的 LNet IP，走兼容路径而非纯 GPUDirect P2P DMA）。要开纯 GDS direct path 需在 `/etc/cufile.json` 的 `fs.lustre` 填 `lnetctl net show` 的 EFA/tcp IP。平台验证与 GPUD 传输已通，核心链路成立。
+> ⚠️ **GDS 只能 compat mode（附录 B 实测坐实）**：`use_compat_mode: true`，数据经主机内存中转而非存储直达显存。试过填 cufile.json 的 lustre IP + 开 rdma_dynamic_routing 均无法脱离 compat —— 根因是 **EFA 的 transport 是 `unspecified`（SRD/libfabric），非 cuFile 需要的标准 verbs RDMA**。gdsio 传 `-x 1`(GPUD) 实际降级为 CPUONLY，nvidia-fs stats 显示 `Ops: Read=0 Write=0`（模块未处理任何 IO）。`Platform verification succeeded` 只代表软件栈就绪，不代表走了真 direct path。
 
 ---
 
@@ -363,3 +363,42 @@ XferType: CPUONLY ... Throughput: ~2.2-2.9 GiB/sec
 | `lnetctl net show -v 4 \| grep send_count` | 证明数据走 EFA | FIO 前后 **send/recv_count 暴涨** |
 | `gdscheck -p` | GDS 平台自检 | 出现 **Platform verification succeeded** |
 | `gdsio -x 1`（GPUD） | GDS 实际读写 | XferType=GPUD 跑出吞吐 |
+
+---
+
+# 附录 B：GDS compat mode 深挖（2026-08-14 实测，重要结论纠正）
+
+## 问题：gdsio 能跑通 ≠ 走了真正的 GDS direct path
+
+之前"gdsio GPUD 路径正常"的说法**偏乐观、有误导**。深挖后实测结论：**FSx Lustre over EFA 上，GDS 只能走 compat mode，无法走真正的 GPUDirect direct path（存储直达显存）。**
+
+## 判断"真 GDS"的正确方法：看 `use_compat_mode`，不是看 gdsio 是否跑通
+
+- **compat mode**：数据走 存储 → 主机内存 bounce buffer → GPU（多一跳，不省 CPU/内存带宽）。gdsio **照样能跑、照样报吞吐**，`cuFile` 自动 fallback，不报错。
+- **direct path**：存储 → GPU 显存（P2P DMA，绕过 CPU）。这才是 GDS 的价值。
+- 唯一可靠判据：`gdscheck -p` 里的 **`use_compat_mode`**（true=兼容/false=直连），以及 gdsio 输出的 **`XferType`**（GPUD=直连尝试，但 compat 下即使传 `-x 1` 也会实际降级为 CPUONLY）。
+
+## 实测过程（全部尝试均无法脱离 compat）
+
+| 尝试 | 操作 | 结果 |
+|---|---|---|
+| 基线 | 默认 cufile.json | `use_compat_mode: true` |
+| ① 填 lustre IP | 在 `fs.lustre` 段填 `rdma_dev_addr_list: ["<LNet-tcp-IP>"]` | **仍 true** |
+| ② 开动态路由 | `rdma_dynamic_routing: true` | **仍 true** |
+| 验证 gdsio | `-x 1`（GPUD）| 实际输出 **`XferType: CPUONLY`**（被降级）|
+| 验证 nvidia-fs | `/proc/driver/nvidia-fs/stats` | **`Ops: Read=0 Write=0`、`Registered_MiB=0`** —— nvidia-fs 内核模块根本没处理任何 IO，全走了 POSIX/CPU |
+
+## 根因（实测 + EFA 特性）
+
+GDS 的 direct path 依赖存储网络提供 **标准 RDMA verbs**（InfiniBand / RoCE，如 mlx5）。而本架构 Lustre 走 **EFA**：
+```
+ibv_devinfo → EFA 设备 transport: unspecified (4)   ← 不是标准 IB/RoCE verbs transport
+```
+EFA 用的是 **SRD 协议 + libfabric**，不是 cuFile/nvidia-fs 能直接用的标准 verbs RDMA。因此无论怎么配 cufile.json，cuFile 都找不到可用的 RDMA 后端 → 只能 fallback 到 compat mode。
+
+## 结论
+
+- **【实测】FSx Lustre over EFA 上 GDS 只能 compat mode**，无法走存储直达显存的 direct path。这是架构决定的（EFA≠标准 verbs RDMA），不是配置问题。
+- **【纠正】** DLAMI 那轮当时也一定是 compat mode（同架构），此前"gdsio GPUD 正常"的措辞应理解为"GDS 软件栈可用、能调用、平台验证通过"，**不代表走了真正的 GPUDirect direct path**。
+- **【推测，待官方确认】** 要走真 GDS direct path，存储侧需是 InfiniBand/RoCE 的 Lustre 或 NVMe-oF 等标准 verbs RDMA 存储。未在 AWS 文档中找到"FSx Lustre EFA 支持 GDS direct path"的明确说法。
+- gdscheck 的 `Platform verification succeeded` 只表示 GDS 软件栈/GPU 就绪，**不等于**当前存储路径能走 direct path。
