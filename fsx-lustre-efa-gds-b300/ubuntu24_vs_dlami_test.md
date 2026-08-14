@@ -255,3 +255,111 @@ GPU Fabric:     State=Completed, Status=Success, CliqueId=0
 - 教训：P6-B300 从零装，**先决定驱动版本，并确保 fabricmanager/imex/nvlsm 都能拿到同版本**再动手，避免反复 purge/reinstall。
 
 
+
+---
+
+# 附录：测试命令与输出（自包含，无需参考 DLAMI 篇）
+
+以下为纯净 Ubuntu 24 实例上实测的**完整命令 + 原始输出**，FSx Lustre 已挂在 `/fsx`。
+
+## A1. 挂载 FSx Lustre + OST 状态
+
+```bash
+sudo mkdir -p /fsx
+sudo mount -t lustre -o relatime,flock <fsid>.fsx.us-west-2.amazonaws.com@tcp:/<MountName> /fsx
+
+# 等 OST 转 FULL/IDLE（挂载后先短暂 CONNECTING，别急着跑 IO）
+lctl get_param -n osc.*.ost_server_uuid
+lfs df -h /fsx
+```
+
+输出（实测）：
+```
+<MountName>-OST0000_UUID  FULL
+<MountName>-OST0001_UUID  FULL
+
+UUID              bytes    Used  Available  Use%  Mounted on
+<MountName>-MDT0000  ...                          /fsx[MDT:0]
+<MountName>-OST0000  18.4T   ...    18.3T    1%   /fsx[OST:0]
+<MountName>-OST0001  18.4T   ...    18.3T    1%   /fsx[OST:1]
+filesystem_summary:  36.8T   ...    36.7T    1%   /fsx
+```
+
+## A2. FIO 性能测试 + EFA 收发验证
+
+```bash
+sudo apt-get install -y fio
+sudo mkdir -p /fsx/fiotest && sudo chmod 777 /fsx/fiotest
+
+# ① EFA 计数【FIO 前】——每个 efa NI 的 send/recv_count
+sudo lnetctl net show -v 4 | awk '/net type: efa/,0' | grep -E 'nid:|send_count|recv_count'
+
+# ② FIO 顺写（8 jobs, 1M, direct, iodepth16, 30s time_based）
+sudo fio --name=seqwrite --directory=/fsx/fiotest --rw=write --bs=1M --size=4G \
+  --numjobs=8 --iodepth=16 --direct=1 --group_reporting --runtime=30 --time_based
+
+# ③ FIO 顺读
+sudo fio --name=seqread --directory=/fsx/fiotest --rw=read --bs=1M --size=4G \
+  --numjobs=8 --iodepth=16 --direct=1 --group_reporting --runtime=30 --time_based
+
+# ④ EFA 计数【FIO 后】——对比增量
+sudo lnetctl net show -v 4 | awk '/net type: efa/,0' | grep -E 'nid:|send_count|recv_count'
+```
+
+输出（实测）：
+```
+--- FIO 顺写 ---
+WRITE: bw=2925MiB/s (3067MB/s), 2925MiB/s-2925MiB/s, io=..., run=30001-30001msec
+
+--- FIO 顺读 ---
+READ:  bw=2362MiB/s (2477MB/s), 2362MiB/s-2362MiB/s, io=..., run=30002-30002msec
+
+--- EFA send/recv 对比 ---
+FIO 前: send_count≈1      recv_count≈1
+FIO 后: send_count=33024  recv_count=48115   ← 暴涨，证明 Lustre 数据面确实走 EFA ✅
+```
+
+> 说明：本轮为验证"纯净 Ubuntu 能否跑通"，FIO 用 4G/30s 快测（非极限压测），吞吐低于 DLAMI 篇的 16EFA 极限值（顺读 45.2 GB/s）属正常——此处目的是证明链路通 + 走 EFA，不是压峰值。
+
+## A3. GDS 验证（gdscheck + gdsio）
+
+```bash
+# 平台自检
+sudo /usr/local/cuda/gds/tools/gdscheck -p
+
+# gdsio：-x 0 = CPU_ONLY，-x 1 = GPUD(GPUDirect)；-I 1 写，-I 0 读
+GDSIO=/usr/local/cuda/gds/tools/gdsio
+sudo mkdir -p /fsx/gdstest && sudo chmod 777 /fsx/gdstest
+sudo $GDSIO -D /fsx/gdstest -d 0 -w 8 -s 4G -i 1M -x 0 -I 1 -T 20   # CPU_ONLY 写
+sudo $GDSIO -D /fsx/gdstest -d 0 -w 8 -s 4G -i 1M -x 1 -I 1 -T 20   # GPUD 写
+sudo $GDSIO -D /fsx/gdstest -d 0 -w 8 -s 4G -i 1M -x 0 -I 0 -T 20   # CPU_ONLY 读
+sudo $GDSIO -D /fsx/gdstest -d 0 -w 8 -s 4G -i 1M -x 1 -I 0 -T 20   # GPUD 读
+```
+
+gdscheck -p 关键输出（实测）：
+```
+GDS release version: ...
+Platform verification succeeded                     ← 核心：GDS 全栈可用 ✅
+GPU index 0..7 NVIDIA B300 SXM6 AC ... supports GDS  ← 8 卡全支持 ✅
+cuFileDriverGetProperties ... 
+properties.use_compat_mode : true                    ← 见下方说明
+fs.lustre.posix_gds_min_kb : 0
+```
+
+gdsio 吞吐（实测，8 线程 1MB IO，~2.2–2.9 GiB/s，当前 compat mode）：
+```
+XferType: GPUD    ... Throughput: ~2.2-2.9 GiB/sec   ← GPUDirect 路径可执行 ✅
+XferType: CPUONLY ... Throughput: ~2.2-2.9 GiB/sec
+```
+
+> **⚠️ compat mode 说明**：当前 `use_compat_mode: true` —— cufile.json 未填 lustre mount 的 LNet IP，GDS 走**兼容路径**（经主机内存中转），而非纯 GPUDirect P2P DMA。平台验证与 GPUD 传输已通、核心链路成立。要开**纯 GDS direct path**（脱离 compat）需在 `/etc/cufile.json` 的 `fs.lustre` 段填 `lnetctl net show` 输出里的 EFA/tcp NID IP，届时 GPUD 吞吐会显著高于 CPUONLY。
+
+## A4. 一句话看懂各命令
+
+| 命令 | 作用 | 通过判据 |
+|---|---|---|
+| `lctl get_param osc.*.ost_server_uuid` | 看 OST 连接状态 | 全 **FULL/IDLE**（不能 DISCONN） |
+| `fio ... --direct=1 --ioengine=libaio` | 存储吞吐 | 跑出带宽即链路通 |
+| `lnetctl net show -v 4 \| grep send_count` | 证明数据走 EFA | FIO 前后 **send/recv_count 暴涨** |
+| `gdscheck -p` | GDS 平台自检 | 出现 **Platform verification succeeded** |
+| `gdsio -x 1`（GPUD） | GDS 实际读写 | XferType=GPUD 跑出吞吐 |
