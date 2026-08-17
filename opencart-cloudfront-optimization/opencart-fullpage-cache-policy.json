@@ -1,0 +1,14 @@
+{
+  "Name": "opencart-fullpage-cache",
+  "Comment": "Cache anonymous OpenCart pages ignoring cookies, honor querystring",
+  "DefaultTTL": 60,
+  "MaxTTL": 300,
+  "MinTTL": 30,
+  "ParametersInCacheKeyAndForwardedToOrigin": {
+    "EnableAcceptEncodingGzip": true,
+    "EnableAcceptEncodingBrotli": true,
+    "HeadersConfig": { "HeaderBehavior": "none" },
+    "CookiesConfig": { "CookieBehavior": "none" },
+    "QueryStringsConfig": { "QueryStringBehavior": "all" }
+  }
+}
