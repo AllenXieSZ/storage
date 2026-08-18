@@ -1,0 +1,19 @@
+[package]
+name = "s3get"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "s3get"
+path = "src/main.rs"
+
+[dependencies]
+aws-config = "1"
+aws-sdk-s3 = "1"
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
