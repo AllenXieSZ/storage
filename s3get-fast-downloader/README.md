@@ -42,6 +42,30 @@
 
 （x86 环境 c6in.2xlarge、ARM 环境 c7g.2xlarge,均 gp3。100GB 单独实测见下,c6in.8xlarge + gp3 2000MB/s = 10.9 Gbps。）
 
+## S3 VPC Gateway Endpoint vs 走 IGW(实测对比)
+
+同一批实例,分别在「S3 流量走 IGW(公网出口)」和「走 S3 Gateway Endpoint」两种路由下测 20GB 下载:
+
+| OS(x86_64) | 走 IGW | 走 Gateway Endpoint |
+|---|---|---|
+| Ubuntu 22.04 | 7.6 Gbps | 7.6 Gbps |
+| Ubuntu 24.04 | 7.8 Gbps | 7.8 Gbps |
+| Amazon Linux 2023 | 8.1 Gbps | 8.0 Gbps |
+| Rocky Linux 9.8 | 8.1 Gbps | 8.2 Gbps |
+
+**结论(诚实):同 Region 内,走 Gateway Endpoint 与走 IGW 的下载速度基本一致(差异在测量噪声内)**,因为底层都是 AWS 内部网络。Gateway Endpoint 的价值**不在于更快**,而在于:
+
+1. **省钱**:私有子网若靠 NAT Gateway 访问 S3,会产生 NAT 数据处理费($0.045/GB);Gateway Endpoint **免费**且绕过 NAT。
+2. **私有子网可用**:无公网出口(无 IGW/NAT)的子网,靠 Gateway Endpoint 也能访问 S3。
+3. **安全合规**:S3 流量不出 VPC 边界。
+
+**配置方法**:给子网所在的路由表关联 S3 Gateway Endpoint 即可(在路由表加一条 `S3 prefix-list → vpce-xxx` 路由)。AWS 按最长前缀匹配,S3 流量会优先走该路由(优先于 `0.0.0.0/0`)。
+```bash
+# 确认/关联 S3 Gateway Endpoint 到子网路由表
+aws ec2 modify-vpc-endpoint --vpc-endpoint-id <vpce-id> --add-route-table-ids <rtb-id>
+```
+
+
 
 
 ```bash
@@ -80,23 +104,23 @@ s3get [OPTIONS] <S3_PATH> <REGION> <LOCAL_PATH>
 
 仓库已上传一个 100MB 测试文件到 S3,可直接跑:
 
-**测试数据**:`s3://s3lambdatest2/s3get-test/testdata_100mb.bin`(100 MB,md5 = `dd29151a43117222e260e966411eeeac`)
+**测试数据**:`s3://<YOUR-BUCKET>/path/to/bigfile.bin`(替换为你自己的大文件对象)
 
 ```bash
 # dry-run 看计划
-s3get s3://s3lambdatest2/s3get-test/testdata_100mb.bin us-east-2 /tmp/test.bin --dry-run
+s3get s3://<YOUR-BUCKET>/path/to/bigfile.bin us-east-2 /tmp/test.bin --dry-run
 
 # 真实下载(默认参数)
-s3get s3://s3lambdatest2/s3get-test/testdata_100mb.bin us-east-2 /tmp/test.bin
+s3get s3://<YOUR-BUCKET>/path/to/bigfile.bin us-east-2 /tmp/test.bin
 
 # 自定义并发和分片
-s3get s3://s3lambdatest2/s3get-test/testdata_100mb.bin us-east-2 /tmp/test.bin --concurrency 256 --part-size 16
+s3get s3://<YOUR-BUCKET>/path/to/bigfile.bin us-east-2 /tmp/test.bin --concurrency 256 --part-size 16
 
-# 校验 md5(应等于 dd29151a43117222e260e966411eeeac)
+# 校验 md5(与源文件 md5 对比)
 md5sum /tmp/test.bin
 
 # 下载到目录(自动用 key 的文件名 testdata_100mb.bin)
-s3get s3://s3lambdatest2/s3get-test/testdata_100mb.bin us-east-2 /data/
+s3get s3://<YOUR-BUCKET>/path/to/bigfile.bin us-east-2 /data/
 
 # 用指定 profile
 s3get bucket/key us-east-2 ./out.bin --profile myprofile
@@ -104,7 +128,7 @@ s3get bucket/key us-east-2 ./out.bin --profile myprofile
 
 **实测输出**(aarch64,openclaw 小实例,100MB):
 ```
-对象: s3://s3lambdatest2/s3get-test/testdata_100mb.bin
+对象: s3://<YOUR-BUCKET>/path/to/bigfile.bin
 大小: 0.10 GB (104857600 bytes)
 输出: /tmp/test.bin
 计划: 13 个分片 x 8MB, 并发 64
