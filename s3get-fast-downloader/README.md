@@ -20,17 +20,31 @@
 
 ## 快速开始(无需编译,直接用预编译二进制)
 
-`bin/` 目录下有两个架构的预编译二进制,选你机器对应的:
+`bin/` 下是 **musl 全静态二进制**(`statically linked`,零依赖,任何 Linux 发行版都能跑,无 glibc 版本问题):
 
-| 文件 | 架构 | 适用机器 |
+| 文件 | 架构 | 适用 |
 |---|---|---|
-| `bin/s3get-linux-x86_64` | x86-64 | Intel/AMD EC2(大多数)、普通 x86 服务器 |
-| `bin/s3get-linux-aarch64` | ARM64 | Graviton EC2(m6g/c7g/...)、ARM 服务器 |
+| `bin/s3get-linux-x86_64-musl` | x86-64 | Intel/AMD;Ubuntu / Amazon Linux / Rocky / CentOS / Debian 等**全部** |
+| `bin/s3get-linux-aarch64-musl` | ARM64 | Graviton;ARM 全部发行版 |
+
+> ⚠️ **为什么用 musl 静态版**:动态链接 glibc 的二进制**不跨发行版**——在新系统(如 Ubuntu 24 / glibc 2.39)编的,拿到旧系统(Amazon Linux 2023 / Rocky 9,glibc 2.34)会报 `GLIBC_2.39 not found` 跑不了。musl 全静态零依赖,彻底解决。**已在 Ubuntu 22/24、Amazon Linux 2023、Rocky 9 四发行版实测通过。**
+
+## 多发行版实测(musl 静态版)
+
+| OS | 二进制 | 100MB(md5校验) | 20GB(size校验) | 吞吐 |
+|---|---|---|---|---|
+| Ubuntu 22.04 | statically linked | ✅ | ✅ | 7.6 Gbps |
+| Ubuntu 24.04 | statically linked | ✅ | ✅ | 7.8 Gbps |
+| Amazon Linux 2023 | statically linked | ✅ | ✅ | 8.1 Gbps |
+| Rocky Linux 9.8 | statically linked | ✅ | ✅ | 8.1 Gbps |
+
+（环境:c6in.2xlarge + gp3。100GB 单独实测见下方,c6in.8xlarge + gp3 2000MB/s = 10.9 Gbps。）
+
 
 ```bash
 # 1. 放到机器上并加执行权限
-chmod +x s3get-linux-x86_64
-sudo mv s3get-linux-x86_64 /usr/local/bin/s3get
+chmod +x s3get-linux-x86_64-musl
+sudo mv s3get-linux-x86_64-musl /usr/local/bin/s3get
 
 # 2. 确保有 AWS 凭证(和 aws cli 一样,任选其一):
 #    - aws configure  (写 ~/.aws/credentials)
