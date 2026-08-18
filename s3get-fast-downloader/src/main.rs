@@ -80,7 +80,13 @@ async fn main() {
 
     // 构建 AWS 配置: region + 默认凭证链 (+可选 profile)
     let region = aws_config::Region::new(args.region.clone());
-    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest()).region(region);
+    let mut loader = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(region)
+        // 关闭 stalled-stream protection: 高并发+带宽拥塞时单个流可能短暂读到0字节,
+        // 默认保护会误判为 stalled 而 panic(ThroughputBelowMinimum)。下载器需容忍拥塞。
+        .stalled_stream_protection(
+            aws_config::stalled_stream_protection::StalledStreamProtectionConfig::disabled(),
+        );
     if let Some(p) = &args.profile {
         loader = loader.profile_name(p);
     }
@@ -146,21 +152,52 @@ async fn main() {
         let permit = sem.clone().acquire_owned().await.unwrap();
         handles.push(tokio::spawn(async move {
             let _p = permit; // drop 释放并发额度
-            let resp = c
-                .get_object()
-                .bucket(&b)
-                .key(&k)
-                .range(range)
-                .send()
-                .await
-                .expect("get_object 失败");
-            let mut body = resp.body;
-            let mut offset = start;
-            while let Some(bytes) = body.try_next().await.expect("读取 body 失败") {
-                // pwrite 到文件的绝对 offset, 无需锁 (各分片 offset 不重叠)
-                f.write_all_at(&bytes, offset).expect("写盘失败");
-                offset += bytes.len() as u64;
-                cnt.fetch_add(bytes.len() as u64, Ordering::Relaxed);
+            // 每个分片独立重试: 连接重置/超时等瞬时错误自动重试, 单片失败不影响整体
+            let max_retries = 5u32;
+            let mut attempt = 0u32;
+            loop {
+                attempt += 1;
+                let r: Result<u64, String> = async {
+                    let resp = c
+                        .get_object()
+                        .bucket(&b)
+                        .key(&k)
+                        .range(range.clone())
+                        .send()
+                        .await
+                        .map_err(|e| format!("get_object: {}", e))?;
+                    let mut body = resp.body;
+                    let mut offset = start;
+                    let mut got: u64 = 0;
+                    while let Some(bytes) = body
+                        .try_next()
+                        .await
+                        .map_err(|e| format!("read body: {}", e))?
+                    {
+                        f.write_all_at(&bytes, offset).map_err(|e| format!("write: {}", e))?;
+                        offset += bytes.len() as u64;
+                        got += bytes.len() as u64;
+                    }
+                    Ok(got)
+                }
+                .await;
+                match r {
+                    Ok(got) => {
+                        cnt.fetch_add(got, Ordering::Relaxed);
+                        break;
+                    }
+                    Err(e) => {
+                        if attempt >= max_retries {
+                            eprintln!("分片 {} 重试 {} 次仍失败: {}", range, max_retries, e);
+                            std::process::exit(1);
+                        }
+                        // 指数退避
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            200 * 2u64.pow(attempt - 1),
+                        ))
+                        .await;
+                    }
+                }
             }
         }));
     }
