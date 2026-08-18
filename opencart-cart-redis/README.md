@@ -3,6 +3,18 @@
 > 环境：AWS us-east-2 · OpenCart 4.1.0.4 · PHP 8.5 · Aurora MySQL 8.0 · ElastiCache Redis · 3×EC2 t3.small
 > 时间：2026-08-18
 
+## ⚠️ 重要：这是定制开发，不是 OpenCart 官方特性
+
+OpenCart 官方**只对 Session 和 Cache 提供了可切换 Redis 的引擎抽象**（改配置即可，无需改代码）：
+
+| 组件 | 官方配置项 | 官方自带 Redis 支持 | 迁 Redis 是否需改代码 |
+|---|---|---|---|
+| Session | `session_engine` | ✅ 有（`session/redis.php`） | 否，改配置即可 |
+| Cache | `CACHE_ENGINE` | ✅ 有 | 否，改配置即可 |
+| **购物车 Cart** | ❌ 无 | ❌ 无（硬编码 `oc_cart` 表） | **是，必须改 `cart.php` 源码** |
+
+本改造新增的 `CART_ENGINE` 常量是**自定义开关**，只有在部署了本目录改造版 `cart.php`（含内联 `CartStorage`）后才生效。换回官方原版 `cart.php`，该常量无效。**升级 OpenCart 时官方会覆盖 `cart.php`，需重新合并本改动**（保留了 `cart.php.original` 供对比）。
+
 ## 背景与动机
 
 OpenCart 默认把购物车条目存在 **`oc_cart` 表**（MySQL）。每次页面加载都会 `SELECT oc_cart`，构造函数还会 `DELETE` 过期匿名购物车，加购/改数量/删除都是 DB 写操作。
