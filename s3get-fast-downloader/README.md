@@ -31,14 +31,17 @@
 
 ## 多发行版实测(musl 静态版)
 
-| OS | 二进制 | 100MB(md5校验) | 20GB(size校验) | 吞吐 |
-|---|---|---|---|---|
-| Ubuntu 22.04 | statically linked | ✅ | ✅ | 7.6 Gbps |
-| Ubuntu 24.04 | statically linked | ✅ | ✅ | 7.8 Gbps |
-| Amazon Linux 2023 | statically linked | ✅ | ✅ | 8.1 Gbps |
-| Rocky Linux 9.8 | statically linked | ✅ | ✅ | 8.1 Gbps |
+**x86_64 与 ARM64 各 4 发行版,共 8 组合全部实测通过**(二进制均 `statically linked` / `not a dynamic executable`,S3 流量走 VPC S3 Gateway Endpoint):
 
-（环境:c6in.2xlarge + gp3。100GB 单独实测见下方,c6in.8xlarge + gp3 2000MB/s = 10.9 Gbps。）
+| OS | x86_64 (100MB md5 / 20GB) | aarch64 (100MB md5 / 20GB) |
+|---|---|---|
+| Ubuntu 22.04 | ✅ / ✅ (7.6 Gbps) | ✅ / ✅ (8.3 Gbps) |
+| Ubuntu 24.04 | ✅ / ✅ (7.8 Gbps) | ✅ / ✅ (8.4 Gbps) |
+| Amazon Linux 2023 | ✅ / ✅ (8.1 Gbps) | ✅ / ✅ (8.3 Gbps) |
+| Rocky Linux 9.8 | ✅ / ✅ (8.1 Gbps) | ✅ / ✅ (8.2 Gbps) |
+
+（x86 环境 c6in.2xlarge、ARM 环境 c7g.2xlarge,均 gp3。100GB 单独实测见下,c6in.8xlarge + gp3 2000MB/s = 10.9 Gbps。）
+
 
 
 ```bash
