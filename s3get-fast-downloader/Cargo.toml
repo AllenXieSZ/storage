@@ -8,8 +8,10 @@ name = "s3get"
 path = "src/main.rs"
 
 [dependencies]
-aws-config = "1"
-aws-sdk-s3 = "1"
+# 禁用默认 TLS(aws-lc-rs 需 C 编译器,不利于 musl 静态),改用纯 Rust 的 rustls+ring
+aws-config = { version = "1", default-features = false, features = ["rustls", "rt-tokio", "credentials-process", "sso"] }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["rustls", "rt-tokio", "sigv4a"] }
+aws-smithy-runtime = { version = "1", features = ["connector-hyper-0-14-x", "tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
 
