@@ -1,0 +1,156 @@
+<?php
+namespace Opencart\System\Library\Cart;
+/**
+ * Class CartStorage
+ *
+ * 购物车条目存储后端抽象。支持 redis / db 两种引擎。
+ * - redis: 购物车条目存 Redis Hash，减少 Aurora 压力（购物车是非关键交易数据，可容忍偶发丢失）
+ * - db:    回退到原生 oc_cart 表（保持与官方一致）
+ *
+ * 引擎由常量 CART_ENGINE 决定（config.php 中 define('CART_ENGINE','redis')；未定义则默认 db）。
+ * Redis 复用 OpenCart 的 CACHE_HOSTNAME / CACHE_PORT / CACHE_PREFIX（即 ElastiCache）。
+ *
+ * Redis 数据结构：
+ *   key   = {CACHE_PREFIX}.cart.{store_id}.{customer_id}.{session_id}   (Hash, 带 TTL)
+ *   field = cart_id (整数字符串)
+ *   value = json({product_id, quantity, option, subscription_plan_id, override, date_added})
+ *   自增 cart_id 计数器 key = {CACHE_PREFIX}.cart_seq   (String, INCR)
+ */
+class CartStorage {
+	private $engine = 'db';
+	private $redis = null;
+	private $prefix = '';
+	private $ttl = 3600;
+	private $ok = false;   // redis 是否连接成功
+
+	public function __construct(\Opencart\System\Engine\Registry $registry) {
+		$config = $registry->get('config');
+		$this->ttl = (int)$config->get('config_session_expire');
+		if ($this->ttl <= 0) {
+			$this->ttl = 3600;
+		}
+
+		$engine = defined('CART_ENGINE') ? CART_ENGINE : 'db';
+
+		if ($engine === 'redis' && defined('CACHE_HOSTNAME') && class_exists('\Redis')) {
+			try {
+				$this->redis = new \Redis();
+				$this->redis->pconnect(CACHE_HOSTNAME, defined('CACHE_PORT') ? CACHE_PORT : 6379, 1.5);
+				$this->prefix = (defined('CACHE_PREFIX') ? CACHE_PREFIX : 'oc_') . '.cart.';
+				$this->engine = 'redis';
+				$this->ok = true;
+			} catch (\Exception $e) {
+				// 连接失败：安全降级到 db，绝不影响下单
+				$this->engine = 'db';
+				$this->ok = false;
+			}
+		}
+	}
+
+	public function usingRedis(): bool {
+		return $this->engine === 'redis' && $this->ok;
+	}
+
+	private function key(int $store_id, int $customer_id, string $session_id): string {
+		return $this->prefix . $store_id . '.' . $customer_id . '.' . $session_id;
+	}
+
+	/**
+	 * 读出某个 (store, customer, session) 的所有购物车条目
+	 * 返回与 oc_cart 行结构兼容的数组：每项含 cart_id, product_id, quantity, option, subscription_plan_id, override
+	 */
+	public function getItems(int $store_id, int $customer_id, string $session_id): array {
+		$k = $this->key($store_id, $customer_id, $session_id);
+		$rows = [];
+		$all = $this->redis->hGetAll($k);
+		if ($all) {
+			foreach ($all as $cart_id => $json) {
+				$item = json_decode($json, true);
+				if (!is_array($item)) {
+					continue;
+				}
+				$item['cart_id'] = (int)$cart_id;
+				$item['store_id'] = $store_id;
+				$item['customer_id'] = $customer_id;
+				$item['session_id'] = $session_id;
+				$rows[] = $item;
+			}
+		}
+		return $rows;
+	}
+
+	/**
+	 * 查找是否已存在相同 (product_id, subscription_plan_id, option) 的条目，返回 cart_id 或 0
+	 */
+	public function findItem(int $store_id, int $customer_id, string $session_id, int $product_id, int $subscription_plan_id, string $option_json): int {
+		foreach ($this->getItems($store_id, $customer_id, $session_id) as $item) {
+			if ((int)$item['product_id'] === $product_id
+				&& (int)($item['subscription_plan_id'] ?? 0) === $subscription_plan_id
+				&& (string)($item['option'] ?? '[]') === $option_json) {
+				return (int)$item['cart_id'];
+			}
+		}
+		return 0;
+	}
+
+	public function addItem(int $store_id, int $customer_id, string $session_id, int $product_id, int $quantity, string $option_json, int $subscription_plan_id, string $override_json): void {
+		$k = $this->key($store_id, $customer_id, $session_id);
+		$existing = $this->findItem($store_id, $customer_id, $session_id, $product_id, $subscription_plan_id, $option_json);
+		if ($existing) {
+			// 累加数量
+			$json = $this->redis->hGet($k, (string)$existing);
+			$item = json_decode($json, true) ?: [];
+			$item['quantity'] = (int)($item['quantity'] ?? 0) + $quantity;
+			$this->redis->hSet($k, (string)$existing, json_encode($item));
+		} else {
+			$cart_id = $this->redis->incr((defined('CACHE_PREFIX') ? CACHE_PREFIX : 'oc_') . '.cart_seq');
+			$item = [
+				'product_id'           => $product_id,
+				'quantity'             => $quantity,
+				'option'               => $option_json,
+				'subscription_plan_id' => $subscription_plan_id,
+				'override'             => $override_json,
+				'date_added'           => date('Y-m-d H:i:s'),
+			];
+			$this->redis->hSet($k, (string)$cart_id, json_encode($item));
+		}
+		$this->redis->expire($k, $this->ttl);
+	}
+
+	public function updateItem(int $store_id, int $customer_id, string $session_id, int $cart_id, int $quantity): void {
+		$k = $this->key($store_id, $customer_id, $session_id);
+		$json = $this->redis->hGet($k, (string)$cart_id);
+		if ($json !== false) {
+			$item = json_decode($json, true) ?: [];
+			$item['quantity'] = $quantity;
+			$this->redis->hSet($k, (string)$cart_id, json_encode($item));
+			$this->redis->expire($k, $this->ttl);
+		}
+	}
+
+	public function removeItem(int $store_id, int $customer_id, string $session_id, int $cart_id): void {
+		$k = $this->key($store_id, $customer_id, $session_id);
+		$this->redis->hDel($k, (string)$cart_id);
+	}
+
+	public function clearItems(int $store_id, int $customer_id, string $session_id): void {
+		$k = $this->key($store_id, $customer_id, $session_id);
+		$this->redis->del($k);
+	}
+
+	/**
+	 * 登录时合并：把匿名 (customer_id=0, session) 的购物车迁移到登录用户名下
+	 */
+	public function mergeOnLogin(int $store_id, int $customer_id, string $session_id): void {
+		$anonKey = $this->key($store_id, 0, $session_id);
+		$userKey = $this->key($store_id, $customer_id, $session_id);
+		$anon = $this->redis->hGetAll($anonKey);
+		if ($anon) {
+			foreach ($anon as $cart_id => $json) {
+				$this->redis->hSet($userKey, (string)$cart_id, $json);
+			}
+			$this->redis->expire($userKey, $this->ttl);
+			$this->redis->del($anonKey);
+		}
+	}
+}
