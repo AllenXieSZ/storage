@@ -203,3 +203,32 @@ OpenCart 用 `HTTP_SERVER` 生成 `<base href>` 和所有内链。若写成 Clou
 4. **OpenCart `HTTP_SERVER` 用 https + 自定义域名**，否则露 CloudFront 域名 / Mixed Content。
 5. **ASG 场景配置要烘焙进 AMI**，改现有实例不持久。
 6. **图片用同域名路径路由到 S3**，别直接用 S3 桶域名。
+
+---
+
+## 附：NAT Gateway 必要性实测（web server 出网需求分析）
+
+**问题**：三层架构里 web server（app 层）在私有子网，出站默认走 NAT Gateway。NAT 有成本（约 $0.045/h + 流量费）。web server 到底有没有主动出公网需求？去掉 NAT 网站还能否正常？
+
+**实测方法**：建 S3 Gateway Endpoint（免费）+ SSM Interface Endpoint，删私有子网路由表的 `0.0.0.0/0 → NAT`，逐项测。
+
+**结果**：
+
+| 功能 | 去 NAT 后 | 依赖 |
+|---|---|---|
+| 网站首页/商品页（用户访问）| ✅ 200 | 入站 CloudFront→ALB，不依赖 NAT |
+| Aurora / Redis | ✅ | VPC 内部私网 |
+| S3 图片读写 | ✅ | **S3 Gateway Endpoint**（免费，替代 NAT）|
+| SSM 远程管理 | ✅ | **SSM Interface Endpoint**（替代 NAT，有小额费用）|
+| **在线支付 API（如 PayPal）** | ❌ 000 超时 | **必须出公网**，VPC Endpoint 替代不了 |
+| yum/dnf 更新、通用互联网 | ❌ | 需出公网 |
+
+**结论**：
+1. **网站核心功能（浏览/下单/图片/数据库）不需要 NAT** —— 入站走 ALB，内部走私网，S3/SSM 可用 VPC Endpoint 替代。去掉 NAT 网站照常运行。
+2. **唯一真正需要出公网的是"后端主动调第三方 API"** —— 如在线支付（PayPal `api-m.sandbox.paypal.com`）、外部 webhook、第三方物流/短信 API 等。这类需求 VPC Endpoint 替代不了，必须保留 NAT（或用 NAT 实例/egress 方案）。
+3. **省钱建议**：
+   - 若无第三方 API 出站需求 → 去掉 NAT，配 **S3 Gateway Endpoint（免费）+ SSM Interface Endpoint**，网站完全正常，省 NAT 费。
+   - 若有（如在线支付）→ 保留 NAT；但仍建议加 **S3 Gateway Endpoint**（免费）把 S3 流量从 NAT 分流，省 NAT 数据处理费。
+   - **S3 Gateway Endpoint 免费且总应该加**（S3 流量不走 NAT，省流量费）。SSM/其它 Interface Endpoint 按需（每个约 $7/月 + 流量，多个时不一定比 NAT 省）。
+
+> 实测已恢复原样（NAT 路由保留，测试用 endpoints 已删）。本站因有 PayPal 支付演示（需出公网），保留了 NAT。
