@@ -91,6 +91,25 @@ volume modify -vserver <SVM_NAME> -volume <VOL_NAME> -size 1TB
 
 ---
 
+## 测试 3：连续第二次 SSD 缩容 1.5TB → 1TB（时间间隔限制 + 速率观察）
+
+上一次 SSD 缩容完成后 **仅 25 分钟** 就发起第二次缩容（1536 → 1024 GiB）。
+
+**发现 A：无时间间隔/冷却限制**
+- `update-file-system --storage-capacity 1024` **命令立即被接受**，无任何 "update too soon / cooldown / interval" 报错，正常进入 PENDING→IN_PROGRESS。
+- 结论：**两次 SSD 缩容之间没有强制时间间隔**（只要上一个 administrative action 已 COMPLETED、文件系统 AVAILABLE 即可发起下一次）。
+
+**发现 B：第二次缩容明显慢得多（同样 500GB 数据）**
+| | 第一次 2TB→1.5TB | 第二次 1.5TB→1TB |
+|---|---|---|
+| 耗时 | ~24.5 分钟 | **~66 分钟** |
+| 进度曲线 | 较线性（13min 到 33%）| 前段极慢（37min 才 16%），后段加速（60min→48%，62min→60%，64min 完成）|
+- 推测原因（未完全查证）：缩到更小容量时，用于后台 rebalance 的可用空闲空间更紧张（1TB 容量下 500GB 数据=50% 占用，接近 80% 红线，腾挪余地小），导致 rebalance 速率下降。**同样数据量，目标容量越小、越接近利用率上限，缩容越慢。**
+
+> 注意：缩容耗时不能只按数据量线性外推，还取决于"缩容后剩余可用空间"。规划缩容窗口时对"缩到接近满"的操作要留更多时间。
+
+---
+
 ## 排障备忘
 
 1. FSx create-volume 的 `SizeInBytes` 是 **int**，JSON 里别加引号（用 `--cli-input-json` 传最稳）。
