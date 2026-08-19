@@ -3,6 +3,7 @@
 在 AWS us-east-2 实测 FSx for ONTAP **第二代（Gen-2 / SINGLE_AZ_2）** 文件系统的两种缩容：
 1. **文件系统级 SSD 容量缩容**（2TB → 1.5TB）
 2. **Volume 缩容**（2TB → 1TB）
+3. **缩容对上层应用的性能影响**（fio 实测 IOPS/吞吐：基线 vs 缩容中 vs 缩容后）
 
 > ⚠️ 所有敏感值（账号 ID、资源 ID、IP、密码、域名）已用占位符。
 
@@ -107,6 +108,44 @@ volume modify -vserver <SVM_NAME> -volume <VOL_NAME> -size 1TB
 - 推测原因（未完全查证）：缩到更小容量时，用于后台 rebalance 的可用空闲空间更紧张（1TB 容量下 500GB 数据=50% 占用，接近 80% 红线，腾挪余地小），导致 rebalance 速率下降。**同样数据量，目标容量越小、越接近利用率上限，缩容越慢。**
 
 > 注意：缩容耗时不能只按数据量线性外推，还取决于"缩容后剩余可用空间"。规划缩容窗口时对"缩到接近满"的操作要留更多时间。
+
+---
+
+## ⭐ 缩容对上层应用的性能影响（fio 实测，最关键）
+
+**这是缩容最需要关注的一点——它直接反映缩容对上层应用（IOPS/吞吐/延迟）的影响。**
+
+用同一条 fio 命令在三个阶段各跑 10 分钟（混合随机读写 70/30，bs=64k，numjobs=4，iodepth=64，direct=1，libaio）：
+
+```bash
+fio --name=t --directory=/mnt/<vol> --rw=randrw --rwmixread=70 \
+    --bs=64k --size=4G --numjobs=4 --iodepth=64 --direct=1 \
+    --ioengine=libaio --runtime=600 --time_based --group_reporting
+```
+
+| 阶段 | 读 IOPS / 吞吐 | 写 IOPS / 吞吐 | 合计 IOPS | vs 基线 |
+|---|---|---|---|---|
+| **基线**（缩容前，2TB SSD，IOPS 配额 6144）| 4187 / 268 MB/s | 1794 / 115 MB/s | 5981 | — |
+| **缩容进行中**（2TB→1.5TB rebalance 期间）| 3988 / 255 MB/s | 1708 / 109 MB/s | 5696 | **-4.8%** |
+| **缩容后**（1.5TB SSD，IOPS 配额 4608）| 2500 / 160 MB/s | 1072 / 69 MB/s | 3572 | **-40%** |
+
+### 结论（务必分清两种"影响"）
+
+**① 缩容过程本身对上层应用影响极小（约 -5%）**
+- 缩容 IN_PROGRESS 期间应用 IO 只降 ~4.8%，几乎无感。印证 AWS 文档"缩容对性能影响最小"。
+- 原因：SSD 缩容是**后台低优先级 rebalance**，不抢占前台应用 IO。**缩容可以在业务运行时进行，对应用冲击很小。**
+
+**② 缩容后应用性能明显下降（-40%）—— 这是"缩了 SSD 就同步缩了 IOPS 上限"，不是缩容后遗症**
+- FSx ONTAP 的 SSD IOPS 按容量**自动配比：3 IOPS/GiB（AUTOMATIC 模式）**。
+- SSD 2TB→1.5TB → provisioned IOPS **6144→4608（-25%）**；高负载下实测应用 IOPS 降 40%（比配额降幅更大，因更受配额天花板制约）。
+- ⚠️ **这是缩 SSD 省钱的"预期代价"**：容量降了，性能上限（IOPS）也按比例降了。
+
+### ⚠️ 对上层应用的实操建议
+- **缩 SSD = 同时缩 IOPS 上限**（AUTOMATIC 模式）。**IOPS/延迟敏感的应用，缩容前必须评估缩后 IOPS 是否够用**，否则缩完应用会明显变慢。
+- 想"缩容量但保 IOPS"：用 `USER_PROVISIONED` 模式单独指定 IOPS（不随容量自动降），但要额外付费。
+- 缩容过程本身可在业务时段进行（影响 ~5%）；但**前台高 IO 会拖慢缩容**（实测跑 fio 时 10 分钟缩容才 2%，停 fio 后加速）——缩容窗口尽量避开高峰或接受变慢。
+
+（更详细的并发测试见 [`concurrent-and-perf.md`](./concurrent-and-perf.md)。）
 
 ---
 
