@@ -73,5 +73,25 @@
 6. 对各组文件做单块 4k 冷读延迟采样（40–50 次），对比中位数。
 7. 交叉验证：换一个反复读目标，重复步骤 3–6。
 
+## 补充：SSD cache 只服务读，写入不进 cache（官方 User Guide 确认）
+
+查 AWS 官方 User Guide（Performance characteristics of Intelligent-Tiering storage class）确认：
+
+- **写路径直达 Intelligent-Tiering 存储，不经 SSD cache**：
+  > "A write request occurs when FSx for Lustre **writes a block of data to Intelligent-Tiering storage**. When you write data to the file system, write requests are **aggregated and written to Intelligent-Tiering storage**."
+
+  写入是聚合后直接落到 Intelligent-Tiering 存储层，全程不涉及 SSD read cache。
+
+- **该 cache 明确命名为 "SSD read cache"，只服务读**：
+  > "Reads can be served from the file server's **in-memory cache**, **SSD read cache**, or directly from **Intelligent-Tiering storage**."
+
+- **数据进 SSD read cache 只能靠"被读取"（热数据）触发**，不是写入时自动进。这与本测试实测吻合：只"写"文件不会填充 read cache，必须靠"读"填充。
+
+**结论**：SSD cache = 纯读缓存（read cache）。写数据不会先缓存到 SSD read cache，而是直接聚合写入 Intelligent-Tiering 存储。
+
+> 不确定点：服务端还有一层 in-memory cache（每 4000MBps 数百 GB 级）。写入数据是否短暂驻留该 in-memory 写缓冲，官方文档未明说。但持久的 **SSD read cache 明确只服务读**。
+
+来源：https://docs.aws.amazon.com/fsx/latest/LustreGuide/intelligent-tiering-file-systems.html
+
 ---
-测试日期：2026-08-20 | 方法：单块 dd 冷读延迟 + 大样本统计 | 结论性质：实测推断
+测试日期：2026-08-20 | 方法：单块 dd 冷读延迟 + 大样本统计 | 结论性质：实测推断 + 官方文档确认
