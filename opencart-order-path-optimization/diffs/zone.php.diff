@@ -1,0 +1,20 @@
+--- /tmp/oc_orig/upload/catalog/model/localisation/zone.php	2026-07-29 19:49:48.000000000 +0000
++++ /tmp/patched/catalog__model__localisation__zone.php	2026-08-22 04:18:23.907208477 +0000
+@@ -24,9 +24,15 @@
+ 	 * $zone_info = $this->model_localisation_zone->getZone($zone_id);
+ 	 */
+ 	public function getZone(int $zone_id): array {
+-		$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "zone` `z` LEFT JOIN `" . DB_PREFIX . "zone_description` `zd` ON (`z`.`zone_id` = `zd`.`zone_id`) WHERE `z`.`zone_id` = '" . (int)$zone_id . "' AND `zd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "' AND `z`.`status` = '1'");
++		$ck = 'zone.info.' . (int)$zone_id . '.' . (int)$this->config->get('config_language_id');
++		$data = $this->cache->get($ck);
++		if (empty($data)) {
++			$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "zone` `z` LEFT JOIN `" . DB_PREFIX . "zone_description` `zd` ON (`z`.`zone_id` = `zd`.`zone_id`) WHERE `z`.`zone_id` = '" . (int)$zone_id . "' AND `zd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "' AND `z`.`status` = '1'");
++			$data = $query->row;
++			$this->cache->set($ck, $data);
++		}
+ 
+-		return $query->row;
++		return $data;
+ 	}
+ 
+ 	/**
