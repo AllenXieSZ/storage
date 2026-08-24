@@ -1,0 +1,48 @@
+{
+  "bucket": "weiwei-s3vectors-demo-460036d4",
+  "region": "us-east-2",
+  "dim": 1024,
+  "n": 100,
+  "results": [
+    {
+      "round": 1,
+      "index": "idx-round-1-3422c3",
+      "create_index_ms": 264.41,
+      "insert_ms": 1983.37,
+      "query_ms": 279.33,
+      "query_hits": 10
+    },
+    {
+      "round": 2,
+      "index": "idx-round-2-09aec8",
+      "create_index_ms": 270.81,
+      "insert_ms": 1953.06,
+      "query_ms": 292.43,
+      "query_hits": 10
+    },
+    {
+      "round": 3,
+      "index": "idx-round-3-2abcb3",
+      "create_index_ms": 258.44,
+      "insert_ms": 2014.21,
+      "query_ms": 301.48,
+      "query_hits": 10
+    },
+    {
+      "round": 4,
+      "index": "idx-round-4-f1dcd1",
+      "create_index_ms": 257.82,
+      "insert_ms": 2023.32,
+      "query_ms": 301.07,
+      "query_hits": 10
+    },
+    {
+      "round": 5,
+      "index": "idx-round-5-a91f1d",
+      "create_index_ms": 280.9,
+      "insert_ms": 2018.55,
+      "query_ms": 319.53,
+      "query_hits": 10
+    }
+  ]
+}
