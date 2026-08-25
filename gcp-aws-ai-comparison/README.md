@@ -102,6 +102,31 @@
 
 ---
 
+## 十一、分布式训练
+
+三种并行策略本身通用（数据并行 / 张量并行 / 流水线并行 / 3D 组合），差异在托管服务与通信加速组件：
+
+| 能力 | GCP | AWS |
+|---|---|---|
+| 托管分布式训练 | Vertex AI Training | SageMaker Training（SMDDP / SMP） |
+| 数据并行加速 | **Reduction Server**（加速 all-reduce） | SageMaker Distributed Data Parallel (SMDDP) |
+| 模型并行库 | JAX GSPMD / Pax / DeepSpeed | SageMaker Model Parallel (SMP) / DeepSpeed |
+| GPU 集群高速网 | **GPUDirect-TCPX** | **EFA** |
+| 自研芯片路线 | TPU Pod | Trainium UltraCluster |
+
+## 十二、GPU 机型对照
+
+| GPU | GCP | AWS |
+|---|---|---|
+| A100 | **A2** | P4d / P4de |
+| H100 | **A3**（当前训练主力，配 GPUDirect-TCPX） | **P5** |
+| H200 | A3 变体 | P5e / P5en |
+| Blackwell B200/GB200 | A4 / A4X | P6（P6-B200） |
+| L4（推理性价比） | **G2** | G6 |
+
+- GCP 加速机型命名：A 系列（A=Accelerator），A2→A3→A4 越新越强；G2 是推理向（L4）。
+- 训练旗舰 A3(H100)↔P5；上一代 A2(A100)↔P4d；推理 G2(L4)↔G6。
+
 ## 核心记忆锚点
 
 - **企业托管入口**：Vertex AI ↔ Bedrock
@@ -111,3 +136,5 @@
 - **安全**：Safety Filters ↔ Bedrock Guardrails；SynthID 是 Google 独有
 - **接地独门**：Grounding with Google Search（AWS 无对等）
 - **自研芯片**：TPU(ICI/Torus/Pod-Slice) ↔ Trainium(NeuronLink/UltraCluster)
+- **GPU机型**：A2(A100)↔P4d、A3(H100)↔P5、G2(L4)↔G6
+- **分布式训练**：Reduction Server↔SMDDP、GPUDirect-TCPX↔EFA
