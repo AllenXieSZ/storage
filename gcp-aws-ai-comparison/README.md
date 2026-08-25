@@ -1,7 +1,7 @@
 # GCP Vertex AI ↔ AWS 服务对照速查表
 
-> 整理自 2026-08-25 GCP AI/ML 面试自测（Q1-Q24）中的 GCP ↔ AWS 对比
-> 用途：双云对照复习。服务更新快，具体特性以各厂商官方最新文档为准。
+> GCP Vertex AI 与 AWS AI 服务的对照学习笔记，按能力维度整理。
+> 用途：双云 AI 服务对照学习。服务更新快，具体特性以各厂商官方最新文档为准。
 
 ## 一、平台与模型服务
 
@@ -22,7 +22,7 @@
 | 快省/最轻 | Gemini **Flash-Lite** | Claude **Haiku** / Nova Micro-Lite |
 | 备注 | Gemini 只在 Vertex AI，原生多模态+百万级长上下文 | Bedrock 多厂商（Anthropic/Meta/Amazon/Mistral），无 Gemini |
 
-## 三、推理端点 / 流量切分（Q9）
+## 三、推理端点 / 流量切分
 
 | 维度 | Vertex AI | SageMaker |
 |---|---|---|
@@ -33,7 +33,7 @@
 | autoscaling | min/max replica | Application Auto Scaling |
 | 批量推理 | Batch Prediction | Batch Transform |
 
-## 四、模型监控（Q10）
+## 四、模型监控
 
 | Vertex AI Model Monitoring | AWS SageMaker Model Monitor |
 |---|---|
@@ -43,7 +43,7 @@
 | —（不单列） | **Bias Drift**（Clarify） |
 | 注：latency/QPS 属服务层监控(Cloud Monitoring / CloudWatch)，非 Model Monitoring |
 
-## 五、RAG / 向量检索 / Embedding（Q14-16）
+## 五、RAG / 向量检索 / Embedding
 
 | 环节 | GCP | AWS |
 |---|---|---|
@@ -52,14 +52,14 @@
 | embedding 模型 | Vertex text-embedding / multimodal embedding | Titan Text/Multimodal Embeddings / Cohere Embed |
 | ⚠️延迟对标 | Vector Search=毫秒级 ↔ OpenSearch；S3 Vectors=亚秒级(用延迟换成本) |
 
-## 六、微调（Q17-18）
+## 六、微调
 
 | GCP | AWS Bedrock |
 |---|---|
 | Gemini 托管 **SFT**（底层 LoRA 类 PEFT，闭源做不了全参数微调） | **Custom Models**：Fine-tuning（监督微调）+ Continued Pre-training |
 | 都是托管式，上传数据、不碰底层权重 | 同 |
 
-## 七、Grounding / Agent（Q19-20）
+## 七、Grounding / Agent
 
 | 概念 | GCP | AWS |
 |---|---|---|
@@ -69,7 +69,7 @@
 | 工具调用 | Gemini function calling / Extensions | Bedrock Agents **Action Groups**（Lambda+OpenAPI） |
 | 命名差异 | "Agent Builder"=造Agent的平台 | "Bedrock Agents"=服务下的资源(复数) |
 
-## 八、安全 / 责任 AI（Q21）
+## 八、安全 / 责任 AI
 
 | 责任机制 | GCP Vertex AI | AWS |
 |---|---|---|
@@ -80,14 +80,14 @@
 | PII 检测 | Cloud DLP | Guardrails PII / Comprehend |
 | 注："Guardrails"是AWS产品名；Vertex 官方叫 safety filters |
 
-## 九、上下文缓存（Q22）
+## 九、上下文缓存
 
 | GCP | AWS |
 |---|---|
 | **Vertex AI Context Caching**（显式建cache对象+TTL+cacheID引用） | **Bedrock Prompt Caching**（prompt里标记cache断点） |
 | 都缓存固定前缀的 **KV Cache**(注意力键值,非tokenizer/权重)，命中打折+降TTFT。前缀token必须逐token一致才命中(prefix matching) |
 
-## 十、训练芯片 / 基础设施（Q23-24）
+## 十、训练芯片 / 基础设施
 
 | 能力 | GCP | AWS |
 |---|---|---|
