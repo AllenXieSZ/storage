@@ -127,6 +127,28 @@
 - GCP 加速机型命名：A 系列（A=Accelerator），A2→A3→A4 越新越强；G2 是推理向（L4）。
 - 训练旗舰 A3(H100)↔P5；上一代 A2(A100)↔P4d；推理 G2(L4)↔G6。
 
+## 十三、Spot / 抢占式实例（训练降本）
+
+| | GCP | AWS |
+|---|---|---|
+| 抢占式实例 | **Spot VM**（旧称 Preemptible VM） | **Spot Instance** |
+| 抢占通知时长 | ~30 秒 | ~2 分钟 |
+| 折扣 | 最高 ~91% | 最高 ~90% |
+| 托管训练用法 | Vertex AI Spot / GKE Spot 节点池 | **SageMaker Managed Spot Training**（自动用 Spot + 抢占后从 S3 checkpoint 自动恢复） |
+| 抢占信号 | preemption notice | Spot interruption notice（+ EventBridge） |
+
+- ML 训练可容错，Spot + checkpoint 是降本经典组合；风险：随时被抢/可能抢不到/同步训练受影响。
+
+## 十四、Checkpoint 存储
+
+| | GCP | AWS |
+|---|---|---|
+| checkpoint 存储目标 | GCS / Managed Lustre / Filestore / 本地 SSD | S3 / **FSx for Lustre**（配 S3 DRA 落盘）/ EFS |
+| 托管训练自动恢复 | Vertex AI Training | SageMaker Managed Spot Training（从 S3 checkpoint 自动恢复） |
+
+- checkpoint 存的是"权重 + 优化器状态 + 训练进度"完整快照，不只权重。
+- 大模型 checkpoint 常 TB 级，写入吞吐影响训练效率 → 用高吞吐并行文件系统 + 异步/分片 checkpoint。
+
 ## 核心记忆锚点
 
 - **企业托管入口**：Vertex AI ↔ Bedrock
@@ -138,3 +160,5 @@
 - **自研芯片**：TPU(ICI/Torus/Pod-Slice) ↔ Trainium(NeuronLink/UltraCluster)
 - **GPU机型**：A2(A100)↔P4d、A3(H100)↔P5、G2(L4)↔G6
 - **分布式训练**：Reduction Server↔SMDDP、GPUDirect-TCPX↔EFA
+- **Spot降本**：GCP Spot VM(30s通知)↔AWS Spot(2min通知)+Managed Spot Training
+- **checkpoint存储**：GCS/Managed Lustre↔S3/FSx Lustre
