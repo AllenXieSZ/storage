@@ -77,6 +77,25 @@
    - 数据量大(TB级)、全表扫描密集 → DuckLake 查询更快 + 写入更快 + 元数据操作快。
 5. ⚠️ 本测试为单机 DuckDB 单引擎、5 条查询；不同引擎(Spark/Trino)、不同查询、DuckLake 版本演进(v1.0 仅 2026-04)结果可能变化。
 
+## ⚠️ 重大公平性声明：引擎主场偏袒（务必先读）
+
+**本测试两组查询都用同一个客户端 DuckDB v1.5.5**（唯一变量是表格式：DuckLake 走 `ducklake` 扩展，S3 Tables 走 `iceberg` 扩展）。这带来一个**无法忽视的偏袒风险**：
+
+- **DuckLake 是 DuckDB Labs 的亲儿子**（同一家公司出品），DuckLake 的参考实现就是 DuckDB 的 `ducklake` 扩展。**DuckDB 对自家格式的读取路径 / IO 调度 / 谓词下推几乎肯定做了深度优化**。
+- **S3 Tables 走的是 Iceberg 通用读取路径**（`iceberg` 扩展），DuckDB 对第三方 Iceberg 格式的支持不一定有对自家 DuckLake 那么精细。
+- 因此 **"SF2000 下 DuckLake GET 少 32%、更快" 有可能不是 DuckLake 格式本身更优，而是 DuckDB 读自家格式的实现更成熟/更优化。**（连 EXPLAIN 里的 #GET 次数都由引擎的 Range 切分策略决定，也受引擎影响。）
+
+**因此结论必须收紧：**
+- ✅ 能说：**"用 DuckDB 引擎时，大规模(2TB)读 DuckLake 比读 S3 Tables 快 1.25×、GET 少 32%"**（这个结论只在 DuckDB 引擎下成立）。
+- ❌ **不能说**："DuckLake 格式本身比 Iceberg 快"—— 本测试**无法支撑格式层面的优劣结论**。
+
+**要剥离引擎偏袒、得出真正公平的格式对比，应该：**
+1. 换用 **Spark 或 Trino** 等第三方中立引擎（对 DuckLake 和 Iceberg 都是"外人"，无主场）分别读两种格式；
+2. 或各自用其"主场引擎"对比（DuckLake→DuckDB，Iceberg→Athena/Spark），看各自最优表现；
+3. 关注 GET 次数/扫描字节等底层指标时，牢记这些也受引擎实现影响。
+
+> 一句话：**本测试证明的是"DuckDB 场景下 DuckLake 表现好"，而非"DuckLake 格式优于 Iceberg"。后者需中立引擎(Spark/Trino)重测。**
+
 ## 原始日志摘录
 ```
 SF2000 查询 warm:
