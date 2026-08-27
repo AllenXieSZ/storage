@@ -149,6 +149,96 @@
 - checkpoint 存的是"权重 + 优化器状态 + 训练进度"完整快照，不只权重。
 - 大模型 checkpoint 常 TB 级，写入吞吐影响训练效率 → 用高吞吐并行文件系统 + 异步/分片 checkpoint。
 
+## 十五、GPU 容量获取（紧缺时）
+
+| 机制 | GCP | AWS |
+|---|---|---|
+| 按需 | On-demand | On-Demand |
+| 抢占式 | Spot VM | Spot |
+| 预留保证容量 | Reservation / Capacity Reservation | On-Demand Capacity Reservation (ODCR) |
+| 承诺折扣 | Committed Use Discount (CUD) | Savings Plans / RI |
+| 排队攒够原子启动 | **DWS Flex Start** | EC2 Fleet / 部分 Capacity Blocks |
+| 预约未来时段 GPU | **DWS Calendar** | **Capacity Block for ML** |
+
+- DWS(Dynamic Workload Scheduler) 是 GCP 治 GPU 紧缺的核心：Flex Start（排队攒够整批原子启动）+ Calendar（预约时段，≈AWS Capacity Block）。
+
+## 十六、MLOps 与模型监控（drift）
+
+- **MLOps = DevOps + 数据维度 + 模型维度**；比 DevOps 多：①数据/特征版本管理 ②CT(持续训练) ③模型监控触发重训。CI/CD/**CT**。
+- **Data Drift**：输入分布 P(X) 变（题型变、规律没变），用 PSI/KS 检测，**不需 label，快**。
+- **Concept Drift**：X→Y 关系 P(Y|X) 变（标准答案改了），需真实 label 测准确率下降，**慢、难救**。
+- **training-serving skew**：训练与线上"算特征的逻辑不一致"，根治=Feature Store 离线在线同源。
+
+| 环节 | GCP | AWS |
+|---|---|---|
+| 流水线 | Vertex AI Pipelines(KFP/TFX) | SageMaker Pipelines |
+| 模型注册/血缘 | Vertex AI Model Registry | SageMaker Model Registry |
+| 特征仓库 | Vertex AI Feature Store | SageMaker Feature Store |
+| 漂移监控 | Vertex AI Model Monitoring | SageMaker Model Monitor |
+
+## 十七、大数据特征工程
+
+| 用途 | GCP | AWS |
+|---|---|---|
+| SQL 大规模特征（首选） | **BigQuery** | Athena / Redshift |
+| 流批统一（Beam） | **Dataflow** | Managed Flink / Glue |
+| 托管 Spark | **Dataproc** | EMR |
+| 特征仓库 | Vertex AI Feature Store | SageMaker Feature Store |
+
+- 口诀：三引擎(BigQuery/Dataflow/Dataproc) + 一仓库(Feature Store)。SQL能搞用BQ，流式用Dataflow，有Spark用Dataproc。
+
+## 十八、数仓内 SQL 做 ML
+
+| | GCP | AWS |
+|---|---|---|
+| 数仓内 SQL 建模 | **BigQuery ML**（CREATE MODEL / ML.PREDICT，数据不搬） | **Redshift ML**（底层调 SageMaker Autopilot） |
+
+- BQML 主打传统算法(回归/树/聚类，CPU 密集用不上 GPU)，也能导入 TF 模型 / 调 Gemini；Serverless 不管底层硬件。
+
+## 十九、超参调优（HPO）
+
+| | GCP | AWS |
+|---|---|---|
+| HPO 服务 | **Vertex AI Hyperparameter Tuning**（底层 Vizier） | **SageMaker Automatic Model Tuning** |
+| 搜索算法 | 贝叶斯优化(Vizier) / 网格 / 随机 | 贝叶斯 / Hyperband |
+
+- 超参 = 训练前手设的旋钮(学习率/batch/层数)，非模型自己学的权重。HPO = 定搜索空间+目标metric+trial数 → 自动多trial智能搜索。
+
+## 二十、部署策略：A/B vs 金丝雀
+
+- 共同底座 = Endpoint 挂多模型 + **traffic split** 按%分流量；出问题秒回滚。
+- **金丝雀(Canary)**：新版 5%→逐步放大→100%，控风险、看技术指标、目标全量替换。
+- **A/B 测试**：两模型长期并行按比例分流量，对比业务指标、择优（不一定换）。
+
+| | GCP | AWS |
+|---|---|---|
+| 端点多模型分流量 | Vertex AI Endpoint traffic split | SageMaker Production Variants |
+
+## 二十一、在线预测优化（延迟 & 成本）
+
+四层组合：
+1. **模型压缩**：量化(FP32→INT8,参数不变存更粗)/蒸馏(大模型教小模型,保能力)/剪枝(删不重要权重变稀疏)
+2. **硬件**：GPU/TPU、选机型、就近部署
+3. **服务**：批处理(提吞吐降成本/略增延迟)、autoscaling、缩容到0、缓存
+4. **架构**：不实时→批量预测、共享端点
+
+| 手段 | GCP | AWS |
+|---|---|---|
+| 自动扩缩容 | Vertex AI Endpoint autoscaling | SageMaker autoscaling |
+| Serverless/缩容到0 | Vertex AI(部分) | SageMaker Serverless Inference |
+| 批量预测 | Vertex AI Batch Prediction | SageMaker Batch Transform |
+| 编译加速 | TensorRT/OpenVINO | SageMaker Neo |
+| 多模型共享端点 | Vertex AI | SageMaker Multi-Model Endpoint |
+
+## 二十二、Dataflow ML / 流式推理
+
+- **Dataflow ML** = 在 Dataflow(Beam) 数据管道里直接跑模型推理，核心 API = **RunInference**（管道里一行调模型，自动批处理+模型只加载一次）。
+- 靠 Beam 流批统一 → 同一套代码做批量打分 + 实时流式推理（欺诈检测/实时推荐），且防 skew。
+
+| | GCP | AWS |
+|---|---|---|
+| 管道内推理 | Dataflow + RunInference | Managed Flink/Kinesis + 调 SageMaker endpoint |
+
 ## 核心记忆锚点
 
 - **企业托管入口**：Vertex AI ↔ Bedrock
@@ -162,3 +252,11 @@
 - **分布式训练**：Reduction Server↔SMDDP、GPUDirect-TCPX↔EFA
 - **Spot降本**：GCP Spot VM(30s通知)↔AWS Spot(2min通知)+Managed Spot Training
 - **checkpoint存储**：GCS/Managed Lustre↔S3/FSx Lustre
+- **GPU容量**：DWS Flex Start(排队攒)/Calendar(预约,≈Capacity Block) ↔ ODCR/Capacity Block
+- **两种drift**：Data Drift(P(X)变,PSI/KS,快)↔Concept Drift(P(Y|X)变,需label,慢)
+- **特征工程**：BigQuery/Dataflow/Dataproc + Feature Store
+- **数仓内ML**：BigQuery ML ↔ Redshift ML
+- **HPO**：Vertex Vizier ↔ SageMaker Auto Model Tuning
+- **部署**：金丝雀(渐进控风险)/A/B(并行对比) 都靠 traffic split
+- **在线优化四层**：模型压缩(量化/蒸馏/剪枝)+硬件+服务(批处理/autoscaling)+架构(批量预测)
+- **流式推理**：Dataflow RunInference ↔ Flink/Kinesis+SageMaker
