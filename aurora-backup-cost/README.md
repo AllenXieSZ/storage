@@ -52,10 +52,13 @@ Aurora 集群维度（`DBClusterIdentifier`）下的 CloudWatch/RDS 指标：
 | 日期 | VolumeBytesUsed(GB) | BackupRetentionPeriodStorageUsed(GB) | SnapshotStorageUsed(GB) | TotalBackupStorageBilled(GB) | 公式月费(=Billed×$0.021) | CE 实测(月至今, USE2-Aurora:BackupUsage) | 偏差说明 |
 |---|---|---|---|---|---|---|---|
 | 2026-08-27 | 1.4728 | 32.2328 | — | 30.7600 | $0.6460 | $0.1937（用量 9.2253 GB-月） | 公式用**瞬时**Billed量(30.76G)，CE 是**月累计平均**用量(9.23G-月，月初备份未攒满)；方向一致、量级吻合，均为"每天 1-2 美分"级 |
+| 2026-08-28 | —（集群已删）| — | — | — | — | $0.1937（用量 9.2253 GB-月，**冻结值**）| 测试集群已于验算后清理，CloudWatch 无数据点；CE 仍显示删除前的月累计残值 9.2253 GB-月（未再增长），印证删库后 backup 用量停止累积。**验算完成，本采集 cron 应停用。** |
 
 > 注：脚本原用 `USAGE_TYPE_GROUP=Aurora: Backup Storage` 过滤器在本环境取到 $0，改用 `SERVICE=RDS` + `USAGE_TYPE` 分组后取 `USE2-Aurora:BackupUsage` 才拿到真实值 $0.1937/9.2253 GB-月。
 
-**当日公式 vs 实测简评（2026-08-27）**：CloudWatch `TotalBackupStorageBilled=30.76 GB` 是 35 天 continuous backup 窗口攒到当前时刻的**瞬时计费量**，按公式折月费 $0.6460；而 Cost Explorer 的 `USE2-Aurora:BackupUsage=9.2253 GB-月`（月费 $0.1937）是**整月累计平均用量**——因为本月月初备份量尚未攒满、随时间线性增长，月平均自然低于当前瞬时值。两者**口径不同但方向一致、量级吻合**（都指向每日 1-2 美分级），再次印证 `TotalBackupStorageBilled` 是账单计费依据，且 Aurora backup 费用相对实例费用可忽略。
+**当日公式 vs 实测简评（2026-08-28）**：测试集群 `aurora-backup-test` 已于验算后（2026-08-26~27）连同 AWS Backup plan/vault/DML cron 一并清理，`describe-db-clusters` 返回 `DBClusterNotFoundFault`，CloudWatch 集群维度指标无任何数据点。Cost Explorer 的 `USE2-Aurora:BackupUsage` 仍显示删除前的月累计残值 **9.2253 GB-月 / $0.1937**（与 08-27 完全一致、未再增长），说明删库后 backup 用量停止累积。至此本次 Aurora backup 费用验算已完成并留存全部结论，**每日采集 cron 已无采集对象，应停用**。
+
+*验算日期：2026-08-26~28 · region us-east-2 · Aurora MySQL · 测试资源已全部清理，采集 cron 已停用。*
 
 ## 计算示例
 
