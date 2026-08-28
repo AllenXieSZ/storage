@@ -341,3 +341,136 @@ volume show -vserver srcsvm -volume fgvol* -fields aggregate,used -is-constituen
 | **适用场景** | 想要干净的 FlexGroup 布局、可接受切换窗口、跨文件系统重构 | 想原地扩容不搬数据、能接受在线性能波动、卷未被 DataSync 用过 |
 
 **一句话:** 想要"数据真正均衡分布到 2 个 aggregate",两种方法都**不会自动给你 50:50** —— FlexGroup 的均衡是**按文件哈希**的近似,文件数少必然偏斜;`volume move` 只是整卷搬家不是均衡。真要强均衡需要足够多的文件让哈希收敛,或 ONTAP 9.16.1+ 的 advanced capacity balancing / 手动 `volume rebalance`。
+
+---
+
+# 9. 对照实验:干净 FlexVol(全程不碰 DataSync)能否就地转 FlexGroup?
+
+> 目的:方法二里发现"被 DataSync 当过 source 的 FlexVol 无法就地转 FlexGroup",报错指向一个隐藏的 copy-to-cloud SnapMirror 关系。但那是**基于报错的推断**。本对照实验起一台**全程不接任何 DataSync** 的全新 FSxN,用**同样的数据(8×100GiB)、同样的升级路径(1HA→2HA)**去转 FlexGroup,以坐实真因。
+>
+> - **成功** → 证明 DataSync source 身份就是原阻塞根因。
+> - **失败** → 另有原因,按 NetApp 官方文档诊断修复。
+
+## 9.1 对照环境(关键:此卷/SVM 全程零 DataSync)
+
+| 资源 | 值 |
+|---|---|
+| FSxN | Gen2 SINGLE_AZ_2,ONTAP 9.18.1P5,us-east-2 |
+| 升级路径 | 1HA/2048GB/384 → 升 throughput 到 1536 → 扩 2HA + storage 4096 |
+| aggregates | aggr1、aggr2(2 HA pair) |
+| SVM | ctrlsvm(NFS) |
+| FlexVol | `ctrlvol`,1200GB,junction `/ctrlvol`,security-style unix,建于 aggr1 |
+| 数据 | EC2 直接 NFS 挂载 `/mnt/ctrlvol`,`dd if=/dev/urandom` 写 8×100GiB(~812G,71% 用量,~26min)|
+
+**数据写入完全靠 EC2 NFS `dd`,不建任何 DataSync location/task。** 这是对照组的关键。
+
+## 9.2 转换过程(全部命令走 `set -privilege diagnostic`)
+
+先检查干净卷的关系状态(对照原 srcvol):
+
+```
+volume snapshot show -vserver ctrlsvm -volume ctrlvol      → 无 backup-xxx 参考快照(只有 hourly)
+snapmirror show -source-volume ctrlvol                     → There are no entries(无任何 SM 关系)
+snapmirror list-destinations -source-volume ctrlvol        → There are no entries
+volume efficiency show -vserver ctrlsvm -volume ctrlvol    → efficiency policy=auto(在跑)
+```
+
+check-only(1HA 时就先测了一次,2HA 后再测,结果一致):
+
+```
+volume conversion start -vserver ctrlsvm -volume ctrlvol -check-only true
+
+Conversion of volume "ctrlvol" in Vserver "ctrlsvm" to a FlexGroup can proceed with the following warnings:
+* After the volume is converted to a FlexGroup, it will not be possible to change it back to a flexible volume.
+* Converting flexible volume ... will cause the state of all snapshots ... to be set to "pre-conversion". ...
+* Converting the volume to a FlexGroup will not add additional resources for capacity. After converting, use the "volume expand" command to add resources.
+```
+
+**注意:全是 warning,没有一条 error。** efficiency 在跑只是"建议等它完成"的软提示,不拦截。
+
+正式转换:
+
+```
+volume conversion start -vserver ctrlsvm -volume ctrlvol
+
+[Job 68] Job is queued: Converting flexible volume to FlexGroup.
+[Job 68] Renaming volume.
+[Job 68] Job succeeded: success        ← ✅ 成功
+```
+
+转换后:
+
+```
+volume show -vserver ctrlsvm -volume ctrlvol -fields volume-style-extended,state
+  ctrlsvm ctrlvol online flexgroup      ← 已是 flexgroup
+
+# 单 constituent(官方文档:直接转 = 单 member FlexGroup)
+ctrlvol__0001  aggr1  816.6GB
+
+# 官方推荐的后续:volume expand 加 constituent 到 aggr2 → 多 aggr FlexGroup
+volume expand -vserver ctrlsvm -volume ctrlvol -aggr-list aggr2 -aggr-list-multiplier 1
+ctrlvol__0001  aggr1  816.6GB
+ctrlvol__0002  aggr2  512.3MB     ← 新写入会分散到这里
+```
+
+客户端验证:8 个文件全在、可读(md5 正常)、新写文件成功,容量从 1.2T 涨到 2.3T。
+
+## 9.3 对照:同时对原 DataSync'd srcvol 重测 check-only
+
+```
+volume conversion start -vserver srcsvm -volume srcvol -check-only true
+
+Error: command failed: Cannot convert volume "srcvol" in Vserver "srcsvm" to a
+       FlexGroup. Correct the following issues and retry the command:
+       * Conversion failed because the destination of a SnapMirror relationship
+       with source volume "srcvol" is not a FlexVol volume.  Delete and release
+       the copy to cloud relationship from the source FlexVol volume "srcvol".
+```
+
+srcvol 上有 DataSync 传输时留下的参考快照;删它删不掉:
+
+```
+volume snapshot show -vserver srcsvm -volume srcvol
+  srcsvm srcvol backup-0a217731f13163de0  Fri Aug 28 09:17:46 2026   ← 传输时刻创建的 SM-to-Cloud 参考快照
+  (clean 的 ctrlvol 从没有这种 backup- 快照)
+
+volume snapshot delete -vserver srcsvm -volume srcvol -snapshot backup-0a217731f13163de0 -force true
+  Error: This snapshot is currently used as a reference snapshot by one or more
+         SnapMirror relationships. Deleting the snapshot can cause future
+         SnapMirror operations to fail.
+```
+
+**但**同时:
+
+```
+snapmirror show -source-volume srcvol            → There are no entries
+snapmirror list-destinations -source-volume srcvol → There are no entries
+snapmirror show-history -source-volume srcvol    → There are no entries
+```
+
+即使 `set -privilege diagnostic` 也全空 —— 这个 copy-to-cloud(SnapMirror-to-Cloud)关系对 FSx 客户侧 CLI **完全隐藏**,`fsxadmin` 权限级别既看不到也 release 不掉(由 AWS 后台管理;DataSync FSx-ONTAP 传输底层就是 SM-to-Cloud)。
+
+## 9.4 结论(反证成立)
+
+1. **干净 FlexVol(从没接过 DataSync)可以成功就地转 FlexGroup。** 同样的数据、同样的 1HA→2HA 升级路径,check-only 只有 warning、正式转换 `Job succeeded`。唯一软注意项是 storage efficiency 在跑(仅警告,可忽略或等它完成)。
+2. **DataSync source 身份就是原实验的硬阻塞根因**,由双向证据坐实:
+   - 干净卷成功转 ✅
+   - DataSync'd 卷报 `copy to cloud relationship` error,且残留的 `backup-xxx` 参考快照删不掉(被隐藏 SM 关系引用),而所有 `snapmirror` 命令(含 diag 级)对它全空。
+3. **机制**:DataSync 拿 FSx-ONTAP 卷当 source 传输时,底层建立一条 SnapMirror-to-Cloud 关系并打一个 `backup-<id>` 参考快照。传输/task/location 删除后,这条 copy-to-cloud 关系**不释放**、且对 fsxadmin 隐藏不可见、不可 release,参考快照被它引用也删不掉 → `volume conversion` 明确以"destination of SnapMirror relationship is not a FlexVol"报错拦截。
+4. **实践建议**:**任何计划将来要就地转 FlexGroup 的 FlexVol,不要拿它当 DataSync(FSx-ONTAP source)。** 若已被当过 source 且需转,当前只能新建卷复制数据(或联系 AWS support 从后台清理 copy-to-cloud 关系)。
+
+转换前置条件完整清单见 `flexvol_to_flexgroup_conversion_prereqs.md`(NetApp 官方文档 9 大类阻塞项)。
+
+## 9.5 FlexVol→FlexGroup 就地转换前置条件速查(NetApp 官方,ONTAP 9.7+)
+
+会**阻止**转换(报 error,须先修)的主要条件:
+- 卷是**未转换 dest 的 SnapMirror source**、或在 **active(未 quiesce)SM 关系**里 ← copy-to-cloud 卡这条
+- **storage efficiency 启用**(须先禁用;FSx 实测此项只出 warning 不拦)
+- **quota 启用**(须先禁用)
+- ARP 启用(须禁)
+- 卷有 SAN LUN / Windows NFS / SMB1 / snapshot autodelete / vmalign / SnapLock<9.11.1 / space SLO / logical space enforcement
+- 是 FlexClone parent 或 clone、是 FlexCache origin
+- 快照 >1023(9.8+)/ >255(9.7)
+- 卷名 >197 字符;是 SVM root 卷;有 mirroring/wafliron/NDMP 等进程在跑;卷太满(≥80% 官方建议改复制)
+
+转后是**单 member FlexGroup**,用 `volume expand` 加 constituent;**不可逆**(FlexGroup 不能转回 FlexVol)。
