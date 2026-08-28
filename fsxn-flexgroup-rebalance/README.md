@@ -1,13 +1,16 @@
-# FSx for NetApp ONTAP — FlexGroup 跨 HA pair 数据分布实测
+# FSx for NetApp ONTAP — 让数据分布到 2 个 HA pair(aggregate)的两种方法实测
 
-验证:把数据从「单 HA pair 的 FlexVol」经 **AWS DataSync** 拷到「2 HA pair 的 FlexGroup」后,数据**是否自动均衡分布到 2 个 aggregate(aggr1 / aggr2)**。
+目标:让 FSxN 的数据从「单 HA pair(单 aggregate)」变成「跨 2 HA pair(aggr1 + aggr2)」,并观察分布是否均衡、性能与耗时如何。对比两种方法:
+
+- **方法一:新建迁移法(第 1~6 节)** — 新建一个 **2HA 的 FSxN + FlexGroup**,用 **AWS DataSync** 把数据从旧的 1HA FlexVol 迁移过来,看 FlexGroup 是否自动均衡到 2 个 aggregate。
+- **方法二:就地升级法 in-place upgrade(第 7 节)** — 对**同一个 FSxN** 原地把 1HA 升级成 2HA,再尝试 FlexVol 原地转 FlexGroup + `volume move` 就地移动数据,全程用 fio 压测观察性能。数据不搬到新文件系统。
 
 - Region: `us-east-2` (Ohio)
 - FSxN 代次: **Gen2 (SINGLE_AZ_2)**
 - ONTAP: 9.18.1P5
 - 测试日期: 2026-08-28
 
-> 本文档为第一部分(DataSync 全量 + 增量 + aggregate 分布 + 费用)。扩容/FlexVol→FlexGroup转换/均衡 + fio 压测结果见后续追加。
+> 文末有两种方法的对比小结(耗时 / 停机影响 / 性能波动 / 复杂度 / 适用场景)。
 
 ---
 
@@ -215,3 +218,126 @@ aws datasync describe-task-execution --region us-east-2 \
 - [AWS DataSync Pricing](https://aws.amazon.com/datasync/pricing/)
 - [FSx for NetApp ONTAP — FlexGroup volumes](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html)
 - [ONTAP FlexGroup 概念](https://docs.netapp.com/us-en/ontap/flexgroup/)
+
+---
+
+# 方法二:就地升级(in-place upgrade)
+
+对**同一个源 FSxN**(方法一里那个 1HA FlexVol)原地操作:①升吞吐 → ②扩 HA pair(1→2)→ ③尝试 FlexVol 原地转 FlexGroup → ④`volume move` 就地移动数据。全程用一台 **c6in.4xlarge** 跑 fio(NFSv3 挂源卷,`4K randrw70% iodepth32 numjobs4` + `1M seqrw iodepth16 numjobs2`,direct/libaio,每 60s 采样)。
+
+## 7.1 各操作耗时(实测)
+
+| 操作 | 耗时 | 说明 |
+|---|---|---|
+| ⚠️ 直接 1HA(384)→2HA | **不可行** | FSx 要求扩 HA 时保持原 throughput,但 2HA 只支持 ≥1536 → 矛盾 |
+| 吞吐升级 384→1536(1HA 内在线) | **~44 min** | 前置步骤,必须先升到 1536 才能扩 HA |
+| HA 扩展 1→2(storage 须同时 2048→4096) | **~26 min** | 完成后新增 aggr2(空) |
+| FlexVol → FlexGroup 就地转换 | **被阻塞(见 7.3)** | DataSync 残留 SnapMirror-Cloud 关系挡住 |
+| `volume move` srcvol aggr1→aggr2(~1TB) | **1h54m49s** | 但前 22min 被 fio 活跃 I/O 严重限速(仅到 4%);停 fio 后剩余 ~96% 用 ~1h32m |
+
+**关键坑 1 — 384MB/s 的 1HA 无法直接扩到 2HA:**
+```
+# ❌ 直接扩 HA 报错:
+aws fsx update-file-system --file-system-id <SRC_FS_ID> \
+  --ontap-configuration 'HAPairs=2,ThroughputCapacityPerHAPair=1536'
+# BadRequest: To change HAPairs from 1 to 2 ... StorageCapacity must be updated to 4096,
+#             and ThroughputCapacityPerHAPair must be ... current value of 384
+# 但 384 又不被 2HA 接受(2HA 只允许 1536/3072/6144)→ 死锁
+
+# ✅ 正确姿势:先在 1HA 内把吞吐升到 1536,再扩 HA(storage 同时翻倍到 4096)
+aws fsx update-file-system --file-system-id <SRC_FS_ID> --region us-east-2 \
+  --ontap-configuration 'ThroughputCapacityPerHAPair=1536'          # 步骤A ~44min
+aws fsx update-file-system --file-system-id <SRC_FS_ID> --region us-east-2 \
+  --storage-capacity 4096 \
+  --ontap-configuration 'HAPairs=2,ThroughputCapacityPerHAPair=1536' # 步骤B ~26min
+```
+
+## 7.2 fio 四阶段性能(实测)
+
+![fio timeline](fio_inplace_upgrade_timeline.png)
+
+| 阶段 | Read BW | Write BW | Read IOPS | Write IOPS | vs 基线 |
+|---|---|---|---|---|---|
+| 基线 1HA/384 | ~340 MiB/s | ~335 | ~2700 | ~1350 | 100% |
+| 吞吐升级中 384→1536 | ~145 | ~140 | ~1400 | ~700 | ~43% |
+| HA 扩展中 1→2 | ~175 | ~168 | ~3700(读 IOPS 反升) | ~1680 | BW ~52% |
+| 2HA 稳定(未均衡) | ~130-160 | ~125-155 | ~2500 | ~1150 | ~45% |
+| **volume move 中(谷底)** | **~90** | **~85** | ~2200 | ~1000 | **~26%** |
+| **move 后稳定(数据落 aggr2)** | **~330** | **~325** | ~2400 | ~1210 | **~97% 恢复** |
+
+**结论:**
+1. **升级/扩容/move 期间性能都明显下降**,volume move 谷底掉到基线的 ~26%(move 让位客户 I/O 但仍抢占带宽)。
+2. **move 完成后恢复到 ~97% 基线**。
+3. **升级到 2HA 并未提升本负载的单卷吞吐** —— 因为这是**延迟受限**的单文件负载,数据只在 1 个 HA pair 的 aggregate 上,加 HA pair 不会让单卷更快;2HA 提升的是**整个文件系统的聚合上限**(多卷/多 aggregate 并行才受益)。
+
+> 原始时序数据:`fio_timeseries_raw.txt`(122 个 60s 采样);绘图脚本逻辑见 commit。
+
+## 7.3 ⛔ 关键发现:被 DataSync 用过的 FlexVol 无法就地转 FlexGroup
+
+```bash
+# volume conversion 在 admin 级不可见,但 diag 级可用:
+set -privilege diagnostic -confirmations off
+volume conversion start -vserver srcsvm -volume srcvol -check-only true
+# ❌ Error: Cannot convert volume "srcvol" ... to a FlexGroup.
+#    Conversion failed because the destination of a SnapMirror relationship with
+#    source volume "srcvol" is not a FlexVol volume. Delete and release the
+#    copy to cloud relationship from the source FlexVol volume "srcvol".
+```
+
+- **根因**:srcvol 曾作 **DataSync FSx-ONTAP source location**。DataSync 传 FSxN 数据底层用 **SnapMirror-to-Cloud(SM-C)**,在源卷留下一个隐藏的 "copy to cloud" 关系 + 参考快照(`backup-xxxxxxxx`)。
+- 该 SM-C 关系**完全不在客户 CLI 可见**(`snapmirror show` / `list-destinations` / 所有 type 都空),由 FSx 服务层内部管理,**客户无法 release**;删掉 DataSync task + source location 后**仍不释放**;参考快照因被 SM-C 引用**无法删除**(force 也不行)。
+- **硬结论:被 DataSync 当过 FSx-ONTAP source 的 FlexVol,无法就地转 FlexGroup。** 想就地转 FlexGroup 的卷,不能是 DataSync 的源卷(或需等 FSx 服务内部清理 / 走 Support)。
+
+## 7.4 volume move 命令 + aggr 分布(三次对比)
+
+```bash
+# 就地把整个 FlexVol 从 aggr1 移到 aggr2(在线,无停机)
+volume move start -vserver srcsvm -volume srcvol -destination-aggregate aggr2
+volume move show -vserver srcsvm -volume srcvol   # 看 Move Phase / Percentage / Bytes Remaining
+storage aggregate show -fields node,usedsize,percent-used
+```
+
+| 时点 | aggr1 usedsize | aggr2 usedsize | 说明 |
+|---|---|---|---|
+| ① 2HA 刚扩完(move 前) | **1.09 TB (62%)** | **~0 (0%)** | 全在 aggr1,**100 : 0** |
+| ② volume move 后 | 790 GB → 后降到 107 GB | **1.11 TB (63%)** | 整卷落 aggr2;aggr1 残留(快照)逐步释放 |
+
+→ `volume move` 把**整个卷**从一个 aggregate 搬到另一个,是 **100:0 → 0:100 的整体搬迁,不是"均衡"**。若想真正 aggr1≈aggr2 均衡,需要 FlexGroup(多 constituent 分散),而非单个 FlexVol move。
+
+## 7.5 新建 FlexGroup 对「新写入」的分散(5×50GiB)
+
+因就地转换被阻塞(7.3),改在**同一 SVM 新建一个 FlexGroup** `fgvol`(aggr1/aggr2 各 2 个 constituent),写 5 个 50GiB 新文件,验证新写入是否自动分散:
+
+```bash
+volume create -vserver srcsvm -volume fgvol -aggr-list aggr1,aggr2 \
+  -aggr-list-multiplier 2 -size 600GB -junction-path /fgvol -security-style unix -space-guarantee none
+mount -t nfs -o nfsvers=3 <SRC_NFS_IP>:/fgvol /mnt/fg
+for i in $(seq 1 5); do dd if=/dev/urandom of=/mnt/fg/newfile_$i.bin bs=1M count=51200 iflag=fullblock & done; wait
+volume show -vserver srcsvm -volume fgvol* -fields aggregate,used -is-constituent true
+```
+
+| constituent | aggregate | used | 文件数 |
+|---|---|---|---|
+| fgvol__0001 | aggr1 | 51.3 GB | 1 |
+| fgvol__0002 | aggr2 | 51.2 GB | 1 |
+| fgvol__0003 | aggr1 | 51.3 GB | 1 |
+| fgvol__0004 | aggr2 | 101.9 GB | 2 |
+
+→ 5 个新文件:**aggr1 = 2 文件(102.6GB) : aggr2 = 3 文件(153.1GB) ≈ 40 : 60**。比方法一 8 文件的 2:6(25:75)更均衡,但 5 个文件样本仍小、仍偏斜。**再次印证:FlexGroup 按文件哈希分散,文件数少必然偏斜,多才趋于均匀。**
+
+---
+
+# 8. 两种方法对比小结
+
+| 维度 | 方法一:新建迁移(DataSync) | 方法二:就地升级(in-place) |
+|---|---|---|
+| **是否需新建 FSxN** | 是(要另一套 2HA FSxN) | 否(原地改同一个) |
+| **主要耗时** | DataSync 800GB:传输 40.5min + 校验 67.6min(≈1h48m);另建 FSxN ~20min | 升吞吐 44min + 扩 HA 26min + volume move ~1h55m(热卷,让位 I/O) |
+| **对业务影响/停机** | 迁移期间源可读写;切换需改挂载指向新卷(有切换窗口) | **全程在线无停机**(升级/扩容/move 都在线);但**性能显著波动** |
+| **性能波动** | 源卷基本不受影响(DataSync 读快照) | **大**:升级期 ~43%、扩容期 ~52%、move 谷底 ~26% 基线;move 后恢复 ~97% |
+| **数据分布结果** | FlexGroup hash 分散,少量大文件偏斜(200:600) | volume move = 整卷搬迁 100:0→0:100(非均衡);新建 FlexGroup 新写入 ~40:60 |
+| **复杂度/坑** | 相对简单;但 verify 慢、有 DataSync 费用 | **坑多**:384→2HA 要两步(先升吞吐)、**DataSync 源卷无法转 FlexGroup**、热卷 move 极慢 |
+| **成本** | 一段时间双份 SSD 存储 + DataSync 流量费(≈$12.75) | 仅原 FSxN 存储翻倍(2048→4096)+ 升吞吐档提价;无 DataSync 费 |
+| **适用场景** | 想要干净的 FlexGroup 布局、可接受切换窗口、跨文件系统重构 | 想原地扩容不搬数据、能接受在线性能波动、卷未被 DataSync 用过 |
+
+**一句话:** 想要"数据真正均衡分布到 2 个 aggregate",两种方法都**不会自动给你 50:50** —— FlexGroup 的均衡是**按文件哈希**的近似,文件数少必然偏斜;`volume move` 只是整卷搬家不是均衡。真要强均衡需要足够多的文件让哈希收敛,或 ONTAP 9.16.1+ 的 advanced capacity balancing / 手动 `volume rebalance`。
