@@ -239,7 +239,69 @@
 |---|---|---|
 | 管道内推理 | Dataflow + RunInference | Managed Flink/Kinesis + 调 SageMaker endpoint |
 
-## 核心记忆锚点
+## 二十三、2026 新平台：Gemini Enterprise Agent Platform（agent 层对照）
+
+> 2026 Cloud Next 宣布、5 月控制台切换：**Vertex AI 并入 Gemini Enterprise Agent Platform**，
+> "层级反转"——agent 成顶层主单位，模型（Model Garden/Training/Registry/Endpoints/Pipelines）降为 **Agents → Models 子菜单**。
+> API 端点不变（aiplatform.googleapis.com），旧代码零改动；用新 agentic 功能才启用新 API（agentregistry/modelarmor 等）。
+> ⚠️ 新平台仍在快速演进（部分 Preview），具体以官方文档为准。
+
+### 平台定位差异（核心）
+
+| 维度 | GCP Gemini Enterprise Agent Platform | AWS Bedrock Agents |
+|---|---|---|
+| agent 层级 | **平台顶层**（做了层级重组，Vertex AI 降级） | Bedrock 下的**一个功能**（无层级反转，SageMaker 仍独立并行） |
+| 主打模型 | 自家 **Gemini** 深度绑定 | **多厂商模型超市**（Claude/Llama/Mistral/Nova/Cohere） |
+| 差异化强项 | agent 全家桶 + 身份传播 + 与 Gemini/BigQuery 深整合 | 模型选择多 + 灵活组合 + 与 AWS 生态（Lambda/IAM/S3）自然集成 |
+
+### Agent 全家桶组件对照
+
+| 能力 | GCP 新平台 | AWS 对标 |
+|---|---|---|
+| agent 模板库 | **Agent Garden**（预置模板一键起） | Bedrock Agent 蓝图/模板 |
+| 跨会话长期记忆 | **Memory Bank**（LLM 提炼 fact + consolidation 演化去重） | Bedrock Agent Memory（会话摘要） |
+| 单会话状态 | **Sessions**（stateful，单会话多轮上下文） | Bedrock Agent session state |
+| 中央治理目录 | **Agent Registry**（存/发现/管 agents+tools+MCP servers） | 无完全对等（靠 Bedrock+IAM 拼） |
+| agent 加密身份 | **Agent Identity**（身份传播：只读触发用户有权的数据） | IAM 角色（无 agent 专属加密身份） |
+| 开发框架/SDK | **ADK**（Agent Development Kit） | 无官方统一 ADK（Bedrock Agents SDK/开源框架） |
+| 内容安全防护 | **Model Armor**（modelarmor.googleapis.com，防注入/有害输出） | Bedrock **Guardrails** |
+| agent 评估 | Gen AI Evaluation（trajectory 轨迹 + final response 双评） | Bedrock Agent 评估 + trace |
+
+### 工具（tools）机制
+
+- **三种形态**：函数（function calling）/ MCP server / 注册的 endpoint（外部 API）。
+- **MCP（Model Context Protocol）** = Anthropic 提出、全行业采纳的**工具接入标准协议**（"AI 工具的 USB 标准"）。两家都支持。
+- **function calling vs MCP**：function calling 是**模型层底层能力**（输出"调哪个工具+参数"的结构化意图，模型不执行）；MCP 是**上层标准化接入协议**。
+- **调用链**：注册（进 Agent Registry）→ 发现（agent 搜索）→ 鉴权（Agent Identity + auth bindings，只调该用户有权的）→ 调用（function calling/MCP）。
+- 对标 AWS：GCP tools ≈ Bedrock **action groups**（背后常接 Lambda）+ MCP。
+
+### 何时用 agent vs 只用模型 API
+
+- **模型 API 够用**：单次问答/生成、无上下文、**流程已由自己代码确定编排**（确定性 pipeline 别滥用 agent）。
+- **需要 agent**：多步骤 + 规划 + 调外部工具 + 自主决策收敛 + 跨会话记忆。
+- **核心陷阱**：别为了 agent 而 agent（over-engineering，agent 有额外成本+不确定性+难调试）。
+
+### 企业客服 agent 端到端（8 步组件串联）
+
+ADK 定义 agent → Agent Registry 接工具（订单 API/知识库 RAG）→ Memory Bank 记客户跨会话 → Sessions 管单会话 → Agent Identity 限权（只看该客户数据）→ Model Armor 防注入/有害 → Agent Evaluation 评多步轨迹 → 部署+监控。
+对标 Bedrock：Agents 定义 + action groups(Lambda) + Knowledge Bases + Agent Memory + IAM + Guardrails + Agent 评估。
+
+### 迁移兼容性
+
+- **旧 Vertex AI 代码/pipeline 不需重写**：API 端点没变（aiplatform.googleapis.com），旧代码照跑。
+- 变的只是**控制台菜单层级**（Vertex 降为 Agents→Models 子菜单），传统 ML（训练/批预测/端点/Pipelines）实质不变，可完全不碰 agent 层单独用。
+- AWS 同哲学：新能力=新 API 命名空间（bedrock-agent-runtime），老能力（bedrock-runtime InvokeModel）不动。
+
+### 新平台记忆锚点
+
+- **层级反转**：agent 上位，Vertex AI 降为 Agents→Models 子菜单（AWS 无此重组，SageMaker/Bedrock 分立）
+- **全家桶**：Agent Garden / Memory Bank / Sessions / Agent Registry / Agent Identity / ADK / Model Armor
+- **记忆**：Memory Bank（跨会话，提炼+consolidation 演化）↔ Bedrock Agent Memory；Sessions（单会话）短期
+- **治理独门**：Agent Registry（中央目录）+ Agent Identity（加密身份+身份传播）——AWS 无完全对等
+- **协议**：MCP（工具 USB 标准）两家都支持；function calling=模型层底层能力
+- **安全**：Model Armor ↔ Bedrock Guardrails
+- **评估**：agent 看多步轨迹（工具调用+规划+终止+防死循环+成本），不是单句测试
+
 
 - **企业托管入口**：Vertex AI ↔ Bedrock
 - **向量检索**：Vector Search(毫秒/ScaNN) ↔ OpenSearch(毫秒) / S3 Vectors(亚秒省钱)
