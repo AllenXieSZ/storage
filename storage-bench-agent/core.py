@@ -162,13 +162,72 @@ def orchestrate(task_id: str, store: TaskStore | None = None) -> None:
 # 归档 & 通知 (通用) —— 阶段一先留桩, T4/T7 实现
 # ---------------------------------------------------------------------------
 def archive_report(ctx: TestContext, metrics: dict, pngs: list[str], raw: dict) -> str:
-    """上传 report.md + PNG + raw.json 到 S3, presign 返回链接. TODO T4."""
-    raise NotImplementedError("archive: T4")
+    """生成 report.md + 上传 PNG/raw.json 到 S3, presign 返回 report.md 链接."""
+    import config
+    s3 = boto3.client("s3", region_name=REGION)
+    key_base = f"{config.REPORT_PREFIX}/{ctx.task_id}"
+
+    # report.md
+    md = _render_markdown(ctx, metrics)
+    s3.put_object(Bucket=config.REPORT_BUCKET, Key=f"{key_base}/report.md",
+                  Body=md.encode(), ContentType="text/markdown")
+    # raw json
+    s3.put_object(Bucket=config.REPORT_BUCKET, Key=f"{key_base}/fio_raw.json",
+                  Body=json.dumps(raw).encode(), ContentType="application/json")
+    # pngs
+    for png in pngs:
+        name = png.rsplit("/", 1)[-1]
+        with open(png, "rb") as fh:
+            s3.put_object(Bucket=config.REPORT_BUCKET, Key=f"{key_base}/{name}",
+                          Body=fh.read(), ContentType="image/png")
+    # presign report.md (带 region, 延续 presign 铁律)
+    return s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": config.REPORT_BUCKET, "Key": f"{key_base}/report.md"},
+        ExpiresIn=config.PRESIGN_EXPIRE)
+
+
+def _render_markdown(ctx: TestContext, m: dict) -> str:
+    p = ctx.params
+    f = p.get("fio", {})
+    r, w = m.get("read", {}), m.get("write", {})
+    return f"""# 存储实验报告 {ctx.task_id}
+
+## 环境
+- 存储类型: {p.get('storageType')}
+- 机型: {p.get('instanceType')} @ {p.get('az', '')}
+- 资源: {ctx.resources}
+
+## 负载 (fio)
+- rw={f.get('rw')} bs={f.get('bs')} iodepth={f.get('iodepth')} numjobs={f.get('numjobs')} runtime={f.get('runtime')}s size={f.get('size')}
+
+## 结果
+| 方向 | 吞吐(MB/s) | IOPS | P99延迟(us) |
+|---|---|---|---|
+| read | {r.get('bw_MBps')} | {r.get('iops')} | {r.get('clat_p99_us')} |
+| write | {w.get('bw_MBps')} | {w.get('iops')} | {w.get('clat_p99_us')} |
+
+![throughput](throughput.png)
+
+## 结论
+_(阶段一先给数据表; 后续接 LLM 生成结论草稿 + 对比历史同类实验)_
+"""
 
 
 def notify_feishu(task_id: str, metrics: dict, url: str) -> None:
-    """飞书通知伟伟. TODO T7 (走 OpenClaw message 工具或 webhook)."""
-    pass
+    """飞书通知. 阶段一: 写一条待推消息到 S3/DynamoDB, 由 OpenClaw 主会话或 webhook 推送.
+    (cron/lambda 无法直接调 OpenClaw message 工具, 故解耦: 这里只记录, 推送在外层做.)
+    生产可改为直接 POST 飞书自定义机器人 webhook."""
+    import config
+    r = metrics.get("read", {})
+    text = (f"[存储实验完成] {task_id}\n"
+            f"{metrics.get('params', {}).get('storageType', '')} "
+            f"读{r.get('bw_MBps')}MB/s / {r.get('iops')}IOPS\n报告: {url}")
+    # 留桩: 写通知到 DynamoDB 供外层轮询推送 (T7 完善)
+    try:
+        TaskStore().update(task_id, notifyText=text)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

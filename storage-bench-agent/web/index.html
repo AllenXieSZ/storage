@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>存储实验助手</title>
+<style>
+  body{font-family:-apple-system,"Microsoft YaHei",sans-serif;max-width:900px;margin:20px auto;padding:0 16px;color:#1A2B4A}
+  h1{color:#0067C5} h2{border-bottom:2px solid #F58220;padding-bottom:4px;margin-top:28px}
+  label{display:inline-block;min-width:90px} input,select{padding:4px;margin:3px}
+  button{background:#0067C5;color:#fff;border:0;padding:8px 18px;border-radius:4px;cursor:pointer}
+  table{border-collapse:collapse;width:100%;margin-top:8px} th,td{border:1px solid #ccc;padding:6px;font-size:14px}
+  th{background:#0067C5;color:#fff} .fsx{display:none}
+  .badge{padding:2px 8px;border-radius:10px;color:#fff;font-size:12px}
+  .DONE{background:#2E9E5B}.FAILED{background:#c0392b}.RUNNING{background:#F58220}
+  #cfg{background:#F2F6FB;padding:8px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<h1>存储实验助手 <small style="font-size:14px;color:#5A6B82">storage-bench-agent</small></h1>
+<div id="cfg">API: <input id="apiBase" size="46" placeholder="https://xxx.execute-api.us-east-2.amazonaws.com/v1">
+  Key: <input id="apiKey" size="20" type="password"> <button onclick="loadList()">连接/刷新历史</button></div>
+
+<h2>① 提交实验</h2>
+<div>
+  <label>存储类型</label><select id="storageType" onchange="toggleFsx()">
+    <option value="ebs">EBS gp3</option><option value="fsx-ontap">FSx ONTAP (NFS)</option></select><br>
+  <label>机型</label><input id="instanceType" value="c6in.4xlarge">
+  <label>AZ</label><input id="az" value="us-east-2c"><br>
+  <div id="ebsSpec">
+    <label>EBS容量GB</label><input id="ebsSize" value="500" size="6">
+    <label>吞吐MB/s</label><input id="ebsTp" value="1000" size="6">
+    <label>IOPS</label><input id="ebsIops" value="16000" size="7"></div>
+  <div class="fsx" id="fsxSpec">
+    <label>NFS端点</label><input id="fsxNfs" size="30" placeholder="172.31.x.x:/mfvol"></div>
+  <hr>
+  <label>读写</label><select id="rw"><option>randread</option><option>randwrite</option><option>read</option><option>write</option><option>randrw</option></select>
+  <label>块大小</label><input id="bs" value="4k" size="5">
+  <label>iodepth</label><input id="iodepth" value="32" size="4">
+  <label>numjobs</label><input id="numjobs" value="4" size="4"><br>
+  <label>时长秒</label><input id="runtime" value="300" size="5">
+  <label>文件大小</label><input id="size" value="10G" size="6"><br><br>
+  <button onclick="submitExp()">提交实验</button> <span id="submitMsg"></span>
+</div>
+
+<h2>② 历史 / 状态</h2>
+<table id="list"><thead><tr><th>时间</th><th>存储</th><th>负载</th><th>吞吐(读/写MB/s)</th><th>状态</th><th>报告</th></tr></thead><tbody></tbody></table>
+
+<script>
+const $=id=>document.getElementById(id);
+function api(){return {base:$('apiBase').value.replace(/\/$/,''),key:$('apiKey').value};}
+function toggleFsx(){const f=$('storageType').value==='fsx-ontap';$('fsxSpec').style.display=f?'block':'none';$('ebsSpec').style.display=f?'none':'block';}
+async function submitExp(){
+  const p={storageType:$('storageType').value,instanceType:$('instanceType').value,az:$('az').value,region:'us-east-2',
+    fio:{rw:$('rw').value,bs:$('bs').value,iodepth:+$('iodepth').value,numjobs:+$('numjobs').value,runtime:+$('runtime').value,size:$('size').value}};
+  if(p.storageType==='ebs')p.storageSpec={size:+$('ebsSize').value,volumeType:'gp3',throughput:+$('ebsTp').value,iops:+$('ebsIops').value};
+  else p.storageSpec={nfsEndpoint:$('fsxNfs').value};
+  const a=api();
+  const r=await fetch(a.base+'/experiments',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':a.key},body:JSON.stringify(p)});
+  const j=await r.json(); $('submitMsg').textContent=r.ok?('已提交 taskId='+j.taskId):('错误: '+JSON.stringify(j));
+  loadList();
+}
+async function loadList(){
+  const a=api(); const r=await fetch(a.base+'/experiments',{headers:{'x-api-key':a.key}});
+  const j=await r.json(); const tb=$('list').querySelector('tbody'); tb.innerHTML='';
+  (j.items||[]).forEach(it=>{
+    const f=it.params&&it.params.fio||{}; const m=it.metrics||{};
+    const rd=m.read?m.read.bw_MBps:'-', wr=m.write?m.write.bw_MBps:'-';
+    const rep=it.resultUrl?`<a href="${it.resultUrl}" target=_blank>查看▶</a>`:'-';
+    tb.insertAdjacentHTML('beforeend',
+     `<tr><td>${(it.createdAt||'').slice(5,16)}</td><td>${it.params?.storageType||''}</td>
+      <td>${f.rw||''} ${f.bs||''}</td><td>${rd}/${wr}</td>
+      <td><span class="badge ${it.status}">${it.status}</span></td><td>${rep}</td></tr>`);
+  });
+}
+toggleFsx();
+setInterval(()=>{ if($('apiBase').value) loadList(); },5000); // 5s 轮询
+</script>
+</body>
+</html>
