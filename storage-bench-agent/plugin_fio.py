@@ -42,7 +42,7 @@ class FioPlugin(TestPlugin):
                 "DeviceIndex": 0, "AssociatePublicIpAddress": True,
                 "SubnetId": subnet, "DeleteOnTermination": True,
             }],
-            IamInstanceProfile={"Name": p.get("instanceProfile", "PVRE-SSMOnboardingInstanceProfile")},
+            IamInstanceProfile={"Name": p.get("instanceProfile", config.INSTANCE_PROFILE)},
             TagSpecifications=[{"ResourceType": "instance", "Tags": config.tags(ctx.task_id)}],
         )
         iid = inst["Instances"][0]["InstanceId"]
@@ -52,9 +52,9 @@ class FioPlugin(TestPlugin):
         if st == "ebs":
             sp = p.get("storageSpec", {})
             vol = ec2.create_volume(
-                AvailabilityZone=az, Size=sp.get("size", 500),
+                AvailabilityZone=az, Size=int(sp.get("size", 500)),
                 VolumeType=sp.get("volumeType", "gp3"),
-                Throughput=sp.get("throughput", 1000), Iops=sp.get("iops", 16000),
+                Throughput=int(sp.get("throughput", 1000)), Iops=int(sp.get("iops", 16000)),
                 TagSpecifications=[{"ResourceType": "volume", "Tags": config.tags(ctx.task_id)}],
             )
             vid = vol["VolumeId"]
