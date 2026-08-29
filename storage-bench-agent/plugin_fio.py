@@ -27,22 +27,60 @@ class FioPlugin(TestPlugin):
 
     # ---- provision -------------------------------------------------------
     def provision(self, ctx: TestContext) -> None:
+        import config
         p = ctx.params
         st = p["storageType"]                    # ebs | fsx-ontap
-        itype = p.get("instanceType", "c6in.4xlarge")
-        # TODO: AMI/subnet/SG 从 params 或默认配置取; 显式 AssociatePublicIpAddress=True
-        # inst = ec2.run_instances(ImageId=..., InstanceType=itype, KeyName=DEFAULT_KEY,
-        #     MinCount=1, MaxCount=1,
-        #     NetworkInterfaces=[{"DeviceIndex":0,"AssociatePublicIpAddress":True,
-        #                         "SubnetId":..., "Groups":[...]}],
-        #     TagSpecifications=[{"ResourceType":"instance","Tags":[
-        #         {"Key":"project","Value":"storage-bench-agent"},
-        #         {"Key":"taskId","Value":ctx.task_id}]}])
-        # ctx.resources["ec2InstanceId"] = inst["Instances"][0]["InstanceId"]
-        #
-        # if st == "ebs":   建 gp3 volume -> attach -> (等 SSM online) mkfs+mount /mnt/bench
-        # if st == "fsx-ontap":  建/复用 FSx -> SVM/vol -> NFS mount (nconnect=16, 全卸载重挂避免首挂锁定)
-        raise NotImplementedError("provision: T3 实现真实起环境 (先跑通 EBS)")
+        itype = p.get("instanceType", config.DEFAULT_INSTANCE)
+        subnet = p.get("subnet", config.DEFAULT_SUBNET)
+        az = p.get("az", "us-east-2c")
+
+        # 起 EC2 (显式 AssociatePublicIpAddress — default subnet 未必自动分配)
+        inst = ec2.run_instances(
+            ImageId=config.AMI_X86, InstanceType=itype, KeyName=config.KEY_NAME,
+            MinCount=1, MaxCount=1,
+            NetworkInterfaces=[{
+                "DeviceIndex": 0, "AssociatePublicIpAddress": True,
+                "SubnetId": subnet, "DeleteOnTermination": True,
+            }],
+            IamInstanceProfile={"Name": p.get("instanceProfile", "PVRE-SSMOnboardingInstanceProfile")},
+            TagSpecifications=[{"ResourceType": "instance", "Tags": config.tags(ctx.task_id)}],
+        )
+        iid = inst["Instances"][0]["InstanceId"]
+        ctx.resources["ec2InstanceId"] = iid
+        ec2.get_waiter("instance_running").wait(InstanceIds=[iid])
+
+        if st == "ebs":
+            sp = p.get("storageSpec", {})
+            vol = ec2.create_volume(
+                AvailabilityZone=az, Size=sp.get("size", 500),
+                VolumeType=sp.get("volumeType", "gp3"),
+                Throughput=sp.get("throughput", 1000), Iops=sp.get("iops", 16000),
+                TagSpecifications=[{"ResourceType": "volume", "Tags": config.tags(ctx.task_id)}],
+            )
+            vid = vol["VolumeId"]
+            ctx.resources["volumeId"] = vid
+            ec2.get_waiter("volume_available").wait(VolumeIds=[vid])
+            ec2.attach_volume(VolumeId=vid, InstanceId=iid, Device="/dev/sdf")
+            time.sleep(15)  # 等 SSM agent online + 设备可见
+            # mkfs + mount (NVMe: /dev/sdf 常映射为 /dev/nvme1n1)
+            self._ssm_run(iid, [
+                "DEV=$(lsblk -dpno NAME | grep -E 'nvme[1-9]' | head -1)",
+                "mkfs.xfs -f $DEV",
+                "mkdir -p /mnt/bench && mount $DEV /mnt/bench",
+                "df -h /mnt/bench",
+            ])
+        elif st == "fsx-ontap":
+            # FSx ONTAP: 阶段一先支持"复用已有 FSx"(传 nfsEndpoint+junction), 建新 FSx 留 T8
+            nfs = p["storageSpec"]["nfsEndpoint"]      # e.g. 172.31.35.226:/mfvol
+            self._ssm_run(iid, [
+                "yum install -y nfs-utils || true",
+                "mkdir -p /mnt/bench",
+                # 全卸载重挂避免 nconnect 首挂锁定; nconnect=16
+                f"umount /mnt/bench 2>/dev/null; mount -t nfs -o nfsvers=3,nconnect=16 {nfs} /mnt/bench",
+                "mount | grep /mnt/bench",
+            ])
+        else:
+            raise ValueError(f"unsupported storageType={st}")
 
     # ---- run -------------------------------------------------------------
     def run(self, ctx: TestContext) -> dict:
