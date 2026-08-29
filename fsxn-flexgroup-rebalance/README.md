@@ -474,3 +474,85 @@ snapmirror show-history -source-volume srcvol    → There are no entries
 - 卷名 >197 字符;是 SVM root 卷;有 mirroring/wafliron/NDMP 等进程在跑;卷太满(≥80% 官方建议改复制)
 
 转后是**单 member FlexGroup**,用 `volume expand` 加 constituent;**不可逆**(FlexGroup 不能转回 FlexVol)。
+
+---
+
+# 第 10 节:方向B — 干净卷完整就地升级链路 + FlexVol→FlexGroup + 500 文件均衡收敛(2026-08-29)
+
+前两次都用**少量大文件**(8 个 / 5 个),FlexGroup 按文件哈希分配 constituent,文件太少 → 哈希落点随机性大 → 分布严重偏斜(2:6、40:60)。本次(方向B)在**同一个干净 FSxN**上走完整就地升级链路,并用**大量文件(100/300/500 个 1GiB)** 验证「文件越多是否越趋近 50:50」。全程 fio 压测。
+
+## 10.1 环境(全新,保留)
+- FSxN `fs-0cd1fb5168fa75437`,Gen2 **SINGLE_AZ_2**,ONTAP 9.18.1P5,us-east-2c
+- 起点:**1 HA pair / 2048GB / 384 MB/s**,SVM `mfsvm`,卷 `mfvol` = **FlexVol**(junction `/mfvol`,security-style unix,storage-efficiency 关闭)
+- **全程不接 DataSync**(保持卷干净,才能就地转 FlexGroup)
+- fio 机:`i-06f35c8fef7ef0f49`(c6in.4xlarge,同 AZ,通过 SSM 驱动)
+- 挂载:NFSv3,nconnect=16
+
+## 10.2 完整就地升级链路(各操作耗时,实测)
+
+| 步骤 | 操作 | 开始(UTC) | 完成 | 耗时 |
+|---|---|---|---|---|
+| ① throughput 升级 | 384 → 1536 MB/s/HA | 01:22:03 | 01:58:34 | **~36.5 min** |
+| ② 扩 HA + storage | 1HA→2HA,2048→4096GB | 01:58:44 | 02:08:39 | **~10 min** |
+| ③ FlexVol→FlexGroup 转换 | `volume conversion start`(diag) Job 67 | 02:09:11 | ~02:09:40 | **<1 min（Job succeeded）** |
+| ④ FlexGroup expand | `volume expand -aggr-list aggr1,aggr2 -multiplier 4` Job 71 | 02:10:10 | ~02:10:30 | **<1 min** |
+
+**关键点**:
+- **必须先升 throughput 再扩 HA**(384 规格的 1HA 无法直接扩 2HA;这次先升到 1536 再扩,顺畅)。这次扩 HA 只花 ~10 min(比 8-28 记录的 ~26 min 更快)。
+- **干净卷转 FlexGroup 秒成**(Job succeeded,<1min),再次印证第 9 节结论:阻塞根因是 DataSync source 身份,与本卷无关。
+
+### ④ expand 后的 constituent 布局(重要!)
+```
+mfvol (flexgroup, 9 constituents, 15.82TB)
+  aggr1: __0001(原始,含fio数据) __0002 __0004 __0006 __0008   ← 5 个
+  aggr2: __0003 __0005 __0007 __0009                          ← 4 个
+```
+转换产生的**原始单 constituent `__0001` 留在 aggr1**,再 `+4/+4` expand → **aggr1 有 5 个、aggr2 有 4 个 constituent**。
+➡️ **这决定了均衡的「结构性地板」= 5/9 : 4/9 = 55.6% : 44.4%**,不是 50:50。
+
+## 10.3 多文件均衡收敛(核心实测)
+
+在转好的 FlexGroup 上分档写 1GiB 文件(dd if=/dev/urandom,真实非稀疏,16 进程并行),每档测 aggr1:aggr2 分布(已扣除 __0001 上 49GB 的 fio 测试文件基线):
+
+| 文件数 | aggr1 % | aggr2 % | 总量 | 偏斜 |
+|---|---|---|---|---|
+| **100** | 56.4% | 43.6% | 108GB | 56:44 |
+| **300** | 55.3% | 44.7% | 310GB | 55:45 |
+| **500** | 55.0% | 45.0% | 511GB | 55:45 |
+| 结构地板(5:4 constituent) | 55.6% | 44.4% | — | 理论下限 |
+
+**500 文件时每个 constituent 用量**(near-perfect per-constituent 均衡):
+```
+__0001 aggr1 100.9GB(含49GB fio → 数据~52GB)  __0002 56.75  __0004 57.75  __0006 56.75  __0008 57.75
+__0003 aggr2 57.75  __0005 57.75  __0007 57.75  __0009 56.75
+```
+除 __0001 带 fio 基线外,**9 个 constituent 各持 ~52-58GB,几乎完全均衡**。
+
+![收敛曲线](flexgroup_balance_convergence.png)
+
+## 10.4 结论(方向B 核心发现)
+
+1. **文件哈希分布收敛极快**:100 个文件就已到 56:44,300/500 稳定在 55:45。对比前两次 8 文件 ~25:75、5 文件 40:60 —— **文件越多,哈希落点越均匀,偏斜迅速消失**。
+2. **⭐ 残留的 55:45 偏斜不是哈希随机性,而是「结构性」的**:aggr1 有 5 个 constituent、aggr2 只有 4 个(因为转换产生的原始 constituent 留在 aggr1,再对称 expand 就变成 5:4)。**per-constituent 层面已经几乎完全均衡(各~55GB)**,aggr 层面的 55:45 精确等于 5/9:4/9。
+3. **想要真正 50:50**:让两个 aggr 的 constituent 数相等 —— 例如给 aggr2 再 expand 1 个 constituent 达到 5:5,或转换前规划好 constituent 对称布局。单纯堆文件数**不能**突破这个结构地板。
+4. **实践建议**:评估 FlexGroup 均衡,要区分「哈希均衡」(足够多文件即达成)和「结构均衡」(取决于各 aggr 的 constituent 数量)。就地转换 + 对称 expand 会天然多出 1 个 constituent 在原 aggr 上,需手动补齐对称。
+
+## 10.5 fio 全程性能(151 个每分钟采样,per-interval 增量还原真实瞬时值)
+
+| 阶段 | 吞吐(读+写) |
+|---|---|
+| 基线(1HA/384 FlexVol) | ~260 MiB/s |
+| throughput 升级中 | 先跌到 ~100 MiB/s(升级重启瞬间)后随 1536 生效爬升 |
+| 扩 HA / 转换 / expand 期间 | 剧烈波动,谷底 ~90-140 MiB/s(卷操作 I/O 中断) |
+| 升级完成稳定期(2HA/1536) | **~900+ MiB/s**(相比基线 ~3.5×) |
+
+- 升级链路对在线 I/O 有明显冲击(尤其扩 HA + 转换 + expand 那几分钟出现多个深谷),但每步完成后性能都恢复且**最终稳态远高于基线**(2HA/1536 vs 1HA/384)。
+
+![fio时序](flexgroup_fio_timeseries.png)
+
+## 10.6 保留资源(方向B)
+- FSxN `fs-0cd1fb5168fa75437`(2HA/4096/1536,mgmt 172.31.33.74)
+- SVM `svm-056924ceb5976d61b`(mfsvm,NFS 172.31.35.226)
+- 卷 `fsvol-03fc195bcb541daec`(mfvol,9-constituent FlexGroup)
+- fio 机 `i-06f35c8fef7ef0f49`(c6in.4xlarge)
+- 前三次的旧资源(fs-0ab60ba44b438cc36 / fs-0845731bf4690787b / fs-0bfc76afa2bfd0b69 / 旧 fio 机 i-053fd014494dc801a / DataSync loc-00a4180469b77a6ea)已在本次开始前**全部删除验证**。
