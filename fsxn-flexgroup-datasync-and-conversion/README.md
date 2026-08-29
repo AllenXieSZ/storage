@@ -1,5 +1,7 @@
 # FSx for NetApp ONTAP — FlexGroup Cross-HA Distribution & In-Place FlexVol→FlexGroup Conversion
 
+**语言 / Language**: [中文](./README_ZH.md) · English (this page)
+
 A focused, clean record of two experiments run on **Amazon FSx for NetApp ONTAP (Gen2, ONTAP 9.18.1P5, us-east-2)**:
 
 1. **DataSync transfer + rebalance** — copy 800 GB from a 1‑HA‑pair FlexVol into a 2‑HA‑pair FlexGroup and observe whether data auto-balances across the two aggregates. Full timings + observations.
