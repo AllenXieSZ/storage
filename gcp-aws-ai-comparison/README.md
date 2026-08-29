@@ -52,6 +52,27 @@
 | embedding 模型 | Vertex text-embedding / multimodal embedding | Titan Text/Multimodal Embeddings / Cohere Embed |
 | ⚠️延迟对标 | Vector Search=毫秒级 ↔ OpenSearch；S3 Vectors=亚秒级(用延迟换成本) |
 
+### RAG 完整架构（两条线）
+
+**离线建库(Indexing,定期)**：数据源(GCS/BQ/文档) → **分块 chunking** → embedding 模型转向量 → 存 **Vector Search**。
+**在线查询(每次提问)**：用户问题 → **同一 embedding 模型转向量** → Vector Search 检索 top-k 切片 → 问题+top-k 拼进 prompt → **Gemini 生成(带 grounding/引用)**。
+- ⚠️关键：用户问题也要 embedding（转到同一向量空间才能算余弦相似度），不是拿原文和库比。
+- 托管省事：Vertex AI Search / RAG Engine（AWS: Bedrock Knowledge Bases 托管切片+embedding+检索）。
+
+### 文本分块(chunking)策略
+
+| 策略 | 说明 | 适用 |
+|---|---|---|
+| 固定字数/token | 每块固定 N token(如512)+overlap 重叠(10-20%) | 最通用 |
+| 按段落/句子 | 按自然段/句子边界 | 保语义完整 |
+| 按章节/标题 | 按 Markdown/文档结构 | 结构清晰文档 |
+| 递归分块 recursive | 优先大边界(章→段→句)递归切到合适大小 | 最实用(LangChain 常用) |
+| 语义分块 semantic | 按相邻句语义突变处断开 | 效果好但贵 |
+
+- **权衡**：块太大→embedding 语义模糊、检索不准、费 token；块太小→上下文割裂丢连贯。
+- **overlap 重要**：块间留 10-20% 重叠，防答案正好被切在两块交界处丢失。
+- **稳妥起点**：递归分块 + 512 token + 10-20% overlap，再按检索效果调。
+
 ## 六、微调
 
 | GCP | AWS Bedrock |
@@ -302,6 +323,38 @@ ADK 定义 agent → Agent Registry 接工具（订单 API/知识库 RAG）→ M
 - **安全**：Model Armor ↔ Bedrock Guardrails
 - **评估**：agent 看多步轨迹（工具调用+规划+终止+防死循环+成本），不是单句测试
 
+## 二十四、数据准备 / 标注 / 端到端 ML 生命周期
+
+### 数据准备 & 标注
+
+| 能力 | GCP | AWS |
+|---|---|---|
+| 大规模特征工程 | BigQuery(SQL) / Dataflow(Beam) / Dataproc(Spark) | Glue / EMR / SageMaker Processing |
+| 托管数据集 | Vertex AI Managed Datasets(image/text/tabular/video) | SageMaker Datasets |
+| **数据标注** | **Vertex AI Data Labeling**(人工标注工作流) ⚠️当前可用性以官方文档为准 | **SageMaker Ground Truth**(人工+主动学习自动标注) |
+| 特征存储 | Feature Store(防 skew) | SageMaker Feature Store |
+
+### 端到端 ML 生命周期（对应组件）
+
+| 阶段 | Vertex AI 组件 | SageMaker 对标 |
+|---|---|---|
+| ① 数据准备 | BigQuery/Dataflow/Dataproc + Managed Datasets | Glue/EMR/Processing |
+| ② 探索开发 | **Workbench**(托管 Jupyter) | Studio / Notebook |
+| ③ 训练 | **Training**(AutoML/Custom) | Training Jobs |
+| ④ 超参调优 | **HPO**(Vizier 贝叶斯优化) | Auto Model Tuning |
+| ⑤ 实验追踪 | **Experiments** + TensorBoard | Experiments |
+| ⑥ 评估选优 | **Model Evaluation** | Model Evaluation/Clarify |
+| ⑦ 注册 | **Model Registry**(版本+血缘) | Model Registry |
+| ⑧ 部署 | **Endpoint**(在线)/**Batch Prediction**(批) | Real-time Endpoint / Batch Transform |
+| ⑨ 上线策略 | traffic split 金丝雀/A-B | Production Variants / Deployment Guardrails |
+| ⑩ 监控 | **Model Monitoring**(drift/skew) | Model Monitor |
+| ⑪ 重训闭环 | 触发重训 | 触发重训 |
+| **贯穿编排** | **Vertex AI Pipelines**(KFP/TFX,串成 DAG,CI/CD/CT) | **SageMaker Pipelines** |
+
+- **MLOps 灵魂**：把①-⑪用 Pipelines 编排成可复现、可自动触发的流水线，而非手动散步骤。
+- **RAG chunking 起点**：递归分块 + 512 token + 10-20% overlap（见第五章）。
+
+## 核心记忆锚点
 
 - **企业托管入口**：Vertex AI ↔ Bedrock
 - **向量检索**：Vector Search(毫秒/ScaNN) ↔ OpenSearch(毫秒) / S3 Vectors(亚秒省钱)
@@ -322,3 +375,6 @@ ADK 定义 agent → Agent Registry 接工具（订单 API/知识库 RAG）→ M
 - **部署**：金丝雀(渐进控风险)/A/B(并行对比) 都靠 traffic split
 - **在线优化四层**：模型压缩(量化/蒸馏/剪枝)+硬件+服务(批处理/autoscaling)+架构(批量预测)
 - **流式推理**：Dataflow RunInference ↔ Flink/Kinesis+SageMaker
+- **数据标注**：Vertex AI Data Labeling ↔ SageMaker Ground Truth
+- **RAG 两条线**：离线(切片→embedding→Vector Search) + 在线(问题 embedding→检索 top-k→拼 prompt→Gemini grounding)；chunking 首选递归+512token+10-20%overlap
+- **端到端生命周期**：数据准备→Workbench→Training(Vizier)→Experiments→Evaluation→Registry→Endpoint→Monitoring→重训，全程 Vertex AI Pipelines 编排(↔SageMaker Pipelines)
