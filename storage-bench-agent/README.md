@@ -28,10 +28,20 @@ plugin_<x>.py   # 未来: iperf3(网络) / sysbench(DB) / s3-throughput / gds ..
 - 全部 py 文件 compile 通过
 
 ## 进行中 / TODO
-- [ ] 部署: 打包 Lambda(含 boto3 layer/matplotlib layer) + 建 API Gateway + API Key + IAM 执行角色
-- [ ] T8 端到端联调: **起真实 EBS 实验跑通**（需伟伟确认预算, 单次<$1）→ 再 FSx ONTAP
+- [x] **T8 端到端跑通真实 EBS 实验** ✅ (task 68fb0b55, provision→run→analyze→plot→archive 全通, 报告已上 S3+presign)
+- [x] IAM: storage-bench-lambda-role + storage-bench-ec2-profile(SSM) 已建
+- [ ] 部署为 Lambda(matplotlib layer) + API Gateway + API Key (目前本地 local_run.py 验证)
 - [ ] 编排上 Step Functions（避免单 Lambda 15min 上限）
+- [ ] FSx ONTAP 联调（复用现有 fs-0cd1fb5168fa75437 NFS 端点）
 - [ ] T9 IAM 最小权限收敛 + cleanup 二次确认
+
+## 实测踩坑记录 (2026-08-29)
+- DynamoDB 读回的数字是 Decimal, boto3 EC2 API 要 int → provision 里 `int(...)` 强转
+- 默认 instance profile 名不存在 → 建 storage-bench-ec2-profile(AmazonSSMManagedInstanceCore)
+- 首跑: randread 4k 仅 6940 IOPS/27MB/s (gp3 配16000) = 新卷首次访问初始化惩罚+未预热, 数据真实
+
+## 已验证成本
+- 一次 EBS 实验: c6in.4xlarge 起~几分钟 + 500GB gp3, 跑完即删, 实测单次 < $1 ✅
 
 ## 文件结构
 ```

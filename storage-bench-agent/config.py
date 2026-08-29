@@ -11,6 +11,7 @@ DEFAULT_SUBNET = "subnet-0c551a33e366d52d4"   # us-east-2c, MapPublicIp=True
 AMI_X86 = "ami-06475e8f54266e38e"             # AL2023 x86_64 (查询自 SSM latest)
 DEFAULT_INSTANCE = "c6in.4xlarge"
 KEY_NAME = "ohio"
+INSTANCE_PROFILE = "storage-bench-ec2-profile"   # 带 AmazonSSMManagedInstanceCore
 
 # 报告存储
 REPORT_BUCKET = "s3lambdatest2"               # 复用现有 bucket
