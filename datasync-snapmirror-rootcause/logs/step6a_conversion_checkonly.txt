@@ -1,0 +1,21 @@
+=== STDOUT ===
+set -privilege diagnostic -confirmations off
+volume conversion start -vserver srcsvm -volume srcvol -check-only true
+exit
+
+Last login time: 8/30/2026 03:30:23
+FsxId027217e10840009de::> set -privilege diagnostic -confirmations off
+
+FsxId027217e10840009de::*> volume conversion start -vserver srcsvm -volume srcvol -check-only true
+Conversion of volume "srcvol" in Vserver "srcsvm" to a FlexGroup can proceed with the following warnings:
+* After the volume is converted to a FlexGroup, it will not be possible to change it back to a flexible volume.
+* Converting the volume to a FlexGroup will not add additional resources for capacity. After converting, use the "volume expand" command to add resources.
+
+
+FsxId027217e10840009de::*> exit
+Goodbye
+
+
+
+=== STDERR ===
+Connection to 172.31.10.180 closed.

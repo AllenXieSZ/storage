@@ -1,0 +1,18 @@
+=== STDOUT ===
+set -privilege diagnostic -confirmations off
+volume conversion start -vserver srcsvm -volume srcvol
+exit
+
+Last login time: 8/30/2026 03:30:40
+FsxId027217e10840009de::> set -privilege diagnostic -confirmations off
+
+FsxId027217e10840009de::*> volume conversion start -vserver srcsvm -volume srcvol
+[Job 61] Job is queued: Converting flexible volume to FlexGroup.               [Job 61] Renaming volume.                                                      [Job 61] Job succeeded: success                                                
+
+FsxId027217e10840009de::*> exit
+Goodbye
+
+
+
+=== STDERR ===
+Connection to 172.31.10.180 closed.
