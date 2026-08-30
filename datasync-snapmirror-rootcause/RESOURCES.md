@@ -1,3 +1,6 @@
+# ⚠️ 2026-08-30 已清理（DELETED）
+> 伟伟确认后已删除本实验全部 EC2 + FSx ONTAP（含卷/SVM/DataSync task+location）。以下清单仅存档。
+
 # Resources — datasync-snapmirror-rootcause (us-east-2)
 
 | Resource | ID | Notes |
