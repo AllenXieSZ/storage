@@ -1,5 +1,13 @@
 # FSx for NetApp ONTAP — FlexGroup 数据分布之旅：DataSync 迁移 → 分布观测 → 就地转换
 
+> ⚠️⚠️ **2026-08-30 重大纠错（务必先读）**：本文多处结论把「FlexVol→FlexGroup 就地转换被 `copy to cloud relationship` 阻塞」的根因**错误归给 DataSync**（如 2.5/3.1 节的"被 DataSync 当过 source 的 FlexVol 无法就地转 FlexGroup"）。**该归因已被后续对照实验证伪、作废。**
+> - ❌ 错误：DataSync 是根因。
+> - ✅ 正确：**真凶 = FSx 原生 Backup（卷级/每日自动备份），其底层 SnapMirror-to-Cloud 关系才是阻塞源。DataSync（走 NFS 协议）不留 SnapMirror、不阻塞转换。**
+> - 📄 **AWS 官方文档原话**（[Managing volumes — Volume styles](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html#volume-styles)）："If you want to use the ONTAP CLI to convert a FlexVol volume to a FlexGroup volume, make sure that you **delete any backups of the FlexVol volume before converting it.**" —— 官方只点名 **backups**，未提 DataSync。
+> - 🧪 **实测闭环**：删掉该卷的 FSx 备份后（等 ~1min 后台异步释放），转换从 Error 变成仅 Warning + `Job succeeded`，成功转 flexgroup。
+> - 详见纠错报告：[`datasync-snapmirror-rootcause/`](../datasync-snapmirror-rootcause/) 与 [`backup-flexgroup-rootcause/`](../backup-flexgroup-rootcause/)（含 REPORT.md + REPORT2_RETRY_AFTER_DELETE_BACKUP.md + 官方英文原话）。
+> 本文以下内容保留作历史过程记录，但涉及"DataSync 阻塞/是根因"的表述一律以上述纠错为准。
+
 **语言 / Language**: 中文（本页） · [English](./README.md)
 
 > 一次干净、完整的实测记录：把数据从**单 HA pair 的 FlexVol** 迁移到 **2 HA pair 的 FlexGroup**，观察 FlexGroup 如何按文件哈希跨 aggregate 分布；随后验证 FlexVol **就地转 FlexGroup（in-place conversion）** 的完整链路、耗时、性能影响与均衡收敛。
