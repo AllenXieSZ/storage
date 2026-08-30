@@ -2,12 +2,25 @@
 
 **语言 / Language**: 中文（本页） · [English](./README.md)
 
-> 📌 **各操作为什么快/慢？** 元数据操作 vs 物理资源操作耗时原理见 [WHY_FAST_SLOW.md](../fsxn-flexgroup-rebalance/WHY_FAST_SLOW.md)：
-> FlexVol→FlexGroup 转换 / expand **<1min**（只改元数据不搬数据）；升 throughput **~36-44min**、加 HA pair **~10-26min**（起真实服务器/实例）；volume move **1h54m**（真搬 1TB 热卷数据）。
-
 > 一次干净、完整的实测记录：把数据从**单 HA pair 的 FlexVol** 迁移到 **2 HA pair 的 FlexGroup**，观察 FlexGroup 如何按文件哈希跨 aggregate 分布；随后验证 FlexVol **就地转 FlexGroup（in-place conversion）** 的完整链路、耗时、性能影响与均衡收敛。
 >
 > **Region**: us-east-2 (Ohio) · **ONTAP**: 9.18.1P5 · **FSxN 代次**: Gen2 (`SINGLE_AZ_2`) · 全程实测，报错原文照录，不臆造。
+
+## 各操作耗时对比：为什么快慢差这么多
+
+**一句话原理**：改元数据（贴标签/改指针）→ 秒级；动物理资源（起服务器/换实例/搬数据）→ 分钟~小时级。
+
+| 操作 | 底层动作 | 是否搬数据 | 实测耗时 | 测试次数 |
+|---|---|---|---|---|
+| FlexVol→FlexGroup 转换 | 改卷类型元数据（FlexGroup=多 FlexVol 成员的逻辑命名空间，FlexVol≈单成员）| ❌ 不搬 | **< 1 min** | 2 次(干净卷,均成功) |
+| volume expand 加 constituent | 在别的 aggregate 挂新空成员卷（元数据）| ❌ 不搬(老数据不回迁) | **< 1 min** | 多次 |
+| 升 throughput (384→1536) | 后台换更大规格文件服务器实例(无缝切换) | ❌ 数据不动/换实例 | **~36–44 min** | 2 次 |
+| 加 HA pair (1→2) | 真起一对新物理文件服务器 + 新 aggregate | ❌ 数据不动/起真硬件 | **~10–26 min**(官方称"几分钟") | 2 次 |
+| volume move (用上新HA) | 真搬整卷物理数据到新 aggregate | ✅ 真搬 | **1h54m49s**(1TB热卷,fio活跃时前22min仅4%,停fio后剩余~1h32m) | **1 次** |
+
+- **元数据操作**（转 FlexGroup / expand）：秒级。FlexGroup 本质是多个 FlexVol 成员拼成的逻辑命名空间，转换只改卷类型标记，WAFL 物理数据块原地不动。
+- **物理资源操作**（升吞吐 / 加 HA / volume move）：分钟~小时级。加 HA = AWS 后台真起新文件服务器+aggregate；且 384/1HA 不能直接扩 2HA，必须先升吞吐（耗时大头）。加完 HA 老数据不自动迁，需手动 volume move（真搬数据，热卷限速最慢）。
+- 来源：NetApp docs（FlexVol→FlexGroup 原地转换不搬数据）+ AWS FSx docs（加 HA=新建文件服务器+老数据需手动迁移）+ 本实验实测。
 
 ---
 
