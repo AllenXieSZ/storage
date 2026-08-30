@@ -2,15 +2,30 @@
 
 **语言 / Language**: [中文](./README_ZH.md) · English (this page)
 
-> 📌 **Why so fast/slow?** Metadata ops vs physical ops timing — see [WHY_FAST_SLOW.md](../fsxn-flexgroup-rebalance/WHY_FAST_SLOW.md):
-> FlexVol→FlexGroup conversion / expand **<1min** (metadata only, no data move); throughput scale **~36-44min**, add HA pair **~10-26min** (provision real servers); volume move **1h54m** (physically moves 1TB hot volume).
-
 A focused, clean record of two experiments run on **Amazon FSx for NetApp ONTAP (Gen2, ONTAP 9.18.1P5, us-east-2)**:
 
 1. **DataSync transfer + rebalance** — copy 800 GB from a 1‑HA‑pair FlexVol into a 2‑HA‑pair FlexGroup and observe whether data auto-balances across the two aggregates. Full timings + observations.
 2. **In-place FlexVol → FlexGroup conversion** — convert a FlexVol to a FlexGroup *in place* (no data copy), expand it across both aggregates, and measure how data distribution converges. Detailed process + charts.
 
 > All numbers below are **measured**, not inferred. Resource IDs, account IDs and IPs are redacted with `<...>` placeholders.
+
+## Operation timing comparison: why so fast vs slow
+
+**Principle in one line**: metadata ops (relabel / repoint) → seconds; physical ops (spin up servers / swap instances / move data) → minutes to hours.
+
+| Operation | Underlying action | Moves data? | Measured time | Runs |
+|---|---|---|---|---|
+| FlexVol→FlexGroup conversion | Change volume-type metadata (FlexGroup = logical namespace of multiple FlexVol members; a FlexVol ≈ single-member) | ❌ No | **< 1 min** | 2 (clean vols, both OK) |
+| volume expand (add constituent) | Attach new empty member vol on another aggregate (metadata) | ❌ No (old data not rebalanced) | **< 1 min** | multiple |
+| Scale throughput (384→1536) | Swap file-server instances for a larger class (seamless) | ❌ No / swap instances | **~36–44 min** | 2 |
+| Add HA pair (1→2) | Provision a real new pair of file servers + new aggregate | ❌ No / real hardware | **~10–26 min** (AWS docs: "a few minutes") | 2 |
+| volume move (to use new HA) | Physically move the whole volume to the new aggregate | ✅ Yes | **1h54m49s** (1TB hot vol; only 4% in first 22min under active fio; ~1h32m for remaining 96% after stopping fio) | **1** |
+
+- **Metadata ops** (convert / expand): seconds. A FlexGroup is just multiple FlexVol members under one namespace; conversion only re-tags the volume type — WAFL physical blocks stay put.
+- **Physical ops** (throughput / add HA / volume move): minutes to hours. Adding an HA pair provisions real new file servers + aggregate; a 384/1HA system can't jump straight to 2HA, so throughput must be scaled first (the big time cost). After adding HA, old data doesn't auto-migrate — a manual volume move is needed (real data move, throttled on hot volumes → slowest).
+- Sources: NetApp docs (in-place FlexVol→FlexGroup requires no data copy) + AWS FSx docs (add HA = new file servers + old data needs manual migration) + this experiment's measurements.
+
+---
 
 ---
 
