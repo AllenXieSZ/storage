@@ -1,5 +1,12 @@
 # FSx for NetApp ONTAP — 让数据分布到 2 个 HA pair(aggregate)的两种方法实测
 
+> ⚠️⚠️ **2026-08-30 重大纠错（务必先读）**：本文 7.3 节 / 第 9 节及对比表把「FlexVol→FlexGroup 转换被 `copy to cloud relationship` 阻塞」的根因**错误归给 DataSync**（"被 DataSync 当过 source 的 FlexVol 无法就地转 FlexGroup / DataSync source 身份是阻塞根因"）。**该归因已被后续对照实验证伪、作废。**
+> - ❌ 错误：DataSync 是根因。 ✅ 正确：**真凶 = FSx 原生 Backup（卷级/每日自动备份）底层的 SnapMirror-to-Cloud 关系；DataSync（NFS 协议）不留 SnapMirror、不阻塞转换。**
+> - 📄 **AWS 官方文档原话**（[Managing volumes — Volume styles](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html#volume-styles)）："If you want to use the ONTAP CLI to convert a FlexVol volume to a FlexGroup volume, make sure that you **delete any backups of the FlexVol volume before converting it.**" —— 官方只点名 **backups**，未提 DataSync。
+> - 🧪 **实测闭环**：删掉该卷的 FSx 备份后（等 ~1min 后台异步释放），转换从 Error → 仅 Warning + `Job succeeded`，成功转 flexgroup。
+> - 详见纠错报告：[`../datasync-snapmirror-rootcause/`](../datasync-snapmirror-rootcause/) 与 [`../backup-flexgroup-rootcause/`](../backup-flexgroup-rootcause/)（REPORT.md + REPORT2_RETRY_AFTER_DELETE_BACKUP.md + 官方英文原话）。
+> 本文以下内容保留作历史过程记录，但"DataSync 阻塞/是根因"的表述一律以上述纠错为准。
+
 > 📌 **各操作快慢原理速查**（元数据操作秒级 vs 物理资源操作分钟/小时级）见 [WHY_FAST_SLOW.md](./WHY_FAST_SLOW.md)：
 > FlexVol→FlexGroup 转换 / expand **<1min**（只改元数据不搬数据）；升 throughput **~36-44min**、加 HA pair **~10-26min**（起真实实例/服务器）；volume move **1h54m**（真搬 1TB 热卷数据）。
 

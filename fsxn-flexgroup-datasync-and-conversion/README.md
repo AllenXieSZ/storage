@@ -1,5 +1,13 @@
 # FSx for NetApp ONTAP — FlexGroup Cross-HA Distribution & In-Place FlexVol→FlexGroup Conversion
 
+> ⚠️⚠️ **IMPORTANT CORRECTION (2026-08-30) — read first**: Several conclusions in this document **wrongly attributed** the `copy to cloud relationship` block on FlexVol→FlexGroup conversion **to DataSync**. **That attribution has been disproven and is retracted.**
+> - ❌ Wrong: DataSync is the root cause.
+> - ✅ Correct: **The real culprit is FSx native Backup (volume-level / automatic daily backup); its underlying SnapMirror-to-Cloud relationship is what blocks conversion. DataSync (which uses the NFS protocol) leaves no SnapMirror relationship and does NOT block conversion.**
+> - 📄 **AWS official docs, verbatim** ([Managing volumes — Volume styles](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html#volume-styles)): "If you want to use the ONTAP CLI to convert a FlexVol volume to a FlexGroup volume, make sure that you **delete any backups of the FlexVol volume before converting it.**" — The doc names **backups only**, not DataSync.
+> - 🧪 **Empirical closure**: after deleting the volume's FSx backup (and waiting ~1 min for async release), conversion went from Error to just a Warning + `Job succeeded`, converting to flexgroup.
+> - See corrected reports: [`datasync-snapmirror-rootcause/`](../datasync-snapmirror-rootcause/) and [`backup-flexgroup-rootcause/`](../backup-flexgroup-rootcause/) (REPORT.md + REPORT2_RETRY_AFTER_DELETE_BACKUP.md + the official English quote).
+> Content below is retained as a historical record, but any statement claiming "DataSync blocks / is the root cause" is superseded by the correction above.
+
 **语言 / Language**: [中文](./README_ZH.md) · English (this page)
 
 A focused, clean record of two experiments run on **Amazon FSx for NetApp ONTAP (Gen2, ONTAP 9.18.1P5, us-east-2)**:
