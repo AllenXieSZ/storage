@@ -1,5 +1,8 @@
 # FSx for NetApp ONTAP — 让数据分布到 2 个 HA pair(aggregate)的两种方法实测
 
+> 📌 **各操作快慢原理速查**（元数据操作秒级 vs 物理资源操作分钟/小时级）见 [WHY_FAST_SLOW.md](./WHY_FAST_SLOW.md)：
+> FlexVol→FlexGroup 转换 / expand **<1min**（只改元数据不搬数据）；升 throughput **~36-44min**、加 HA pair **~10-26min**（起真实实例/服务器）；volume move **1h54m**（真搬 1TB 热卷数据）。
+
 目标:让 FSxN 的数据从「单 HA pair(单 aggregate)」变成「跨 2 HA pair(aggr1 + aggr2)」,并观察分布是否均衡、性能与耗时如何。对比两种方法:
 
 - **方法一:新建迁移法(第 1~6 节)** — 新建一个 **2HA 的 FSxN + FlexGroup**,用 **AWS DataSync** 把数据从旧的 1HA FlexVol 迁移过来,看 FlexGroup 是否自动均衡到 2 个 aggregate。
