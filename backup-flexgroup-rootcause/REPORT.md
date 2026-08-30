@@ -124,6 +124,26 @@ Error: command failed: This snapshot is currently used as a reference snapshot
 
 ---
 
+## 五之补 — AWS 官方文档原话（英文原文，实锤佐证）
+
+我们的实测结论与 **AWS FSx for ONTAP 官方文档**完全一致。文档在 "Volume styles" 一节明确要求：**用 ONTAP CLI 把 FlexVol 转 FlexGroup 前，必须先删除该 FlexVol 的所有备份。**
+
+> **Note**
+> If you want to use the ONTAP CLI to convert a FlexVol volume to a FlexGroup volume, make sure that you delete any backups of the FlexVol volume before converting it. ONTAP doesn't automatically rebalance data as part of the conversion, so the data might be imbalanced across the FlexGroup constituents.
+
+Source: [Managing FSx for ONTAP volumes — Volume styles](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html#volume-styles) (docs.aws.amazon.com, retrieved 2026-08-30)
+
+同一节的相关原文（转换语义 + 推荐用 DataSync 迁移以均衡分布）：
+
+> You can convert a volume with the FlexVol style to the FlexGroup style with the ONTAP CLI, which creates a FlexGroup with a single constituent. However, we recommend that you use AWS DataSync to move data between a FlexVol volume and a new FlexGroup volume to ensure that the data is evenly distributed across the FlexGroup's constituents.
+
+**解读**：
+- "delete **any backups** of the FlexVol volume before converting it" —— 官方把"有备份"直接列为转换的**前置阻塞项**，与本实验实测（bkpvol 备份后 conversion 报 Error）逐字对应。
+- 注意官方这句只点名 **backups**，并未提到 DataSync —— 反过来印证 2026-08-30 早前那次 "DataSync(NFS) 不阻塞转换" 的纠错也是对的。
+- 官方还建议**用 DataSync 迁移**来实现 FlexGroup constituent 间的数据均衡（因为就地转换后是单 constituent、且 ONTAP 不自动 rebalance）——DataSync 在这里是"推荐工具"而非"阻塞源"。
+
+---
+
 ## 六、资源清单（全部保留，删除前先问伟伟）
 
 见同目录 `RESOURCES.md`。关键：FSxN `fs-0184d1e4b81ce12a8`，SVM `svm-0af4df6f58574e440`（bkpfgsvm），bkpvol `fsvol-0b96244abc8fcb7bd`，cleanvol `fsvol-0ff9b92f659a38ed5`，backup `backup-01aaa29249100f88b`，EC2 `i-0e64df080d1d36235`。
