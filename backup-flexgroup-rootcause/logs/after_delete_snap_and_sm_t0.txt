@@ -1,0 +1,24 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 13:06:43
+
+                                                                 ---Blocks---
+Vserver  Volume   Snapshot                                  Size Total% Used%
+-------- -------- ------------------------------------- -------- ------ -----
+bkpfgsvm bkpvol
+                  backup-01aaa29249100f88b                 172KB     0%    0%
+                  hourly.2026-08-30_0805                   160KB     0%    0%
+                  hourly.2026-08-30_0905                   160KB     0%    0%
+                  hourly.2026-08-30_1005                   164KB     0%    0%
+                  hourly.2026-08-30_1105                   156KB     0%    0%
+                  hourly.2026-08-30_1205                   156KB     0%    0%
+                  hourly.2026-08-30_1305                   160KB     0%    0%
+7 entries were displayed.
+
+This table is currently empty.
+
+This table is currently empty.
+
+
+=== STDERR ===
+failed to run commands: exit status 255

@@ -1,0 +1,41 @@
+=== poll start Sun Aug 30 13:07:58 UTC 2026 (backup delete API was at epoch 1788095214) ===
+
+----- ROUND 1  (~1 min after delete)  Sun Aug 30 13:07:58 UTC 2026 -----
+## snapshot show + snapmirror
+=== STDOUT ===
+
+Last login time: 8/30/2026 13:07:38
+
+vserver  volume snapshot               
+-------- ------ ---------------------- 
+bkpfgsvm bkpvol hourly.2026-08-30_0805 
+bkpfgsvm bkpvol hourly.2026-08-30_0905 
+bkpfgsvm bkpvol hourly.2026-08-30_1005 
+bkpfgsvm bkpvol hourly.2026-08-30_1105 
+bkpfgsvm bkpvol hourly.2026-08-30_1205 
+bkpfgsvm bkpvol hourly.2026-08-30_1305 
+6 entries were displayed.
+
+This table is currently empty.
+
+This table is currently empty.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+## conversion check-only
+=== STDOUT ===
+
+Last login time: 8/30/2026 13:08:00
+Your privilege has changed since last login.
+
+Conversion of volume "bkpvol" in Vserver "bkpfgsvm" to a FlexGroup can proceed with the following warnings:
+* After the volume is converted to a FlexGroup, it will not be possible to change it back to a flexible volume.
+* Converting flexible volume "bkpvol" in Vserver "bkpfgsvm" to a FlexGroup will cause the state of all snapshots from the volume to be set to "pre-conversion". Pre-conversion snapshots cannot be restored.
+* Converting the volume to a FlexGroup will not add additional resources for capacity. After converting, use the "volume expand" command to add resources.
+
+
+
+=== STDERR ===
+>>> CONVERSION NOW ALLOWED (warning only) at ~1 min <<<
+=== poll end Sun Aug 30 13:08:12 UTC 2026 ===
