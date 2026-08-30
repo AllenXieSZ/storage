@@ -1,0 +1,8 @@
+DELETE_START_EPOCH=1788095214 (Sun Aug 30 13:06:54 UTC 2026)
+{
+    "BackupId": "backup-01aaa29249100f88b",
+    "Lifecycle": "DELETED"
+}
+[10 s] describe-backups => 
+aws: [ERROR]: An error occurred (BackupNotFound) when calling the DescribeBackups operation: Backup 'backup-01aaa29249100f88b' does not exist.
+GONE after 10 s

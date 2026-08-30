@@ -1,0 +1,31 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 13:08:26
+
+vserver  volume        state  volume-style volume-style-extended 
+-------- ------------- ------ ------------ --------------------- 
+bkpfgsvm bkpfgsvm_root online flex         flexvol               
+bkpfgsvm bkpvol        online flex         flexgroup             
+bkpfgsvm bkpvol__0001  online flex         flexgroup-constituent 
+bkpfgsvm cleanvol      online flex         flexgroup             
+bkpfgsvm cleanvol__0001 online flex        flexgroup-constituent 
+5 entries were displayed.
+
+vserver  volume snapshot               
+-------- ------ ---------------------- 
+bkpfgsvm bkpvol hourly.2026-08-30_0805 
+bkpfgsvm bkpvol hourly.2026-08-30_0905 
+bkpfgsvm bkpvol hourly.2026-08-30_1005 
+bkpfgsvm bkpvol hourly.2026-08-30_1105 
+bkpfgsvm bkpvol hourly.2026-08-30_1205 
+bkpfgsvm bkpvol hourly.2026-08-30_1305 
+bkpfgsvm bkpvol convert.2026-08-30_130826 
+7 entries were displayed.
+
+This table is currently empty.
+
+This table is currently empty.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
