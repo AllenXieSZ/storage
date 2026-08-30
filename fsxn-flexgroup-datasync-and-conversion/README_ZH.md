@@ -1,13 +1,5 @@
 # FSx for NetApp ONTAP — FlexGroup 数据分布之旅：DataSync 迁移 → 分布观测 → 就地转换
 
-> ⚠️⚠️ **2026-08-30 重大纠错（务必先读）**：本文多处结论把「FlexVol→FlexGroup 就地转换被 `copy to cloud relationship` 阻塞」的根因**错误归给 DataSync**（如 2.5/3.1 节的"被 DataSync 当过 source 的 FlexVol 无法就地转 FlexGroup"）。**该归因已被后续对照实验证伪、作废。**
-> - ❌ 错误：DataSync 是根因。
-> - ✅ 正确：**真凶 = FSx 原生 Backup（卷级/每日自动备份），其底层 SnapMirror-to-Cloud 关系才是阻塞源。DataSync（走 NFS 协议）不留 SnapMirror、不阻塞转换。**
-> - 📄 **AWS 官方文档原话**（[Managing volumes — Volume styles](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html#volume-styles)）："If you want to use the ONTAP CLI to convert a FlexVol volume to a FlexGroup volume, make sure that you **delete any backups of the FlexVol volume before converting it.**" —— 官方只点名 **backups**，未提 DataSync。
-> - 🧪 **实测闭环**：删掉该卷的 FSx 备份后（等 ~1min 后台异步释放），转换从 Error 变成仅 Warning + `Job succeeded`，成功转 flexgroup。
-> - 详见纠错报告：[`datasync-snapmirror-rootcause/`](../datasync-snapmirror-rootcause/) 与 [`backup-flexgroup-rootcause/`](../backup-flexgroup-rootcause/)（含 REPORT.md + REPORT2_RETRY_AFTER_DELETE_BACKUP.md + 官方英文原话）。
-> 本文以下内容保留作历史过程记录，但涉及"DataSync 阻塞/是根因"的表述一律以上述纠错为准。
-
 **语言 / Language**: 中文（本页） · [English](./README.md)
 
 > 一次干净、完整的实测记录：把数据从**单 HA pair 的 FlexVol** 迁移到 **2 HA pair 的 FlexGroup**，观察 FlexGroup 如何按文件哈希跨 aggregate 分布；随后验证 FlexVol **就地转 FlexGroup（in-place conversion）** 的完整链路、耗时、性能影响与均衡收敛。
@@ -142,9 +134,14 @@ constituent 级别（全量后）：`0005/0007`（各 102G）落 aggr1；`0002/0
 
 ## 3. 第二段：FlexVol 就地转 FlexGroup（in-place conversion）
 
-**问题**：一个**干净的 FlexVol**（从未接过 DataSync）能否原地转成 FlexGroup？完整链路多久？在线性能影响多大？转完写大量文件能否收敛到接近 50:50？
+**问题**：一个 FlexVol 能否原地转成 FlexGroup？完整链路多久？在线性能影响多大？转完写大量文件能否收敛到接近 50:50？
 
-> 📌 **前置踩坑（重要）**：被 DataSync 当过 FSx-ONTAP **source** 的 FlexVol **无法就地转 FlexGroup** —— DataSync 底层用 SnapMirror-to-Cloud，会在源卷留下**隐藏的 copy-to-cloud 关系 + 参考快照**，`volume conversion start` 会报 `copy to cloud relationship ... is not a FlexVol` 而拦截，且该关系在客户 CLI（连 diagnostic 级）完全不可见、无法 release。所以本段用的是**全程零 DataSync 的干净卷**。（该结论已由"干净卷成功转 + DataSync'd 卷报错且快照删不掉"双向坐实。）
+> 📌 **前置条件（重要）**：**带有备份（backup）的 FlexVol 无法就地转 FlexGroup —— 转换前必须先删除该卷的所有备份。**
+> - AWS 官方文档明文要求（[Managing volumes — Volume styles](https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/managing-volumes.html#volume-styles)）："If you want to use the ONTAP CLI to convert a FlexVol volume to a FlexGroup volume, make sure that you **delete any backups of the FlexVol volume before converting it.**"
+> - 机制：FSx 卷级/每日自动 Backup 底层用 SnapMirror-to-Cloud，会在源卷留下一个 `backup-xxx` 参考快照 + 一个隐藏的 copy-to-cloud 关系（客户 CLI 连 diagnostic 级都看不到）。只要该关系还在，`volume conversion start` 就会报 `Error: ... copy to cloud relationship ... is not a FlexVol` 而拦截。
+> - 解法：`aws fsx delete-backup` 删掉该卷的所有备份，**等 ~1 分钟**（后台异步释放 copy-to-cloud 关系 + backup 快照），再重试转换即成功（转换从 Error 变为仅 Warning + `Job succeeded`）。
+> - 双向实测坐实见 [`../backup-flexgroup-rootcause/`](../backup-flexgroup-rootcause/)：同 FSxN 内"备份过的卷报 Error 转不了 vs 从不备份的卷成功转"，且删备份后前者也能转。
+> 本段用的是一个**没有备份**的干净卷，所以能直接转。
 
 ### 3.1 完整就地升级链路与耗时
 
@@ -215,8 +212,8 @@ fio 参数：`job1: 4K randrw rwmixread=70, iodepth=32, numjobs=4` + `job2: 1M s
 | 1 | **FlexGroup 按文件哈希分布**：少量大文件（8 个）→ 严重偏斜（~200:600）；大量文件（100+）→ 快速收敛到接近均衡。 |
 | 2 | **DataSync 全量 800 GiB ≈ 40.5 min 传输 + 67.6 min 校验**（校验比传输还慢）；增量只传变更文件（150 GiB ≈ 8.2 min）。 |
 | 3 | **DataSync 费用**（BASIC $0.0125/GB）：全量 $10.74 + 增量 $2.01 ≈ **$12.75**。 |
-| 4 | **干净 FlexVol 可就地转 FlexGroup**，转换本身 < 1 min（`Job succeeded`）。 |
-| 5 | **被 DataSync 当过 source 的 FlexVol 无法就地转**（隐藏 copy-to-cloud SM 关系阻塞，客户端不可见、删不掉）。 |
+| 4 | **没有备份的 FlexVol 可就地转 FlexGroup**，转换本身 < 1 min（`Job succeeded`）。 |
+| 5 | **带备份的 FlexVol 无法就地转** —— 备份底层的 copy-to-cloud 关系会以 `Error` 拦截转换；**转换前须先 `delete-backup` 删除该卷所有备份**（AWS 官方要求），等 ~1min 后台释放后即可转。 |
 | 6 | **完整就地升级链路**：先升 throughput（~36.5 min）→ 扩 HA（~10 min）→ 转换（<1min）→ expand（<1min）。⚠️ 不能直接 1HA(384)→2HA。 |
 | 7 | **在线性能**：升级/扩容期间掉到基线 ~35–50%（谷底 ~90–140 MiB/s）；**完成后稳态 ~900+ MiB/s，约 3.5× 基线**。 |
 | 8 | **残留 55:45 是结构性**（constituent 5:4），非哈希随机；要真 50:50 得让两 aggr constituent 数相等。 |
@@ -343,8 +340,8 @@ aws datasync delete-location --location-arn <LOC_ARN> --region us-east-2
 6. 本卷是 FlexCache origin 卷。
 7. 快照数：9.7- ≤255；9.8+ ≤1023。
 8. **启用了 storage efficiency → 建议先禁用**（FSx 上实测**只警告不拦截**）。
-9. **本卷是 SnapMirror 关系的 source，且 destination 尚未转换** ← DataSync copy-to-cloud 卡这条。
-10. **本卷处于 active（未 quiesce）的 SnapMirror 关系中** ← 同上。
+9. **本卷是 SnapMirror 关系的 source，且 destination 尚未转换** ← **FSx 卷级/自动 Backup 的 copy-to-cloud 关系卡这条**（AWS 官方：转换前须先删该卷所有备份）。
+10. **本卷处于 active（未 quiesce）的 SnapMirror 关系中** ← 同上（备份底层的 SnapMirror-to-Cloud）。
 11. 启用了 ARP（Autonomous Ransomware Protection）→ 需先禁用。
 12. **启用了 quota → 必须先禁用**，转换后可重启。
 13. 卷名 >197 字符。
