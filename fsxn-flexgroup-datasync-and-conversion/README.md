@@ -2,6 +2,9 @@
 
 **语言 / Language**: [中文](./README_ZH.md) · English (this page)
 
+> 📌 **Why so fast/slow?** Metadata ops vs physical ops timing — see [WHY_FAST_SLOW.md](../fsxn-flexgroup-rebalance/WHY_FAST_SLOW.md):
+> FlexVol→FlexGroup conversion / expand **<1min** (metadata only, no data move); throughput scale **~36-44min**, add HA pair **~10-26min** (provision real servers); volume move **1h54m** (physically moves 1TB hot volume).
+
 A focused, clean record of two experiments run on **Amazon FSx for NetApp ONTAP (Gen2, ONTAP 9.18.1P5, us-east-2)**:
 
 1. **DataSync transfer + rebalance** — copy 800 GB from a 1‑HA‑pair FlexVol into a 2‑HA‑pair FlexGroup and observe whether data auto-balances across the two aggregates. Full timings + observations.

@@ -2,6 +2,9 @@
 
 **语言 / Language**: 中文（本页） · [English](./README.md)
 
+> 📌 **各操作为什么快/慢？** 元数据操作 vs 物理资源操作耗时原理见 [WHY_FAST_SLOW.md](../fsxn-flexgroup-rebalance/WHY_FAST_SLOW.md)：
+> FlexVol→FlexGroup 转换 / expand **<1min**（只改元数据不搬数据）；升 throughput **~36-44min**、加 HA pair **~10-26min**（起真实服务器/实例）；volume move **1h54m**（真搬 1TB 热卷数据）。
+
 > 一次干净、完整的实测记录：把数据从**单 HA pair 的 FlexVol** 迁移到 **2 HA pair 的 FlexGroup**，观察 FlexGroup 如何按文件哈希跨 aggregate 分布；随后验证 FlexVol **就地转 FlexGroup（in-place conversion）** 的完整链路、耗时、性能影响与均衡收敛。
 >
 > **Region**: us-east-2 (Ohio) · **ONTAP**: 9.18.1P5 · **FSxN 代次**: Gen2 (`SINGLE_AZ_2`) · 全程实测，报错原文照录，不臆造。
