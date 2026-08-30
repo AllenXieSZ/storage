@@ -1,0 +1,13 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:41:33
+
+Conversion of volume "cleanvol" in Vserver "bkpfgsvm" to a FlexGroup can proceed with the following warnings:
+* After the volume is converted to a FlexGroup, it will not be possible to change it back to a flexible volume.
+* Converting flexible volume "cleanvol" in Vserver "bkpfgsvm" to a FlexGroup will cause the state of all snapshots from the volume to be set to "pre-conversion". Pre-conversion snapshots cannot be restored.
+* Converting the volume to a FlexGroup will not add additional resources for capacity. After converting, use the "volume expand" command to add resources.
+
+
+
+=== STDERR ===
+

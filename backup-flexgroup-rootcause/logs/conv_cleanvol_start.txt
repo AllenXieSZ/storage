@@ -1,0 +1,19 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:41:47
+
+[Job 48] Job is queued: Converting flexible volume to FlexGroup.               [Job 48] Job succeeded: success                                                
+
+
+=== STDERR ===
+
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:42:00
+vserver  volume   state  volume-style-extended 
+-------- -------- ------ --------------------- 
+bkpfgsvm cleanvol online flexgroup             
+
+
+=== STDERR ===
+

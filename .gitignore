@@ -3,3 +3,4 @@
 /*.json
 __pycache__/
 *.pyc
+backup-flexgroup-rootcause/resources.env

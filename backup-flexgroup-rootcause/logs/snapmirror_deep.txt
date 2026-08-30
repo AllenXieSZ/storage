@@ -1,0 +1,19 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:42:53
+Your privilege has changed since last login.
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:43:07
+
+This table is currently empty.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
