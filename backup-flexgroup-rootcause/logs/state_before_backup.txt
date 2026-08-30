@@ -1,0 +1,105 @@
+########## STATE CAPTURE: BEFORE-BACKUP ##########
+===== VOL=bkpvol =====
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:28:39
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror list-destinations (source=bkpvol) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:30:32
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror show-history ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:30:39
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- volume snapshot show ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:30:46
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapshot-count (volume show) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:30:53
+
+vserver  volume snapshot-policy snapshot-count 
+-------- ------ --------------- -------------- 
+bkpfgsvm bkpvol default         0              
+
+
+=== STDERR ===
+
+===== VOL=cleanvol =====
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:30:59
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror list-destinations (source=cleanvol) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:31:06
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror show-history ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:31:13
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- volume snapshot show ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:31:20
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapshot-count (volume show) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:31:26
+
+vserver  volume   snapshot-policy snapshot-count 
+-------- -------- --------------- -------------- 
+bkpfgsvm cleanvol default         0              
+
+
+=== STDERR ===
+

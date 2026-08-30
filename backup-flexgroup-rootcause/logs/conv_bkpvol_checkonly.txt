@@ -1,0 +1,14 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:42:16
+
+
+Error: command failed: Cannot convert volume "bkpvol" in Vserver "bkpfgsvm" to
+       a FlexGroup. Correct the following issues and retry the command:
+       * Conversion failed because the destination of a SnapMirror relationship
+       with source volume "bkpvol" is not a FlexVol volume.  Delete and release
+       the copy to cloud relationship from the source FlexVol volume "bkpvol".
+
+
+=== STDERR ===
+failed to run commands: exit status 255

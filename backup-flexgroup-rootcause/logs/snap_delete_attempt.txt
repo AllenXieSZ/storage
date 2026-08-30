@@ -1,0 +1,12 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:43:28
+
+
+Error: command failed: This snapshot is currently used as a reference snapshot
+       by one or more SnapMirror relationships. Deleting the snapshot can cause
+       future SnapMirror operations to fail. 
+
+
+=== STDERR ===
+failed to run commands: exit status 255

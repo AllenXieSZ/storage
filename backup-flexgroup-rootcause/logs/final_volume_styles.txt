@@ -1,0 +1,13 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:43:35
+vserver  volume        state  volume-style-extended junction-path 
+-------- ------------- ------ --------------------- ------------- 
+bkpfgsvm bkpfgsvm_root online flexvol               /             
+bkpfgsvm bkpvol        online flexvol               /bkpvol       
+bkpfgsvm cleanvol      online flexgroup             /cleanvol     
+3 entries were displayed.
+
+
+=== STDERR ===
+

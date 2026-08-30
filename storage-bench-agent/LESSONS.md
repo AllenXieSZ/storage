@@ -35,3 +35,12 @@
   - 现象：`===== 分隔符` 让 `aws ssm send-command --parameters commands=[...]` 报 ParamValidation(遇到`=`)；且 `ssh fsxadmin@ip < cmdfile` 不带PTY时命令被吞、CLI只回提示符不执行
   - 根因：`=` 破坏 SSM 参数解析；ONTAP CLI 需 TTY 才逐行执行 stdin
   - 规避：把 ONTAP 命令写文件→base64→EC2 解码→`sshpass ssh -tt`(强制PTY) < cmdfile；命令里别用 `=====`
+
+## 2026-08-30 FSx 原生 Backup 阻塞 FlexVol→FlexGroup 转换（H1 坐实，且是 Error 非 Warning）
+- **现象**：同一 FSxN/SVM 内两个内容一致的 FlexVol，只对 bkpvol 做一次 FSx 卷级 Backup，cleanvol 不备份。cleanvol 转 FlexGroup `[Job] Job succeeded`；bkpvol `volume conversion start` 报 **`Error: ... Delete and release the copy to cloud relationship from the source FlexVol volume`**，卷仍是 flexvol，转换未发生。
+- **根因**：FSx 卷级 Backup 底层建 **SnapMirror-to-Cloud（copy-to-cloud）关系** + 在卷内留 `backup-<id>` 参考快照。FlexVol→FlexGroup 要求源卷不是任何活动 SnapMirror 的 source → 被阻塞。
+- **隐藏性**：`snapmirror show`/`list-destinations`（连 diag `-expand`）**全空**，看不到该关系；但 `volume snapshot delete backup-xxx` 报 **`used as a reference snapshot by one or more SnapMirror relationships`** → 关系真实存在，只是 FSx 后台托管、对客户 CLI 隐藏。
+- **关键区分（回应"是否只是 warning"）**：check-only 与实际 start 输出都是 **`Error:`**（不是 `Warning:`），Job 未 succeeded。对比 cleanvol 的 check-only 是三条 `Warning:`（不可逆/pre-conversion 快照/需 volume expand）可继续。所以这次是硬 Error 阻塞，属实。
+- **纠正历史误判**：2026-08-28 曾把此阻塞错记到 DataSync 头上；2026-08-30 已证 DataSync 走 NFS 不留关系不阻塞；本次坐实真凶=FSx 原生 Backup。
+- **规避/解除**：要转 FlexGroup，先删除该卷的所有 FSx 备份 / 释放 copy-to-cloud 关系后再转。
+- **踩坑（无关本题但记）**：process poll 的 timeout 在本环境不会真的阻塞满时长（秒级返回），长等待要用前台 `sleep` + yieldMs 或按 wall-clock 轮询判断，别依赖 poll timeout 计时。

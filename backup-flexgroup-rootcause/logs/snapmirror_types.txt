@@ -1,0 +1,10 @@
+=== STDOUT ===
+
+Last login time: 8/30/2026 05:43:14
+
+
+Error: invalid argument "destination-location"
+
+
+=== STDERR ===
+failed to run commands: exit status 255

@@ -1,0 +1,110 @@
+########## STATE CAPTURE: AFTER-BACKUP-immediate ##########
+===== VOL=bkpvol =====
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:31:33
+Your privilege has changed since last login.
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror list-destinations (source=bkpvol) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:15
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror show-history ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:22
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- volume snapshot show ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:29
+
+                                                                 ---Blocks---
+Vserver  Volume   Snapshot                                  Size Total% Used%
+-------- -------- ------------------------------------- -------- ------ -----
+bkpfgsvm bkpvol
+                  backup-01aaa29249100f88b                 144KB     0%    0%
+
+
+=== STDERR ===
+
+--- snapshot-count (volume show) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:35
+
+vserver  volume snapshot-policy snapshot-count 
+-------- ------ --------------- -------------- 
+bkpfgsvm bkpvol default         1              
+
+
+=== STDERR ===
+
+===== VOL=cleanvol =====
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:42
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror list-destinations (source=cleanvol) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:49
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapmirror show-history ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:36:55
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- volume snapshot show ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:37:02
+
+There are no entries matching your query.
+
+
+=== STDERR ===
+failed to run commands: exit status 255
+--- snapshot-count (volume show) ---
+=== STDOUT ===
+
+Last login time: 8/30/2026 04:37:09
+
+vserver  volume   snapshot-policy snapshot-count 
+-------- -------- --------------- -------------- 
+bkpfgsvm cleanvol default         0              
+
+
+=== STDERR ===
+
