@@ -1,0 +1,35 @@
+=== STDOUT ===
+set -privilege diagnostic -confirmations off
+snapmirror show
+snapmirror list-destinations
+snapmirror show-history
+volume snapshot show -vserver srcsvm -volume srcvol
+snapmirror show-history -vserver srcsvm
+exit
+
+Last login time: 8/30/2026 03:14:37
+FsxId027217e10840009de::> set -privilege diagnostic -confirmations off
+
+FsxId027217e10840009de::*> snapmirror show
+This table is currently empty.
+
+FsxId027217e10840009de::*> snapmirror list-destinations
+This table is currently empty.
+
+FsxId027217e10840009de::*> snapmirror show-history
+There is no SnapMirror history.
+
+FsxId027217e10840009de::*> volume snapshot show -vserver srcsvm -volume srcvol
+There are no entries matching your query.
+
+FsxId027217e10840009de::*> snapmirror show-history -vserver srcsvm
+
+Error: invalid argument "-vserver"
+
+FsxId027217e10840009de::*> exit
+Goodbye
+
+
+
+=== STDERR ===
+Connection to 172.31.10.180 closed.
