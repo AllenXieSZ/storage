@@ -13,6 +13,15 @@
 - **H1（主）**：卷被 **FSx 原生 Backup 备份过**后，会在源卷留下 SnapMirror-to-Cloud 隐藏关系 + `backup-xxx` 参考快照，并**阻塞** FlexVol→FlexGroup 就地转换（报 `copy to cloud relationship`）。
 - **H0（对照，已知）**：干净卷（从没备份、没 DataSync）能成功转 FlexGroup（2026-08-28/29/30 已多次坐实，本次沿用作对照）。
 
+### ⚠️ 伟伟的质疑（2026-08-30，本实验真正裁判点）
+伟伟认为**很可能根本不是 Backup 的原因**——那句 `copy to cloud relationship` 很可能只是 **Warning 而非 Error**，转换其实照样 succeeded。查 AWS FSx ONTAP 官方 backup user guide（using-backups.html）确认：FSx 原生备份会"take a snapshot of your volume，backup snapshot 存在卷里并保留到下次备份"——所以**备份过的卷确实会留一个 backup 参考快照，但"留快照" ≠ "阻塞转换"**。
+**→ 本实验真正要回答的是：备份产生 backup 参考快照后，`volume conversion start` 到底是被 Error 阻塞，还是只是 Warning 照样 Job succeeded。** 别预设 H1 成立。
+
+### 两点硬性要求（伟伟补充）
+1. **备份要真正执行过再测**：不要 create-backup 后立刻测。把 bkpvol 备份安排在**约 1 小时后触发/完成**（FSx 自动每日备份窗口设到 ~1h 后，或 create-backup 后等它真正到 AVAILABLE 且 backup 参考快照在卷里稳定留存），确认备份确实发生、卷里确有 `backup-xxx` 快照后，再做对照 + 转换。
+2. **逐字区分 Warning vs Error**：check-only 和实际 start 的输出**逐字完整记录**，明确标注哪些行是 `Warning:` 哪些是 `Error:`，以及 **Job 最终是否 succeeded**。即使出现 "copy to cloud relationship" 字样，也要看它是 Warning 还是 Error、Job 结不结束成功。对 backup 参考快照也试 `volume snapshot delete`，记录能不能删、报 warning 还是 error。
+   - 若 Job succeeded（哪怕带 copy-to-cloud warning）→ 证明"备份/copy-to-cloud 只是 warning，不阻塞转换"，则 08-28 把它当 error 硬阻塞的结论**又是一个误读**（连同 DataSync 归因一起纠正）。
+
 ## 实验设计（严格对照，隔离单一变量 = 是否开过 Backup）
 
 ### 0. 起资源（Gen2 SINGLE_AZ_2, us-east-2, ONTAP 最新；沿用 rootcause 实验模板）
