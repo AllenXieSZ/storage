@@ -44,3 +44,15 @@
 - **纠正历史误判**：2026-08-28 曾把此阻塞错记到 DataSync 头上；2026-08-30 已证 DataSync 走 NFS 不留关系不阻塞；本次坐实真凶=FSx 原生 Backup。
 - **规避/解除**：要转 FlexGroup，先删除该卷的所有 FSx 备份 / 释放 copy-to-cloud 关系后再转。
 - **踩坑（无关本题但记）**：process poll 的 timeout 在本环境不会真的阻塞满时长（秒级返回），长等待要用前台 `sleep` + yieldMs 或按 wall-clock 轮询判断，别依赖 poll timeout 计时。
+
+## FSx for Lustre 容量扩容耗时实测（2026-08-31，lustre-expand-timing）
+> ⚠️ 仅本次测试环境实测（n=1），不代表官方结论。
+
+- **扩容 1.2 TiB → 2.4 TiB（PERSISTENT_2/500，已灌 ~900G 真实数据），到 Lifecycle 回 AVAILABLE ≈ 15.7 分钟（943s）。** 之后有后台 `STORAGE_OPTIMIZATION`（数据重分布），到完成 ≈ 38.9 分钟（2336s），**不阻塞使用**（AVAILABLE 后即可读写）。
+- **扩容 = 加 OST，不是撑大原 OST**：1.2T=1 个 OST；扩到 2.4T→2 个 OST（OST0001 新增，容量翻倍靠它）。MDT 也从 34.4G→69.0G。
+- **老数据初始全留原 OST**（AVAILABLE 瞬间 OST0000=910G/OST0001=20G），后台 optimization 把 ~360G 迁到新 OST，完成后 549G:361G（大致均衡但非精确 50:50，按已有文件/条带迁移）。
+- **两个 AdministrativeAction 阶段**：①`FILE_SYSTEM_UPDATE`（UPDATING，加 OST，本次 ~15.7min，Lifecycle=UPDATING）；②转 `UPDATED_OPTIMIZING` + `STORAGE_OPTIMIZATION`（IN_PROGRESS 带 ProgressPercent，Lifecycle 已 AVAILABLE）。**测"到 AVAILABLE"看阶段①结束；测"重分布完"看 STORAGE_OPTIMIZATION 从 action 列表消失**（COMPLETED 后 describe 里该 action 会消失，只剩 FILE_SYSTEM_UPDATE=COMPLETED）。
+- **STORAGE_OPTIMIZATION ProgressPercent 很"块状"**：会卡在 20%、99% 好几分钟再跳，不是线性；别据单点估总时长。
+- **AL2023 (kernel 6.18.41) 默认 dnf repo 已含 lustre-client 2.15.6-32**，`dnf install -y lustre-client` 直接装好，`modprobe lustre` 即可挂载。**无需**加 aws-fsx.repo（那个 repo 对 6.18 内核反而 404/skip）。
+- **灌数据**：9×100GiB dd if=/dev/urandom 并行，单路 68.9 MB/s，聚合 ~591 MB/s（贴近 PERSISTENT_2/500 写能力）；900G 约 26min。
+- **SSM 驱动私网 EC2 坑**：`send-command` 的 commands 用 JSON 数组逐行传，别传带 shebang 的整段脚本 blob（会报 `cannot execute: required file not found` exit 127）。后台 dd 用 `&` 让父 shell 立即返回，SSM 命令才不会一直挂着等。

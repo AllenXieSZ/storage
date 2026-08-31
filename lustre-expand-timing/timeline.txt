@@ -1,0 +1,6 @@
+FILL_T0=1788146517
+FILL_DONE_LAST_DD=~1788148080 (1559s per stream)
+Fill wall ~26m (900G @ ~591 MB/s aggregate)
+AVAILABLE_ELAPSED_SEC=943
+AVAILABLE reached ~04:04:52 UTC (+15m43s from update submit)
+OPTIMIZE_COMPLETED_ELAPSED_SEC=~2336 (between +2274 P99 and +2336 empty)
