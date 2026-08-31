@@ -1,0 +1,8 @@
+v2 TIMELINE (all UTC, expand relative to T0=06:41:40)
+create_t0=05:51:22  create_available=05:57:34  create=372s=6.2min
+fill_t0=05:58:46    fill_done=06:41:28         fill=2562s=42.7min (incl 50G topup)
+expand_t0=06:41:40
+  AVAILABLE @ +1007s = 16.8 min
+  STORAGE_OPTIMIZATION COMPLETED @ +2763s = 46.0 min
+OST: pre=OST0000 1050G/92% single | AVAILABLE=OST0000 1050G + OST0001 108M | final=OST0000 570.1G + OST0001 514.0G
+v1 baseline: AVAILABLE 943s=15.7min, OPT 2336s=38.9min, 900G/79%, final 549:361

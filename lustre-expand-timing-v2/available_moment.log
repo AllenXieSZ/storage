@@ -1,0 +1,16 @@
+=== STATUS: Success ===
+=== AVAILABLE-moment lfs df ===
+UUID                       bytes        Used   Available Use% Mounted on
+7tsb3b4v-MDT0000_UUID       69.0G        9.2M       69.0G   1% /mnt/fsx[MDT:0]
+7tsb3b4v-OST0000_UUID        1.1T        1.0T       89.8G  93% /mnt/fsx[OST:0]
+7tsb3b4v-OST0001_UUID        1.1T      107.8M        1.1T   1% /mnt/fsx[OST:1]
+
+filesystem_summary:         2.2T        1.0T        1.2T  47% /mnt/fsx
+
+=== OSTs ===
+OBDS:
+0: 7tsb3b4v-OST0000_UUID ACTIVE
+1: 7tsb3b4v-OST0001_UUID ACTIVE
+
+=== STDERR ===
+
