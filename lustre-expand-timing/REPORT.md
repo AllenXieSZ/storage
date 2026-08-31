@@ -48,21 +48,21 @@
 ### 阶段 3：扩容 1.2 → 2.4 TiB（核心测量）
 `update-file-system --storage-capacity 2400` 提交 = **03:49:08 UTC = T0**
 
-| 相对 T0 | Lifecycle | FILE_SYSTEM_UPDATE | STORAGE_OPTIMIZATION | Cap |
+| 相对 T0（分钟） | Lifecycle | FILE_SYSTEM_UPDATE | STORAGE_OPTIMIZATION | Cap |
 |---|---|---|---|---|
-| +12s | UPDATING | IN_PROGRESS | PENDING | 1200 |
-| +59s ~ +896s | UPDATING | IN_PROGRESS | PENDING | 1200 |
-| **+943s** | **AVAILABLE** ✅ | UPDATED_OPTIMIZING | IN_PROGRESS (0%) | **2400** |
-| +989s | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (2%) | 2400 |
-| +1227s | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (20%) | 2400 |
-| +1720s | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (45%) | 2400 |
-| +1843s | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (60%) | 2400 |
-| +2028s | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (77%) | 2400 |
-| +2089s | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (99%) | 2400 |
-| **+2336s** | AVAILABLE | **COMPLETED** ✅ | (完成，action 消失) | 2400 |
+| +0.2 min | UPDATING | IN_PROGRESS | PENDING | 1200 |
+| +1.0 ~ +14.9 min | UPDATING | IN_PROGRESS | PENDING | 1200 |
+| **+15.7 min** | **AVAILABLE** ✅ | UPDATED_OPTIMIZING | IN_PROGRESS (0%) | **2400** |
+| +16.5 min | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (2%) | 2400 |
+| +20.5 min | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (20%) | 2400 |
+| +28.7 min | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (45%) | 2400 |
+| +30.7 min | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (60%) | 2400 |
+| +33.8 min | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (77%) | 2400 |
+| +34.8 min | AVAILABLE | UPDATED_OPTIMIZING | IN_PROGRESS (99%) | 2400 |
+| **+38.9 min** | AVAILABLE | **COMPLETED** ✅ | (完成，action 消失) | 2400 |
 
-- ⭐ **到 AVAILABLE（新容量可用）= 943s ≈ 15.7 分钟**（转变发生在 +896s 仍 UPDATING 与 +943s 已 AVAILABLE 之间，误差 ≤ 47s）
-- **后台数据重分布完成 = 2336s ≈ 38.9 分钟**（不阻塞使用）
+- ⭐ **到 AVAILABLE（新容量可用）≈ 15.7 分钟**（转变发生在 +14.9 min 仍 UPDATING 与 +15.7 min 已 AVAILABLE 之间，误差 ≤ 0.8 分钟）
+- **后台数据重分布完成 ≈ 38.9 分钟**（不阻塞使用）
 
 ---
 
