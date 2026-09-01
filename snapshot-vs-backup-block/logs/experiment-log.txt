@@ -1,0 +1,75 @@
+=== snapshot-vs-backup-block experiment log (2026-09-01) ===
+
+--- FS create ---
+FileSystemId: fs-05cc3578781832d5e
+DeploymentType: SINGLE_AZ_2 (Gen2), HAPairs=2, ThroughputCapacityPerHAPair=1536 (total 3072)
+StorageCapacity: 4096 GB, Subnet subnet-0c551a33e366d52d4 (us-east-2c)
+ONTAP: NetApp Release 9.18.1P5
+Mgmt endpoint IP: <mgmt-ip>
+Created ~10:10 UTC, AVAILABLE ~10:28 UTC (~18 min)
+
+--- SVM ---
+svm-id: svm-01c6aff9b8c53b5e2 (testsvm)
+NFS IPs: <nfs-ip-1>, <nfs-ip-2>
+
+--- Volume snapvol (FlexVol) ---
+volume create -vserver testsvm -volume snapvol -aggregate aggr1 -size 200GB -security-style unix -junction-path /snapvol -space-guarantee none
+[Job 63] Job succeeded
+
+volume show pre-conversion:
+vserver volume  aggr-list size  state  volume-style-extended junction-path
+testsvm snapvol aggr1     200GB online flexvol               /snapvol
+
+Aggregates: aggr1 (1.77TB), aggr2 (1.77TB)   [2 HA pairs]
+
+--- Data written (via NFS mount on jump host) ---
+file1.bin 1GB -> snap1_after1gb
+file2.bin 1GB -> snap2_after2gb
+file3.bin 512M + modified file1 256M -> snap3_after_modify
+file4.bin 512M -> snap4_final
+Total ~3.6G used.
+
+--- Snapshot list BEFORE conversion ---
+vserver volume  snapshot           create-time              size    state
+testsvm snapvol snap1_after1gb     Tue Sep 01 10:32:32 2026 216KB   -
+testsvm snapvol snap2_after2gb     Tue Sep 01 10:32:58 2026 182.6MB -
+testsvm snapvol snap3_after_modify Tue Sep 01 10:33:26 2026 60.23MB -
+testsvm snapvol snap4_final        Tue Sep 01 10:33:56 2026 0B      -
+(sizes grow as active fs diverges from snapshots)
+
+--- CONVERSION check-only (diag) ---
+set -privilege diagnostic -confirmations off; volume conversion start -vserver testsvm -volume snapvol -check-only true
+
+Conversion of volume "snapvol" in Vserver "testsvm" to a FlexGroup can proceed with the following warnings:
+* After the volume is converted to a FlexGroup, it will not be possible to change it back to a flexible volume.
+* Converting flexible volume "snapvol" in Vserver "testsvm" to a FlexGroup will cause the state of all snapshots from the volume to be set to "pre-conversion". Pre-conversion snapshots cannot be restored.
+* Converting the volume to a FlexGroup will not add additional resources for capacity. After converting, use the "volume expand" command to add resources.
+
+>>> NO ERRORS. Only warnings. Snapshots do NOT block. <<<
+
+--- CONVERSION real run (diag) ---
+volume conversion start -vserver testsvm -volume snapvol
+[Job 65] Job is queued: Converting flexible volume to FlexGroup.
+[Job 65] success
+[Job 65] Job succeeded: success
+
+--- Volume style AFTER conversion ---
+vserver volume  aggr-list size  state  volume-style volume-style-extended
+testsvm snapvol aggr1     200GB online flex         flexgroup
+
+--- Snapshot state AFTER conversion ---
+vserver volume  snapshot                  create-time              size   state
+testsvm snapvol snap1_after1gb            Tue Sep 01 10:32:32 2026 1.01GB pre-conversion
+testsvm snapvol snap2_after2gb            Tue Sep 01 10:32:58 2026 2.03GB pre-conversion
+testsvm snapvol snap3_after_modify        Tue Sep 01 10:33:26 2026 2.61GB pre-conversion
+testsvm snapvol snap4_final               Tue Sep 01 10:33:56 2026 3.06GB pre-conversion
+testsvm snapvol convert.2026-09-01_103439 Tue Sep 01 10:34:42 2026 3.06GB pre-conversion
+(all 4 original + 1 auto-created convert snapshot -> ALL pre-conversion, as docs predict)
+
+--- FlexGroup constituents ---
+vserver volume        aggregate
+testsvm snapvol__0001 aggr1
+(single-constituent FlexGroup; can volume expand later)
+
+--- Data intact after conversion ---
+file1.bin 1.0G, file2.bin 1.0G, file3.bin 512M, file4.bin 512M ; 3.6G used
