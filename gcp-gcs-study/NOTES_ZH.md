@@ -151,3 +151,19 @@
 ---
 
 **批次 2 小结**：均分 5。补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual=你指定两region+驻留可控③Turbo 只用于 dual-region、15min/99.9% 是SLO、对标 RTC。
+
+### 批次2 追问补充（伟伟提问）
+
+**Q: multi-region 贵是因为跨region复制流量费吗？**
+→ 不是。主因是**存储单价本身更高**（维护多地副本）。GCS 内部跨region复制流量**对用户免费**(含在存储单价里)，不单独计费。唯一例外=Turbo Replication 按复制数据量额外收费。**对照 AWS：CRR 的跨区复制流量是能看到一笔明确 inter-region Data Transfer 费的；GCS 把这成本打包进存储单价。**
+
+**Q: GCE 和 GCS 跨 region，收流量费吗？**
+→ 收。规则：
+- 同 region（GCE 与 GCS 同区）→ **免费**
+- 同大洲跨 region → 收 egress（较低费率）
+- 跨大洲 → 收 egress（更贵）
+- 出公网/别的云 → 最贵
+- 写入(ingress)通常免费；egress 是"从GCS读出去"方向计费。
+- multi-region bucket 特例：**大区内的 GCE 访问它一般免 egress**（GCE 落在该 multi-region 地理范围内）。
+- **对照 AWS 高度一致**：同region免费、跨region/出公网收egress、上传免费。差别在 multi-region"大区内免费"概念 AWS 无原生等价。
+- 省钱：GCE 与高频访问的 bucket 放同 region → 流量费归零。
