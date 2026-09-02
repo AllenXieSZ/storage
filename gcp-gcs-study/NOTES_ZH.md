@@ -81,45 +81,73 @@
 
 ---
 
-## 批次 2：Q3–Q4（2026-09-02）
+## 批次 2：Q3–Q4（2026-09-02，完整展开版）
 
-### Q3. location type：region / dual-region / multi-region 区别
+### Q3. location type：region / dual-region / multi-region
 
 **伟伟答**：region 成本低/可用性低/延迟低；dual & multi 成本高，multi 最高。
 
-**对照**：✅ 成本延迟排序对、multi 最贵对；❌ "region 可用性低"不准（region 内跨 zone 冗余，可用性不低，缺的是 region 级冗余/不抗区域灾难）；🔶 dual-region "你指定两个具体 region" 的核心特征漏了。
+**① 对照**：
+- ✅ region 成本低、延迟低 —— 对。
+- ❌ **"region 可用性低"错** —— 单 region 内部跨多 zone 冗余，抗 zone 故障，SLA 仍 99.99%；缺的是 region 级冗余（不抗区域灾难），不是可用性低。
+- ✅ multi 最贵 —— 对。
+- ❌ 漏 dual-region "你指定的两个具体 region" 核心特征；❌ 没区分 zone 冗余 vs region 冗余。
 
-**参考答案**：
+**② 参考答案**：
 
-| type | 冗余 | 可用性SLA | 延迟 | 成本 | 场景 |
-|------|------|----------|------|------|------|
-| Region | zone 级（抗单zone）| 99.99% | 最低 | 最低 | 数据计算同区、低延迟、大数据 |
-| Dual-region | region 级（**你指定的两个region**）| 99.95% | 低 | 中 | 跨区容灾+低延迟+数据驻留可控 |
-| Multi-region | region 级（大洲内Google选多region）| 99.95% | 略高 | 最高 | 全球/大区分发、高可用 |
+| type | 数据放哪 | 冗余 | 可用性SLA | 延迟 | 成本 | 场景 |
+|------|---------|------|----------|------|------|------|
+| Region | 单region内跨多zone | zone级 | 99.99% | 最低 | 最低 | 数据计算同区、低延迟、大数据 |
+| Dual-region | **你指定的两个region**(如nam4) | region级 | 99.95% | 低 | 中 | 跨区容灾+低延迟+数据驻留可控 |
+| Multi-region | 大区内Google自选多region(US/EU/ASIA) | region级(大范围) | 99.95% | 略高 | 最高 | 全球分发、高可用读、CDN源 |
 
-**原理**：单 region 已跨 zone 冗余（抗 zone 故障），短板是不抗区域灾难；dual/multi 提供 region 级冗余。dual 的独特点=明确指定两个 region（data residency 可控），multi 由 Google 在大洲内自选。
+**原理**：单region天然跨zone冗余(副本在多zone)→抗zone故障、可用性不低；短板=不抗整个region灾难。dual/multi异步复制到地理分离的region→抗区域灾难。dual=你明确指定两region(data residency可控)；multi=选一个大区、具体region由Google定。
 
-**AWS对照**：Region≈S3单region bucket(跨AZ)；Dual-region≈原生版 CRR(但GCS是单bucket)；Multi-region≈S3 Multi-Region Access Points。**关键差异：GCS dual/multi 是单bucket原生跨区，AWS 要靠 CRR 多bucket或 MRAP 路由拼装。**
+**③ 概念**：zone=region内隔离故障域(独立供电/网络)；region=完整地理区域(含多zone)。region给zone冗余，dual/multi再加region冗余。data residency=法规要求数据存某地理边界内，dual能精确满足。
 
-**评分：6/10**（排序对；"可用性低"表述错、zone vs region 冗余没讲清、dual 指定两region 漏）。
+**④ AWS对照**：
+
+| | AWS S3 | GCP GCS |
+|--|--------|---------|
+| 单区域(跨AZ/zone) | S3标准bucket(跨AZ) | Region(跨zone) |
+| 明确双区域 | 无原生单bucket；用CRR复制到另一独立bucket | Dual-region(原生单bucket) |
+| 广域多区域 | Multi-Region Access Points(多bucket+路由) | Multi-region(原生单bucket) |
+
+👉 **金句**：GCS dual/multi 是"单bucket原生跨区"(一个endpoint)；AWS 靠 CRR(多独立bucket)或 MRAP(多bucket+路由)拼装。
+
+**⑤ 评分：6/10**。记忆点：Region=zone冗余(延迟成本最低、不抗区域灾难)；Dual=你指定两region(region冗余+低延迟+驻留可控)；Multi=Google大区自选(覆盖最广最贵)。
+
+---
 
 ### Q4. Turbo Replication
 
 **伟伟答**：用于 multi-region live replication，RPO 15 分钟 99.9%。
 
-**对照**：❌ 用在 **dual-region** 不是 multi-region（关键错）；🔶 15 分钟 99.9% 是 **Turbo 开启后的 SLO**，不是默认；✅ 持续复制方向对。
+**① 对照**：
+- ✅ 跨区持续复制方向对。
+- ❌ **用于 multi-region 错(关键)** —— Turbo **只支持 dual-region**，multi-region 不支持。
+- 🔶 15min/99.9% 数字对，但那是 **Turbo 开启后的 SLO**，不是默认行为(默认 dual-region 复制无此保证)。
+- ✅ 99.9% 对(勿与 AWS RTC 的 99.99% 混)。
 
-**参考答案**：
-- Turbo Replication = **dual-region bucket** 上可开的功能，**SLO：15 分钟内复制 99.9% 新写入对象**。
-- 解决问题：默认 dual-region 复制是异步尽力而为，大对象/高峰可能更久，灾难时未复制数据丢失(RPO不可控)；Turbo 收紧到 15min/99.9% 强 SLO → 更小更可预期 RPO。
-- **仅 dual-region 支持**（multi-region 不支持）。额外按复制数据量收费。
+**② 参考答案**：
+- Turbo Replication = **dual-region bucket 可选开启**的功能，**SLO：99.9% 新写入对象 15 分钟内完成跨region复制**。
+- 解决问题：默认 dual-region 复制是异步 best-effort、无时间上限；大对象/高峰复制滞后 → 若此时主region灾难，未复制的新数据丢失、RPO 不可控。Turbo 收紧到 15min/99.9% 强SLO → RPO 更小更可预期。**按复制数据量额外收费**。
+- **仅 dual-region**(硬限制)。
 
-**RPO 概念**：Recovery Point Objective，灾难时可容忍丢失的数据时间窗口。RPO=15min ≈ 最坏丢最近 15 分钟新写入。
+**③ 概念**：RPO(Recovery Point Objective)=灾难时可容忍丢失的数据时间窗口，RPO=15min≈最坏丢最近15分钟未复制的新写入。区别 RTO(多久恢复服务)——Turbo 优化 RPO 不是 RTO。异步复制永有窗口，Turbo 是统计SLO 非同步零RPO。
 
-**AWS对照**：**Turbo Replication ≈ S3 Replication Time Control (RTC)**，都是"15分钟强RPO复制"+额外收费。区别：Turbo 作用于原生 dual-region 单bucket(99.9%)；RTC 作用于 CRR 两个独立bucket(99.99%)。
+**④ AWS对照**：
 
-**评分：4/10**（方向对；用错location类型+15min理解反了）。
+| | AWS S3 | GCP GCS |
+|--|--------|---------|
+| 默认跨区复制 | CRR(异步无强RPO) | dual-region默认异步 |
+| 强RPO复制SLA | **S3 Replication Time Control(RTC)**:15min复制99.99% | **Turbo Replication**:15min复制99.9% |
+| 作用对象 | 两个独立bucket间(CRR) | 原生dual-region单bucket内 |
+
+👉 **金句**：Turbo ≈ AWS S3 RTC(都是15min强RPO+额外收费)。三区别：①Turbo=单bucket dual-region，RTC=CRR两独立bucket；②99.9% vs 99.99%；③Turbo 只能 dual-region。
+
+**⑤ 评分：4/10**。记忆点：Turbo=dual-region专属，SLO=15min复制99.9%新对象(缩RPO)，额外收费，对标 AWS RTC(15min/99.99%)。
 
 ---
 
-**批次 2 小结**：均分 5。重点补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual-region=你指定的两个region+数据驻留可控③Turbo Replication 只用于 dual-region、15min/99.9% 是其SLO、对标 AWS RTC。
+**批次 2 小结**：均分 5。补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual=你指定两region+驻留可控③Turbo 只用于 dual-region、15min/99.9% 是SLO、对标 RTC。
