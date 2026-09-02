@@ -13,7 +13,7 @@
 **伟伟答**：standard 频繁 / nearline 温每月一次 / cold 每季度 / archive 合规存档；最低时长不知道；所有都是毫秒级取回。
 
 **对照**：
-- ✅ 四种 class 定位全对。
+- ✅ 四种主力 class 定位全对。⚠️2026-09-02官方核实补充:GCS现在实际有**5种**——除Standard/Nearline/Coldline/Archive外,新增**Rapid storage(RAPID)**:高性能类,无最低时长/无retrieval费,>99.95% in zones,仅用于Rapid Bucket(zonal桶)。
 - ✅✅ "所有 class 毫秒级取回" 答得非常好——这是 GCS 相对 AWS 的核心差异。
 - ❌ 最低存储时长没答（必背考点）。
 
@@ -25,6 +25,8 @@
 | Nearline | 约每月一次 | **30 天** | 毫秒 | 备份、月报 |
 | Coldline | 约每季度一次 | **90 天** | 毫秒 | 灾备、季度归档 |
 | Archive | ≤ 每年一次/合规 | **365 天** | 毫秒 | 合规长期存档、磁带替代 |
+
+> ⚠️注:"毫秒"是行业通俗说法,GCS官方原词是"**Low latency with no offline data retrieval**"(低延迟、无离线取回)——即无Glacier式解冻,方向正确但"毫秒"非官方逐字表述。
 
 **原理**：越冷单价越低，用"最低存储时长承诺"换低价；在最低时长内删除/覆盖/改 class 会收 **early deletion 提前删除费**（补差额天数的存储费）。
 
@@ -89,7 +91,7 @@
 
 **① 对照**：
 - ✅ region 成本低、延迟低 —— 对。
-- ❌ **"region 可用性低"错** —— 单 region 内部跨多 zone 冗余，抗 zone 故障，SLA 仍 99.99%；缺的是 region 级冗余（不抗区域灾难），不是可用性低。
+- ❌ **"region 可用性低"错** —— 单 region 内部跨多 zone 冗余，抗 zone 故障；缺的是 region 级冗余（不抗区域灾难），不是可用性低。⚠️可用性SLA同时取决于class:Standard在region=99.99%,但Nearline/Coldline/Archive在region只有99.9%(multi/dual才99.95%)。
 - ✅ multi 最贵 —— 对。
 - ❌ 漏 dual-region "你指定的两个具体 region" 核心特征；❌ 没区分 zone 冗余 vs region 冗余。
 
@@ -97,7 +99,7 @@
 
 | type | 数据放哪 | 冗余 | 可用性SLA | 延迟 | 成本 | 场景 |
 |------|---------|------|----------|------|------|------|
-| Region | 单region内跨多zone | zone级 | 99.99% | 最低 | 最低 | 数据计算同区、低延迟、大数据 |
+| Region | 单region内跨多zone | zone级 | Standard99.99%/冷class99.9% | 最低 | 最低 | 数据计算同区、低延迟、大数据 |
 | Dual-region | **你指定的两个region**(如nam4) | region级 | 99.95% | 低 | 中 | 跨区容灾+低延迟+数据驻留可控 |
 | Multi-region | 大区内Google自选多region(US/EU/ASIA) | region级(大范围) | 99.95% | 略高 | 最高 | 全球分发、高可用读、CDN源 |
 
@@ -126,12 +128,12 @@
 **① 对照**：
 - ✅ 跨区持续复制方向对。
 - ❌ **用于 multi-region 错(关键)** —— Turbo **只支持 dual-region**，multi-region 不支持。
-- 🔶 15min/99.9% 数字对，但那是 **Turbo 开启后的 SLO**，不是默认行为(默认 dual-region 复制无此保证)。
-- ✅ 99.9% 对(勿与 AWS RTC 的 99.99% 混)。
+- 🔶 15分钟RPO 方向对，是 **Turbo 开启后**才有的目标，不是默认行为(默认 dual-region 复制无此保证)。⚠️Turbo确切百分比官方未确认,别写死99.9%。
+- ✅ 99.9% 对。⚠️2026-09-02官方核实修正:**AWS S3 RTC官方原文=99.9%(不是99.99%)**——"S3 RTC replicates...99.9 percent of those objects within 15 minutes"。之前记成99.99%是错的。GCS Turbo确切百分比官方页JS渲染未抓到,只确认"15分钟RPO+仅dual-region"。
 
 **② 参考答案**：
-- Turbo Replication = **dual-region bucket 可选开启**的功能，**SLO：99.9% 新写入对象 15 分钟内完成跨region复制**。
-- 解决问题：默认 dual-region 复制是异步 best-effort、无时间上限；大对象/高峰复制滞后 → 若此时主region灾难，未复制的新数据丢失、RPO 不可控。Turbo 收紧到 15min/99.9% 强SLO → RPO 更小更可预期。**按复制数据量额外收费**。
+- Turbo Replication = **dual-region bucket 可选开启**的功能，**15分钟 RPO**(官方确认dual-region专属+15min目标;确切百分比官方页未抓到,不写死)。
+- 解决问题：默认 dual-region 复制是异步 best-effort、无时间上限；大对象/高峰复制滞后 → 若此时主region灾难，未复制的新数据丢失、RPO 不可控。Turbo 收紧到 **15分钟RPO** 强目标 → RPO 更小更可预期。**按复制数据量额外收费**。(确切百分比官方页未抓到,只确认15min+dual-region)
 - **仅 dual-region**(硬限制)。
 
 **③ 概念**：RPO(Recovery Point Objective)=灾难时可容忍丢失的数据时间窗口，RPO=15min≈最坏丢最近15分钟未复制的新写入。区别 RTO(多久恢复服务)——Turbo 优化 RPO 不是 RTO。异步复制永有窗口，Turbo 是统计SLO 非同步零RPO。
@@ -141,16 +143,16 @@
 | | AWS S3 | GCP GCS |
 |--|--------|---------|
 | 默认跨区复制 | CRR(异步无强RPO) | dual-region默认异步 |
-| 强RPO复制SLA | **S3 Replication Time Control(RTC)**:15min复制99.99% | **Turbo Replication**:15min复制99.9% |
+| 强RPO复制SLA | **S3 Replication Time Control(RTC)**:15min复制**99.9%**(官方原文核实) | **Turbo Replication**:15min RPO,仅dual-region(百分比官方未确认) |
 | 作用对象 | 两个独立bucket间(CRR) | 原生dual-region单bucket内 |
 
-👉 **金句**：Turbo ≈ AWS S3 RTC(都是15min强RPO+额外收费)。三区别：①Turbo=单bucket dual-region，RTC=CRR两独立bucket；②99.9% vs 99.99%；③Turbo 只能 dual-region。
+👉 **金句**：Turbo ≈ AWS S3 RTC(都是15min强RPO+额外收费)。三区别：①Turbo=单bucket dual-region，RTC=CRR两独立bucket；②**RTC官方=99.9%/15min**(Turbo百分比官方未确认)；③Turbo 只能 dual-region。
 
-**⑤ 评分：4/10**。记忆点：Turbo=dual-region专属，SLO=15min复制99.9%新对象(缩RPO)，额外收费，对标 AWS RTC(15min/99.99%)。
+**⑤ 评分：4/10**。记忆点：Turbo=dual-region专属,15min RPO(缩RPO),额外收费,对标 **AWS RTC(官方=99.9%/15min,不是99.99%)**。⚠️之前把RTC记成99.99%是错的;Turbo百分比待官方核实。
 
 ---
 
-**批次 2 小结**：均分 5。补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual=你指定两region+驻留可控③Turbo 只用于 dual-region、15min/99.9% 是SLO、对标 RTC。
+**批次 2 小结**：均分 5。补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual=你指定两region+驻留可控③Turbo 只用于 dual-region、15min RPO、对标 RTC(RTC官方=99.9%/15min,非99.99%;Turbo百分比待核)。
 
 ### 批次2 追问补充（伟伟提问）
 
@@ -617,6 +619,6 @@
 
 **高频薄弱点(建议重点复习)**:
 1. AWS↔GCP术语一一对应:SSE-S3/KMS/C↔Google-managed/CMEK/CSEK;UBLA↔Bucket owner enforced;Turbo Replication↔S3 RTC;Autoclass↔Intelligent-Tiering;STS↔DataSync;Transfer Appliance↔Snowball;PAP↔Block Public Access;gcloud storage↔aws s3 cp。
-2. 各种最低时长/天数:Nearline30/Coldline90/Archive365;Soft Delete默认7天可配0-90;Turbo/RTC 15分钟。
+2. 各种最低时长/天数:Nearline30/Coldline90/Archive365;Soft Delete默认7天可配0-90;**RTC=99.9%/15分钟(官方核实,非99.99%)**;Turbo=15分钟RPO仅dual-region(百分比待官方核实)。
 3. 语义方向易错:Retention Policy=删前门槛(非删后保存);一致性"最终一致历史"是S3不是GCS;Turbo只用于dual-region不是multi-region;gcloud storage需网络不是无网络用。
 4. GCS特有机制:parallel composite upload;扁平命名空间vs HNS;Autoclass双向自动+不收retrieval费。
