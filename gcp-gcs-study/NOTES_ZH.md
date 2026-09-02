@@ -167,3 +167,55 @@
 - multi-region bucket 特例：**大区内的 GCE 访问它一般免 egress**（GCE 落在该 multi-region 地理范围内）。
 - **对照 AWS 高度一致**：同region免费、跨region/出公网收egress、上传免费。差别在 multi-region"大区内免费"概念 AWS 无原生等价。
 - 省钱：GCE 与高频访问的 bucket 放同 region → 流量费归零。
+
+---
+
+## 批次 3：Q5–Q6（2026-09-02）
+
+### Q5. 一致性模型
+
+**伟伟答**：GCS 强一致(写后读一样)；以前最终一致、传播到其他region才一致；S3也强一致。
+
+**① 对照**：✅ GCS强一致、写后读一致、S3也强一致对；🔶 "以前最终一致"错安到GCS头上(那是S3的历史,2020-12才转强一致；GCS对象操作一直强一致)；❌ 没区分哪些强/哪些最终一致。
+
+**② 参考答案**：
+- 强一致(大部分对象操作)：新对象write后读、覆盖写、删除、**list**、metadata、ACL/IAM读取——全部立即一致、全球一致。
+- 最终一致(少数)：**权限撤销传播**(有缓存,短暂延迟)、**CDN/浏览器缓存的公开对象**(TTL过期前读旧版本)——这是缓存/传播层,非存储本身。
+
+**③ 概念**：read-after-write/update/delete GCS都保证立即一致。易混：dual/multi-region的跨区副本复制是异步(有延迟),但那是数据冗余复制,不改变"你对bucket读写强一致"。别把跨区异步复制与对象操作一致性混。
+
+**④ AWS对照**：S3 **2020-12前最终一致**(覆盖/删除/list有延迟,著名list延迟坑),之后全面强一致；GCS一直强一致。现在两家对象操作都强一致,残留最终一致都在CDN缓存+权限传播。👉金句:"最终一致的历史是S3的故事,GCS生来强一致"。
+
+**⑤ 评分：6/10**。记忆点:GCS对象操作一直强一致(写后读/覆盖/删除/list立即一致);最终一致只剩权限撤销传播+CDN缓存;S3是2020-12才转强一致。
+
+### Q6. 扁平命名空间 vs 目录结构
+
+**伟伟答**：有architectural架构,对list有提升,bucket级开启,S3没有。
+
+**① 对照**：🔶 答的是HNS(Hierarchical Namespace)新功能,跑题了——题目问GCS**默认**命名空间(答案=扁平)+文件夹怎么模拟。HNS描述本身基本对(bucket级开启、提升list)但没答主干；❌"S3没有"不准(S3有Express directory bucket)；❌没讲扁平下rename慢的原理。
+
+**② 参考答案**：
+- GCS**默认扁平命名空间**:无真目录,对象名是扁平key,`/`只是名字里普通字符。
+- "文件夹"是**prefix+delimiter模拟**:list时按前缀过滤+按`/`归组显示成文件夹,底层无目录实体。
+- 影响:rename"文件夹"=对该前缀下每个对象copy+delete(O(N)),大量对象慢且贵。
+- **HNS(可选)**:建bucket时开启(不可改),真目录(folder是实体),目录级原子rename+更快list+初始QPS×8,适合大数据/AI。
+
+**③ 概念**:flat namespace=扁平字符串key,目录靠prefix/delimiter视觉模拟;prefix过滤+delimiter(`/`)归组=假文件夹;扁平下rename慢因无目录指针只能逐对象copy+delete。
+
+**④ AWS对照**:两家默认都扁平、都prefix+delimiter模拟文件夹、rename目录都O(N)。真目录方案:GCS=HNS bucket,AWS=**S3 Express One Zone directory bucket**。👉"S3没有"错,S3有directory bucket。
+
+**⑤ 评分：4/10**。记忆点:GCS默认扁平命名空间,`/`是假目录,rename=O(N) copy+delete;HNS=可选真目录(原子rename/更快list),对标S3 directory bucket。
+
+### 批次3 追问补充：GCS bucket TPS/吞吐上限（查GCP官方文档 request-rate）
+
+- **初始容量(每bucket)**：约 **1000 写/秒**(upload/update/delete) + **5000 读/秒**(list/读数据/读metadata)。对1MB对象≈每月写2.5PB/读13PB。
+- **关键:auto-scaling,无公布硬上限**。请求率上升→GCS自动把负载分散到更多服务器,自动提升该bucket容量。官方不给单bucket最大TPS数字。
+- **扩展例子(官方唯一具体数)**：1字符随机十六进制前缀(16值)→有效扩展到 **~80,000 读/秒 + 16,000 写/秒**(16倍)。前缀越长扩越高。
+- **两规则**:①Ramp-up:超1000写/5000读要从阈值起步、每20分钟翻倍,冲太快撞408/429/5xx要指数退避。②避免顺序命名:GCS按字典序维护key索引,顺序名(时间戳/自增)热点集中→加随机前缀(如MD5前6位)打散。
+- **HNS加成**:开HNS的bucket初始QPS上限最多×8(读写都是)。
+- **S3对照**:S3是**per-prefix** 3500写/5500读;GCS是**per-bucket初始值+全局auto-scaling**。两家都靠前缀分散冲高、都要ramp-up。真目录高IOPS:S3 Express directory bucket vs GCS HNS。
+- ⚠️存疑:第三方站点称GCS默认"5000写/50000读per bucket"与官方1000/5000初始值不符,以官方为准。
+
+---
+
+**批次 3 小结**：Q5=6、Q6=4,均分5。补强→①最终一致历史是S3不是GCS②GCS默认扁平命名空间+prefix/delimiter模拟文件夹③GCS初始1000写/5000读、auto-scaling无硬上限、靠随机前缀+ramp-up冲高。
