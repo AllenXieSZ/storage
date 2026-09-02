@@ -327,3 +327,68 @@
 ---
 
 **批次 5 小结**：Q9=6、Q10=5,均分5.5。补强→①默认Google-managed+CMEK(KMS)+CSEK,对标SSE-S3/KMS/C②Retention Policy是"删除前必须存够"不是"删除后保存"③Bucket Lock不可逆+Object Hold单对象冻结④SSE-C常被企业SCP禁用。
+
+---
+
+## 批次 6：Q11–Q12（2026-09-02）
+
+### Q11. Object Lifecycle Management
+
+**伟伟答**：多少天后转下一层或删除;管理保存多少个旧version。
+
+**① 对照**：✅ 转类/删除/numNewerVersions(保留N个版本)三个核心对(版本数是加分点);🔶 action漏AbortIncompleteMultipartUpload;❌ condition只提age漏一堆;❌ 漏"SetStorageClass只能变冷""age从创建算起"两坑。
+
+**② 参考答案**：rule=action+condition。
+- Action:①Delete ②SetStorageClass(**只能变冷,不能升热**) ③AbortIncompleteMultipartUpload(清未完成分片省钱)。
+- Condition:age/createdBefore/matchesStorageClass/matchesPrefix|Suffix/numNewerVersions/isLive/daysSinceNoncurrentTime/customTime。多条件AND。
+- "90天转Nearline+365天删"=**两条独立规则**:rule1 SetStorageClass NEARLINE + age90+matchesStorageClass STANDARD;rule2 Delete + age365。age从创建算起(非从转类算)。
+
+**③ 概念**:转类单向变冷,双向升降靠Autoclass;age基准=创建时间;lifecycle异步每天批处理非实时;AbortIncompleteMultipartUpload省残留分片费。
+
+**④ AWS对照**:Transition/Expiration/AbortMPU对应SetStorageClass/Delete/AbortMPU;Days↔age;NewerNoncurrentVersions↔numNewerVersions。差异:**AWS能按object tag过滤lifecycle,GCS不支持(用prefix/suffix)**;两家转类都只能变冷,升热靠Intelligent-Tiering/Autoclass。
+
+**⑤ 评分：6/10**。记忆点:action(Delete/SetStorageClass只变冷/AbortMPU)+condition(age等AND);两层转换=两条规则,age从创建算;升热靠Autoclass。
+
+### Q12. 费用构成 + 冷存储取回贵 + early deletion
+
+**伟伟答**：存储费、读取费、出网费、检索费。
+
+**① 对照**：✅ 四类费用全列对;❌ 没答题目核心"为何冷存储便宜但取回贵";❌ 没答early deletion;🔶 没提操作费分Class A/B(list是贵的A类)。
+
+**② 参考答案**：四费=
+1.Storage($/GB月,冷class单价低)
+2.Operations(**Class A贵:写/insert/list/compose;Class B便宜:读/get**;冷class操作单价更贵)
+3.Network egress(跨region/大洲/出公网收,同region到GCE+ingress免费)
+4.Retrieval(**冷class特有**:从Nearline/Coldline/Archive读数据本身按$/GB收,Standard无)。
+- **为何冷便宜取回贵(核心)**:定价权衡——冷class假设存多读少,把成本从存储挪到访问:存储单价压低+每次读加retrieval+更贵操作费。频繁读冷数据会吃掉省下的存储费甚至更贵。
+- **Early Deletion**:冷class有最低时长(N30/C90/A365),在到期前删/覆盖/转class,要为剩余未存满天数补交存储费。例:Coldline第10天删→补剩余80天存储费。原理=低单价是"承诺存够"换的,提前删=违约补差额。
+
+**③ 概念**:operations分A/B(list是Class A贵,易误以为便宜);retrieval(读动作本身收,同region也收)≠egress(数据离开Google网络/跨区收),冷class跨区读可能两个都收;early deletion三种触发=删/覆盖/转class。
+
+**④ AWS对照**:S3也是存储/请求/egress/retrieval四类+最低时长+early delete费,定价哲学一致。差异:GCS操作分Class A/B(list属贵A);AWS Glacier深层有取回速度分档(加急/标准/批量不同价),GCS冷class无速度分档(都毫秒取回只收retrieval)。
+
+**⑤ 评分：5/10**。记忆点:四费=存储+操作(A写/list贵,B读)+egress+retrieval(冷class特有);"存便宜读贵"=成本从存储挪到访问;early deletion=最低时长(N30/C90/A365)内删/覆盖/转类补剩余天数存储费。
+
+---
+
+**批次 6 小结**：Q11=6、Q12=5,均分5.5。补强→①SetStorageClass只能变冷+age从创建算+AbortMPU②操作费分ClassA/B(list贵)③冷存储"存便宜读贵"权衡原理④early deletion最低时长内删/覆盖/转类补差额。
+
+---
+
+## 📊 总进度（截至 2026-09-02）
+
+| 批次 | 题 | 主题 | Q得分 | 状态 |
+|------|-----|------|-------|------|
+| 1 | Q1-Q2 | storage class / 分层 | 6.5 / 6 | ✅ |
+| 2 | Q3-Q4 | location type / Turbo Replication | 6 / 4 | ✅ |
+| 3 | Q5-Q6 | 一致性 / 扁平命名空间 | 6 / 4 | ✅ |
+| 4 | Q7-Q8 | IAM+ACL+UBLA / Signed URL | 6 / 5 | ✅ |
+| 5 | Q9-Q10 | 加密(默认/CMEK/CSEK) / 防删机制 | 6 / 5 | ✅ |
+| 6 | Q11-Q12 | Lifecycle / 费用构成 | 6 / 5 | ✅ |
+| 7 | Q13-Q14 | Requester Pays / upload方式 | - | ⏳ 待做 |
+| 8 | Q15-Q16 | 性能吞吐 / 数据迁移 | - | ⏳ |
+| 9 | Q17-Q18 | Pub/Sub通知 / Autoclass | - | ⏳ |
+| 10 | Q19-Q20 | gcloud storage / 静态网站+CDN | - | ⏳ |
+
+**累计均分 ~5.3/10**。高频补强主题:AWS↔GCP术语一一对应(SSE↔CMEK/CSEK、UBLA↔Bucket owner enforced、Turbo↔RTC、Autoclass↔Intelligent-Tiering)、各种"最低时长/天数"数字、语义方向(Retention Policy是删前门槛)。
+**下次从 Q13-Q14 继续。**
