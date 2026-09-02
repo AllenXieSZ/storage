@@ -78,3 +78,48 @@
 ---
 
 **批次 1 小结**：均分 ~6.25。重点补强 → ①最低存储时长 30/90/365；②Autoclass（双向自动分层，对标 Intelligent-Tiering）；③bucket default class 层级。
+
+---
+
+## 批次 2：Q3–Q4（2026-09-02）
+
+### Q3. location type：region / dual-region / multi-region 区别
+
+**伟伟答**：region 成本低/可用性低/延迟低；dual & multi 成本高，multi 最高。
+
+**对照**：✅ 成本延迟排序对、multi 最贵对；❌ "region 可用性低"不准（region 内跨 zone 冗余，可用性不低，缺的是 region 级冗余/不抗区域灾难）；🔶 dual-region "你指定两个具体 region" 的核心特征漏了。
+
+**参考答案**：
+
+| type | 冗余 | 可用性SLA | 延迟 | 成本 | 场景 |
+|------|------|----------|------|------|------|
+| Region | zone 级（抗单zone）| 99.99% | 最低 | 最低 | 数据计算同区、低延迟、大数据 |
+| Dual-region | region 级（**你指定的两个region**）| 99.95% | 低 | 中 | 跨区容灾+低延迟+数据驻留可控 |
+| Multi-region | region 级（大洲内Google选多region）| 99.95% | 略高 | 最高 | 全球/大区分发、高可用 |
+
+**原理**：单 region 已跨 zone 冗余（抗 zone 故障），短板是不抗区域灾难；dual/multi 提供 region 级冗余。dual 的独特点=明确指定两个 region（data residency 可控），multi 由 Google 在大洲内自选。
+
+**AWS对照**：Region≈S3单region bucket(跨AZ)；Dual-region≈原生版 CRR(但GCS是单bucket)；Multi-region≈S3 Multi-Region Access Points。**关键差异：GCS dual/multi 是单bucket原生跨区，AWS 要靠 CRR 多bucket或 MRAP 路由拼装。**
+
+**评分：6/10**（排序对；"可用性低"表述错、zone vs region 冗余没讲清、dual 指定两region 漏）。
+
+### Q4. Turbo Replication
+
+**伟伟答**：用于 multi-region live replication，RPO 15 分钟 99.9%。
+
+**对照**：❌ 用在 **dual-region** 不是 multi-region（关键错）；🔶 15 分钟 99.9% 是 **Turbo 开启后的 SLO**，不是默认；✅ 持续复制方向对。
+
+**参考答案**：
+- Turbo Replication = **dual-region bucket** 上可开的功能，**SLO：15 分钟内复制 99.9% 新写入对象**。
+- 解决问题：默认 dual-region 复制是异步尽力而为，大对象/高峰可能更久，灾难时未复制数据丢失(RPO不可控)；Turbo 收紧到 15min/99.9% 强 SLO → 更小更可预期 RPO。
+- **仅 dual-region 支持**（multi-region 不支持）。额外按复制数据量收费。
+
+**RPO 概念**：Recovery Point Objective，灾难时可容忍丢失的数据时间窗口。RPO=15min ≈ 最坏丢最近 15 分钟新写入。
+
+**AWS对照**：**Turbo Replication ≈ S3 Replication Time Control (RTC)**，都是"15分钟强RPO复制"+额外收费。区别：Turbo 作用于原生 dual-region 单bucket(99.9%)；RTC 作用于 CRR 两个独立bucket(99.99%)。
+
+**评分：4/10**（方向对；用错location类型+15min理解反了）。
+
+---
+
+**批次 2 小结**：均分 5。重点补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual-region=你指定的两个region+数据驻留可控③Turbo Replication 只用于 dual-region、15min/99.9% 是其SLO、对标 AWS RTC。
