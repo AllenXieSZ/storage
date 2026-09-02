@@ -1,6 +1,6 @@
-# GCP GCS 面试题 —— 批改与知识点沉淀
+# GCP GCS 练习题 —— 批改与知识点沉淀
 
-> 配套题库：`../gcp-gcs-interview-questions.md`
+> 配套题库：`./QA_ZH.md`
 > 每批（2 题）批改后追加到本文件并推送 GitHub。
 > 每题批改结构：①逐点对照 ②参考答案+原理 ③概念详解 ④AWS↔GCP 对照 ⑤评分。
 
