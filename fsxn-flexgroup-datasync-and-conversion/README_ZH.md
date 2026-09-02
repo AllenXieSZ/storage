@@ -142,6 +142,11 @@ constituent 级别（全量后）：`0005/0007`（各 102G）落 aggr1；`0002/0
 > - 解法：`aws fsx delete-backup` 删掉该卷的所有备份，**等 ~1 分钟**（后台异步释放 copy-to-cloud 关系 + backup 快照），再重试转换即成功（转换从 Error 变为仅 Warning + `Job succeeded`）。
 > - 双向实测坐实见 [`../backup-flexgroup-rootcause/`](../backup-flexgroup-rootcause/)：同 FSxN 内"备份过的卷报 Error 转不了 vs 从不备份的卷成功转"，且删备份后前者也能转。
 > 本段用的是一个**没有备份**的干净卷，所以能直接转。
+>
+> 📌 **对照结论 —— snapshot 不阻塞转换（2026-09-01 单变量实测坐实）**：与 backup 相反，普通 **snapshot 不会阻塞**就地转换。实测：一个**零 backup** 的干净 FlexVol，带 4 个不同时间点的手动 snapshot，`volume conversion start -check-only`（diag 级）**只报 warning、无 error**（原文 "Conversion ... **can proceed** with the following warnings ..."），实转返回 `Job succeeded`，卷变 `flexgroup` 数据完整。
+> - 副作用（非阻塞）：转换会把该卷所有 snapshot 状态置为 **`pre-conversion`**，这些转换前快照**转换后不可再 restore**（与 NetApp 官方文档描述一致）。
+> - 一句话区分：**有 snapshot → 能转（仅 warning + 标 pre-conversion）；有 backup → 不能转（Error 拦截，须先删 backup）**。真正的阻塞变量只有 FSx 原生 Backup（底层 SnapMirror-to-Cloud），与 snapshot 无关。
+> - 三方对照闭环：无 backup 无 snapshot → 成功；无 backup 有 snapshot（本次）→ 成功；有 backup → 失败（删 backup 后又成功）。实测记录见 [`../snapshot-vs-backup-block/`](../snapshot-vs-backup-block/)。
 
 ### 3.1 完整就地升级链路与耗时
 
@@ -214,6 +219,7 @@ fio 参数：`job1: 4K randrw rwmixread=70, iodepth=32, numjobs=4` + `job2: 1M s
 | 3 | **DataSync 费用**（BASIC $0.0125/GB）：全量 $10.74 + 增量 $2.01 ≈ **$12.75**。 |
 | 4 | **没有备份的 FlexVol 可就地转 FlexGroup**，转换本身 < 1 min（`Job succeeded`）。 |
 | 5 | **带备份的 FlexVol 无法就地转** —— 备份底层的 copy-to-cloud 关系会以 `Error` 拦截转换；**转换前须先 `delete-backup` 删除该卷所有备份**（AWS 官方要求），等 ~1min 后台释放后即可转。 |
+| 5b | **snapshot 不阻塞转换**（与 backup 相反）：有 snapshot 的卷可正常转，check-only 仅报 **warning**（"can proceed"）、无 error，转换后旧快照被标 **`pre-conversion`**（不可再 restore）。唯一阻塞变量是 backup，与 snapshot 无关。（2026-09-01 单变量实测，见 [`../snapshot-vs-backup-block/`](../snapshot-vs-backup-block/)）|
 | 6 | **完整就地升级链路**：先升 throughput（~36.5 min）→ 扩 HA（~10 min）→ 转换（<1min）→ expand（<1min）。⚠️ 不能直接 1HA(384)→2HA。 |
 | 7 | **在线性能**：升级/扩容期间掉到基线 ~35–50%（谷底 ~90–140 MiB/s）；**完成后稳态 ~900+ MiB/s，约 3.5× 基线**。 |
 | 8 | **残留 55:45 是结构性**（constituent 5:4），非哈希随机；要真 50:50 得让两 aggr constituent 数相等。 |
