@@ -508,3 +508,58 @@
 ---
 
 **批次 8 小结**：Q15=6、Q16=4,均分5。补强→①parallel composite upload(单文件并发提速)+gcloud storage并行②GCS无S3那种per-prefix数字(per-bucket+auto-scaling)③迁移选型公式数据量÷带宽,gcloud storage需网络/STS托管在线/Appliance离线寄盘,对标aws s3 cp/DataSync/Snowball。
+
+---
+
+## 批次 9：Q17–Q18（2026-09-02）
+
+### Q17. Pub/Sub notifications
+
+**伟伟答**：对象上传消息,可做合规检查/安全扫描/同步复制,和S3 event notification类似。
+
+**① 对照**：✅ 通知机制、三用途(合规/扫描/同步)、类比S3 event 都对(用例好);🔶 没点明"事件发到Pub/Sub topic"(题目核心载体);❌ 漏事件类型;❌ 没讲Pub/Sub解耦/扇出价值。
+
+**② 参考答案**：bucket配通知后,对象事件**发布到Cloud Pub/Sub topic**,订阅者(Cloud Functions/Run/Dataflow)消费触发处理。
+- 事件类型:**OBJECT_FINALIZE**(创建/覆盖完成,最常用)/OBJECT_DELETE/OBJECT_METADATA_UPDATE/OBJECT_ARCHIVE。
+- 用途:上传即处理(转码/缩略图)、安全合规(病毒扫描/DLP)、数据管道(触发ETL)、同步复制、审计索引。
+
+**③ 概念**:走Pub/Sub=解耦+扇出+重试+削峰(GCS只发消息,多订阅者各自消费互不影响);Eventarc是更新的统一事件路由层;at-least-once投递,消费端要幂等。
+
+**④ AWS对照**:
+| | S3 Event Notifications | GCS Pub/Sub notifications |
+|--|----|----|
+| 目标 | SNS/SQS/Lambda/EventBridge | Cloud Pub/Sub topic |
+| 事件 | ObjectCreated/Removed | FINALIZE/DELETE/METADATA_UPDATE/ARCHIVE |
+👉 定位一致(对象事件驱动下游);差异:S3可投多种目标,GCS统一走Pub/Sub(再由订阅者/Functions/Eventarc消费)。
+
+**⑤ 评分：6.5/10**。记忆点:对象事件(FINALIZE/DELETE/METADATA_UPDATE/ARCHIVE)发到Pub/Sub topic,订阅者消费做转码/扫描/ETL/同步;对标S3 Event Notifications,差异=GCS统一走Pub/Sub,S3可投SNS/SQS/Lambda/EventBridge。
+
+### Q18. Autoclass
+
+**伟伟答**：自动30、90沉降冷数据,适合数据热度未知。
+
+**① 对照**：✅ 自动沉降冷数据、30/90节点、适合热度未知 核心场景准;🔶 只说"沉降"漏了**双向(能升回热)**这个与Lifecycle本质区别;❌ 漏vs Lifecycle优劣(题目主问);❌ 漏Autoclass不收retrieval/early deletion费+收管理费。
+
+**② 参考答案**：bucket级,按对象**实际访问双向自动**升降级:
+- 降级:30天无访问→Nearline,90天→Coldline,365天→Archive。
+- 升级:**被访问→自动升回Standard**(关键,双向)。
+- vs Lifecycle:①方向(Lifecycle只单向变冷 vs Autoclass双向)②依据(固定天数 vs 实际访问)③费用(**Autoclass不收retrieval/early deletion费**,Lifecycle转冷后读要retrieval费、转太快触发early deletion)④运维(Autoclass零配置 vs 要设计规则)。
+- Autoclass劣:按对象数收管理费;访问模式明确时手动Lifecycle可能更省。
+- 适合:访问模式未知/不想维护规则/怕降错被retrieval费罚。
+
+**③ 概念**:双向vs单向是本质差异(Lifecycle SetStorageClass只能变冷不能升热);Autoclass不收retrieval/early deletion费(降冷又被频繁读也不罚,隐藏大优势);代价=按对象数管理费。
+
+**④ AWS对照**:
+| | S3 Intelligent-Tiering | GCS Autoclass |
+|--|----|----|
+| 方向 | 双向 | 双向 |
+| 取回费 | 无 | 无 |
+| 收费 | 对象监控费 | 对象管理费 |
+| 深冷取回 | 深归档层有延迟 | 降到Archive仍毫秒 |
+👉 Autoclass≈Intelligent-Tiering(按访问双向分层/无取回费/按对象收费),适合访问模式不确定。差异:S3深归档层取回有延迟,GCS Archive仍毫秒。
+
+**⑤ 评分：6/10**。记忆点:Autoclass=bucket级按访问**双向**升降(30→NL/90→CL/365→AR,被访问升回Standard)、**无retrieval/early deletion费**、收对象管理费;vs Lifecycle(单向变冷/固定天数/可能被retrieval罚);对标S3 Intelligent-Tiering。
+
+---
+
+**批次 9 小结**：Q17=6.5、Q18=6,均分6.25。补强→①事件发到Pub/Sub topic+事件类型FINALIZE等+解耦扇出②Autoclass双向自动(能升回热)+不收retrieval/early deletion费+对标Intelligent-Tiering。
