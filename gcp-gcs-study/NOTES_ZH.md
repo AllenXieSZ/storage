@@ -392,3 +392,65 @@
 
 **累计均分 ~5.3/10**。高频补强主题:AWS↔GCP术语一一对应(SSE↔CMEK/CSEK、UBLA↔Bucket owner enforced、Turbo↔RTC、Autoclass↔Intelligent-Tiering)、各种"最低时长/天数"数字、语义方向(Retention Policy是删前门槛)。
 **下次从 Q13-Q14 继续。**
+
+---
+
+## 批次 7：Q13–Q14（2026-09-02）
+
+### Q13. Requester Pays
+
+**伟伟答**：适合公开数据集,请求者付request费+出网费,requester必须GCP能识别。
+
+**① 对照**：✅ 公开数据集场景、请求者付操作+出网费、请求者必须可识别 三个关键点对(答得好);🔶 没明说"存储费仍归所有者";❌ 漏落地机制userProject;❌ 漏取回费也归请求者。
+
+**② 参考答案**：默认所有费用bucket所有者付。开Requester Pays后:
+| 费用 | 谁付 |
+|------|------|
+| Storage | **仍所有者** |
+| Operations | 请求者 |
+| egress | 请求者 |
+| Retrieval | 请求者 |
+- 请求者必须:①已认证GCP身份(非匿名)②请求带计费项目userProject/x-goog-user-project ③对该项目有serviceusage.services.use权限。没带userProject→400拒绝。
+- 场景:公开/共享大数据集,所有者愿免费提供数据(自付存储)但不想承担别人下载的巨额egress。
+
+**③ 概念**:存储费永远归所有者(只转嫁访问相关费);userProject=费用记哪个项目的落地机制;开了之后allUsers匿名白嫖失效(匿名无法指定计费项目)。
+
+**④ AWS对照**:两家都叫Requester Pays,机制一致。所有者付存储,请求者付请求+传输。识别:AWS用header `x-amz-request-payer: requester`,GCP用`userProject`。都禁匿名。动机都是公开大数据集让下载者担流量成本。
+
+**⑤ 评分：7/10**。记忆点:所有者只付存储费,请求者付操作+egress+取回费;请求者须认证+带userProject(不能匿名);场景=公开大数据集不被下载流量拖垮;对标AWS(x-amz-request-payer)。
+
+### Q14. 上传方式 simple/multipart/resumable
+
+**伟伟答**：simple小对象,multipart大对象提并发,resumable网络差,S3没有。
+
+**① 对照**：✅ simple小对象、multipart大对象提并发、resumable网络差 场景方向对;❌ **"S3没有"错**(S3用Multipart Upload实现断点续传);🔶 resumable核心价值没点透"从断点续传不从头重传"。
+
+**② 参考答案**：
+- Simple:一次请求传完,小对象+网络稳,失败整个重传。
+- Multipart(XML API):切多part**并行**上传再合并,大对象/提吞吐,**为兼容S3 multipart语义**(方便迁移工具复用)。
+- Resumable:发起session拿URI,分块传,中断后**从已确认字节offset续传**。大文件+弱网。核心价值=**断点续传,不从0重来**,省时省带宽。
+
+**③ 概念**:simple vs resumable按大小分(client库自动选,超阈值走resumable);multipart(求快/并发) vs resumable(求稳/字节级续传)目的不同;resumable靠session URI+Content-Range偏移续传。
+
+**④ AWS对照(纠正"S3没有")**:
+| | S3 | GCS |
+|--|----|----|
+| 小对象 | PutObject | Simple |
+| 大对象并发 | Multipart Upload | Multipart(XML,兼容S3) |
+| 断点续传 | **Multipart天然支持**(part保留,ListParts查进度,只补缺失part) | Resumable(session+offset) |
+👉 S3用一套Multipart同时做"并发分片+断点续传";GCS拆成两套(Multipart管并发/Resumable管续传)。不是S3没续传,是实现不同。
+
+**⑤ 评分：5/10**。记忆点:Simple小对象;Multipart(XML)大对象并发提吞吐(兼容S3);Resumable弱网断点续传(session+offset);S3不是没续传,用Multipart一套干了并发+续传两件事。
+
+### 批次7 追问：GCS 为何 Multipart 之外还要 Resumable + Resumable 是否分片
+
+- **Multipart vs Resumable 是两套独立机制**:
+  - Multipart(XML API)=**多part并发**上传再合并,续传粒度=**part级**(重传整个失败part),为兼容S3。
+  - Resumable=**单session顺序**分块(chunk)上传,续传粒度=**字节级**(从offset续),GCS原生推荐大文件/弱网。
+  - Multipart求"快"(并发),Resumable求"稳"(字节级续传)。S3用一套Multipart同时满足两者,GCS拆成两套。
+- **Resumable有分块吗?有**:分chunk顺序上传,每块用Content-Range标字节范围,中断查已确认offset续传。**但chunk是顺序、不能并发**(chunk N传完才N+1),chunk须256KiB整数倍(末块除外)。想并发提速要用Multipart或**parallel composite upload**(拆多独立对象并行传+compose合并,GCS特有,Q15)。
+- 结论:Resumable的分块=顺序/字节级/为续传;Multipart的分片=并发/part级/为提速,两者"分片"不是一回事。
+
+---
+
+**批次 7 小结**：Q13=7、Q14=5,均分6。补强→①Requester Pays存储费仍归所有者+userProject机制②"S3没有resumable"是错的(S3用Multipart续传)③GCS拆分:Resumable=顺序字节级续传(稳),Multipart/composite=并发(快)。
