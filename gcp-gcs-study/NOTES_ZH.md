@@ -263,3 +263,67 @@
 ---
 
 **批次 4 小结**：Q7=6、Q8=5,均分5.5。补强→①UBLA=禁用ACL统一IAM(对标S3 Bucket owner enforced),不是bucket policy②IAM∪ACL并集放行③Signed URL能授权上传、最长7天、绑定HTTP方法,≠公开对象。
+
+---
+
+## 批次 5：Q9–Q10（2026-09-02）
+
+### Q9. 静态加密 默认/CMEK/CSEK
+
+**伟伟答**：数据存硬盘的加密,客户可自己管理密钥,可自己带密钥。
+
+**① 对照**：✅ 落盘加密、能自管密钥、能自带密钥 三个方向对;❌ 没答默认=Google托管(强制零运维);🔶 没点名CMEK(Cloud KMS)/CSEK术语,没讲清密钥存哪谁托管;❌ 没做SSE对照。
+
+**② 参考答案**：
+- **默认 Google-managed**：所有对象默认AES-256加密,零操作,Google全管密钥。信封加密:DEK加密数据,KEK加密DEK。
+- **CMEK**：密钥存**Cloud KMS**、你创建管理(轮换/禁用/销毁),GCS用你的KMS key当KEK。价值:控制密钥生命周期(禁用key=立即不可解密)+合规审计。密钥仍在Google设施内,管理权归你。
+- **CSEK**：你客户端生成key,**每次请求把key传给GCS**(请求头),**Google不存**(只留key的hash校验)。丢key=数据永久无法解密。控制权最高、运维/丢钥风险最大。
+
+**③ 概念**:信封加密本质=谁掌控KEK(默认Google/CMEK你在KMS/CSEK你自带不存)。CMEK vs CSEK:CMEK托管KMS你管理,CSEK你自持每请求带Google不存。
+
+**④ AWS对照(重点,完美一一对应)**:
+| | AWS S3 | GCS |
+|--|--------|-----|
+| 云托管零管理 | SSE-S3 | Google-managed(默认) |
+| 云KMS你管理 | SSE-KMS | CMEK(Cloud KMS) |
+| 自带密钥云不存 | SSE-C | CSEK |
+👉 SSE-S3≈Google-managed, SSE-KMS≈CMEK, SSE-C≈CSEK。
+
+**⑤ 评分：6/10**。记忆点:默认Google-managed(≈SSE-S3);CMEK=KMS你管理(≈SSE-KMS);CSEK=自带每请求带Google不存丢了没救(≈SSE-C)。
+
+### Q10. 防误删/恶意删除机制
+
+**伟伟答**：versioning多版本;soft delete保存7天;retention policy=删除后继续保存多少天;lock=不能删除。
+
+**① 对照**：✅ versioning多版本对;🔶 soft delete默认7天对但可配0-90天;❌ **retention policy语义讲反**(不是删除后保存,是"删除前必须存够最短时长才允许删");🔶 lock不完整(是锁死retention使其不可缩短/移除,不可逆);❌ 漏Object Hold。
+
+**② 参考答案**：
+- **可恢复类**：①Object Versioning=覆盖/删除保留旧版本(noncurrent),可翻回。②Soft Delete=bucket级默认开,删除后进保留期可恢复,默认7天可配0-90(0=关)。区别:Soft Delete对"被删对象"兜底(即使没开versioning),Versioning保留覆盖/删除历史版本。
+- **禁删类(WORM)**：③Retention Policy=设最短保留时长,**对象存够该时长前任何人不能删/覆盖**(是删除前置门槛,不是删除后宽限)。④Bucket Lock=把retention**锁定/永久化**,锁后不能缩短/移除只能延长,**不可逆**(连owner/Google都解不开)。⑤Object Hold=单对象打hold(event-based/temporary),hold在就不能删/覆盖,无视retention,移除hold才能删。
+
+**③ 概念**:可恢复(Versioning/Soft Delete=删了能捞回) vs 禁删(Retention/Lock/Hold=根本不让删)。**Retention Policy语义纠正**:保留期未满→禁止删除,是前置门槛,与Soft Delete(删后保留可恢复)方向相反。Bucket Lock不可逆(高频考点)。
+
+**④ AWS对照**:
+| 机制 | S3 | GCS |
+|------|----|----|
+| 多版本 | S3 Versioning | Object Versioning |
+| 删除兜底 | 无独立soft delete(靠versioning+删除标记) | Soft Delete(默认7天,独立) |
+| 最短保留禁删 | Object Lock Retention(Governance/Compliance) | Retention Policy |
+| 锁死不可逆 | Compliance mode | Bucket Lock |
+| 单对象冻结 | Legal Hold | Object Hold |
+👉 Retention+Lock≈S3 Object Lock Compliance;Object Hold≈S3 Legal Hold;Soft Delete是GCS亮点(S3无独立对等)。
+
+**⑤ 评分：5/10**。记忆点:可恢复=Versioning+Soft Delete(默认7天可配0-90);禁删WORM=Retention Policy(存够才可删)→Bucket Lock(锁死不可逆)+Object Hold(单对象冻结无视retention)。
+
+### 批次5 追问：SSE-C demo 实测（撞到企业级安全策略,重要）
+
+写了 ssec_demo.py(workspace)实测SSE-C上传到S3,结果:
+- **本账号(allenxie@amazon.com,386094880462)在启用SCP的Org(o-wadx9m1bah)下,SCP全局禁用SSE-C上传**。对s3lambdatest2和全新bucket都报 AccessDenied "this bucket has blocked SSE-C uploads, specify a different SSE type"。
+- 根因:SSE-C密钥完全客户自管、AWS侧无审计痕迹,企业安全合规常用SCP强制禁用,要求改SSE-KMS(有CloudTrail审计)。SCP账号/OU级强制,IAM admin也覆盖不了,不可绕过。
+- 未改SCP(组织级安全管控,敏感,不擅动)。
+- **面试金句**:SSE-C(对标GCS CSEK)在受SCP管控的企业环境常被禁用(客户自管密钥无审计),合规环境强制SSE-KMS(对标CMEK)替代。
+- 代码逻辑正确:256-bit key+SSECustomerAlgorithm/Key/KeyMD5三头,读/写/HEAD都要带key,不带/错key→400/403,S3只存key的MD5不存key,丢key数据永久不可解密。
+
+---
+
+**批次 5 小结**：Q9=6、Q10=5,均分5.5。补强→①默认Google-managed+CMEK(KMS)+CSEK,对标SSE-S3/KMS/C②Retention Policy是"删除前必须存够"不是"删除后保存"③Bucket Lock不可逆+Object Hold单对象冻结④SSE-C常被企业SCP禁用。
