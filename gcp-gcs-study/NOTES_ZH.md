@@ -454,3 +454,57 @@
 ---
 
 **批次 7 小结**：Q13=7、Q14=5,均分6。补强→①Requester Pays存储费仍归所有者+userProject机制②"S3没有resumable"是错的(S3用Multipart续传)③GCS拆分:Resumable=顺序字节级续传(稳),Multipart/composite=并发(快)。
+
+---
+
+## 批次 8：Q15–Q16（2026-09-02）
+
+### Q15. 提升吞吐 + 前缀速率
+
+**伟伟答**：设计好前缀,GCS自动扩展分区,跟S3类似。
+
+**① 对照**：✅ 随机前缀+自动扩展+跟S3类似 核心方向对判断准;❌ 漏parallel composite upload(单文件并发提速GCS特有);❌ 漏gcloud storage并行;🔶 没点透GCS无S3那种per-prefix明确数字。
+
+**② 参考答案**：
+- 单大文件:**Parallel composite upload**=切多独立小对象并行传+compose服务端合并(gcloud storage cp超阈值自动),单文件也能多连接打满带宽。坑:crc32c组合checksum,某些CMEK场景不支持compose。
+- 多对象:gcloud storage cp默认多线程并发(取代gsutil -m);多机/多进程分片对象列表;随机前缀分散到多后端。
+- 底层:auto-scaling(初始1000写/5000读自动扩)+ramp-up(每20min翻倍)+随机前缀避字典序索引热点。
+
+**③ 概念**:composite(多独立对象并行+compose,真并发) vs XML multipart(兼容S3并发) vs resumable(顺序不并发)。**GCS是否有per-prefix上限**:不像S3有明确per-prefix数字,GCS是per-bucket初始+全局auto-scaling+key索引范围重分布。但实践建议一致(随机前缀避热点),所以"跟S3类似"方向对,只是GCS无那个明确数字。
+
+**④ AWS对照**:
+| | S3 | GCS |
+|--|----|----|
+| 速率模型 | per-prefix 3500写/5500读 | per-bucket初始1000/5000+auto-scaling |
+| 单文件并发 | Multipart | Parallel composite upload/XML Multipart |
+| CLI并行 | aws s3 cp | gcloud storage cp(取代gsutil -m) |
+👉 都靠前缀分散+自动扩展;S3有per-prefix明确数字,GCS是per-bucket+auto-scaling。
+
+**⑤ 评分：6/10**。记忆点:单文件用parallel composite upload,多对象用gcloud storage并行/多机分片,随机前缀避热点;GCS auto-scaling(要ramp-up);S3有per-prefix数字(3500/5500),GCS是per-bucket初始+全局扩展。
+
+### Q16. PB级迁移方案
+
+**伟伟答**：STS有网络;想更快用appliance;没网络用gcloud storage。
+
+**① 对照**：✅ STS走网络对、appliance用于大数据量方向有;🔶 appliance定位偏(不是"想更快",是数据量太大/带宽不足);❌ **gcloud storage和"没网络"匹配反了**(gcloud storage需要网络;没网络/带宽不足才用appliance离线寄盘)。
+
+**② 参考答案**：按"数据量+带宽"选:
+1.**gcloud storage**(CLI走网络):中小规模+有带宽,一次性/脚本化。PB级不现实除非专线。
+2.**Storage Transfer Service(STS)**(托管走网络):大规模在线传输,支持S3/Azure/GCS/HTTP/on-prem(装agent)。托管/可调度/增量/续传/带宽调控。有大带宽专线的数据中心大规模迁移。
+3.**Transfer Appliance**(物理离线寄送):Google寄物理设备,拷满寄回导入GCS。**数据量极大(百TB~PB)+带宽不足/传输时间过长**时用(网络传输时间>物理寄送时间就寄盘)。
+
+**③ 概念**:选型公式=数据量÷带宽=传输时间,太长就寄物理设备。纠正:gcloud storage需网络(非"没网络用它");没网络/带宽不足才用Transfer Appliance离线寄盘。例1PB/1Gbps≈100天+不可行→必须appliance。
+
+**④ AWS对照**:
+| 场景 | AWS | GCS |
+|------|-----|-----|
+| CLI走网络 | aws s3 cp/sync | gcloud storage cp |
+| 托管在线大规模 | DataSync | Storage Transfer Service |
+| 离线物理寄送 | Snowball/Snowmobile | Transfer Appliance |
+👉 STS≈DataSync;Transfer Appliance≈Snowball/Snowmobile;gcloud storage≈aws s3 cp。选型都看数据量÷带宽。
+
+**⑤ 评分：4/10**。记忆点:gcloud storage(中小量走网络)→STS(大规模走网络托管可增量,≈DataSync)→Transfer Appliance(PB级带宽不足离线寄盘,≈Snowball)。公式:数据量÷带宽=传输时间,太长就寄盘。gcloud storage要网络,别和"没网络"配。
+
+---
+
+**批次 8 小结**：Q15=6、Q16=4,均分5。补强→①parallel composite upload(单文件并发提速)+gcloud storage并行②GCS无S3那种per-prefix数字(per-bucket+auto-scaling)③迁移选型公式数据量÷带宽,gcloud storage需网络/STS托管在线/Appliance离线寄盘,对标aws s3 cp/DataSync/Snowball。
