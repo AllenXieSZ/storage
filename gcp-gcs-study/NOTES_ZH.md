@@ -563,3 +563,60 @@
 ---
 
 **批次 9 小结**：Q17=6.5、Q18=6,均分6.25。补强→①事件发到Pub/Sub topic+事件类型FINALIZE等+解耦扇出②Autoclass双向自动(能升回热)+不收retrieval/early deletion费+对标Intelligent-Tiering。
+
+---
+
+## 批次 10：Q19–Q20（2026-09-02，伟伟不熟→直接教学讲解）
+
+### Q19. gsutil vs gcloud storage
+
+- **关系**:都是GCS命令行工具,两代。gsutil=老一代Python独立工具;gcloud storage=新一代,并入gcloud主CLI,官方推荐取代gsutil。
+- **为何推荐gcloud storage**:①性能更好(默认智能并行:自动多线程/分片/composite upload,大批量显著更快;gsutil要手动-m且优化不如新的)②统一体验(并入gcloud,一致认证/配置/输出)③未来方向(gsutil进维护模式)。
+- **性能有区别吗**:有且明显。gcloud storage默认并行优化开箱即快;gsutil要手动-m+调parallel_composite_upload_threshold,默认单线程慢。官方基准gcloud storage在大批量/海量小文件快很多。
+- **AWS对照**:gcloud storage≈aws s3 cp/sync(高层自动并行);gsutil≈更老需手动调优的工具。
+- **一句话**:gsutil老CLI(手动-m),gcloud storage新一代默认智能并行性能更好,官方推荐取代。
+
+### Q20. 静态网站托管 + CDN + 公开访问
+
+- **静态托管**:上传文件→bucket公开读(allUsers绑objectViewer)→设MainPageSuffix(index.html)+NotFoundPage(404.html)→访问。局限:GCS直接托管用GCS域名**只支持HTTP不支持HTTPS**。
+- **生产做法(HTTPS/自定义域名/加速)**:用户→自定义域名→**External HTTPS Load Balancer**(挂Google托管SSL证书)→**backend bucket**(指向GCS bucket)→开**Cloud CDN**缓存到全球边缘。三组件:backend bucket + External HTTPS LB + Cloud CDN。
+- **公开访问注意(尤其UBLA)**:
+  ①开UBLA后ACL禁用,**只能用bucket级IAM公开**(allUsers绑storage.objectViewer,整bucket公开),不能对象级ACL(粒度只到整bucket)。
+  ②**Public Access Prevention(PAP)**安全开关:开启后禁止任何allUsers/allAuthenticatedUsers公开授权;组织策略可能强制开PAP→根本无法设公开(类似AWS Block Public Access)。
+  ③更安全:不直接对公网公开bucket,只授权给LB,公网只经CDN/LB访问。
+- **AWS对照**:
+| 功能 | AWS | GCS |
+|------|-----|-----|
+| 静态托管 | S3 Static Website Hosting | bucket+MainPageSuffix/NotFoundPage |
+| CDN | CloudFront | Cloud CDN |
+| HTTPS/LB | CloudFront+ACM | External HTTPS LB+backend bucket+Google证书 |
+| 公开防护 | S3 Block Public Access | Public Access Prevention(PAP) |
+| 禁ACL统一策略 | Bucket owner enforced | UBLA |
+👉 PAP≈S3 Block Public Access;开UBLA只能bucket级IAM(allUsers)公开不能对象ACL。
+
+**批次 10**：教学题(伟伟不熟,未评分)。记忆点:gcloud storage新一代默认并行(≈aws s3 cp);静态站=bucket+CDN+LB加HTTPS(≈S3+CloudFront),PAP≈Block Public Access,UBLA下只能bucket级IAM公开。
+
+---
+
+## 📊 总进度（全部完成 2026-09-02）
+
+| 批次 | 题 | 主题 | 得分 |
+|------|-----|------|------|
+| 1 | Q1-Q2 | storage class/分层 | 6.5/6 |
+| 2 | Q3-Q4 | location type/Turbo Replication | 6/4 |
+| 3 | Q5-Q6 | 一致性/扁平命名空间 | 6/4 |
+| 4 | Q7-Q8 | IAM+ACL+UBLA/Signed URL | 6/5 |
+| 5 | Q9-Q10 | 加密/防删机制 | 6/5 |
+| 6 | Q11-Q12 | Lifecycle/费用构成 | 6/5 |
+| 7 | Q13-Q14 | Requester Pays/上传方式 | 7/5 |
+| 8 | Q15-Q16 | 吞吐/PB迁移 | 6/4 |
+| 9 | Q17-Q18 | Pub/Sub通知/Autoclass | 6.5/6 |
+| 10 | Q19-Q20 | gcloud storage/静态站+CDN | 教学(未评分) |
+
+**20题全部过完。已答18题均分≈5.5/10。**
+
+**高频薄弱点(建议重点复习)**:
+1. AWS↔GCP术语一一对应:SSE-S3/KMS/C↔Google-managed/CMEK/CSEK;UBLA↔Bucket owner enforced;Turbo Replication↔S3 RTC;Autoclass↔Intelligent-Tiering;STS↔DataSync;Transfer Appliance↔Snowball;PAP↔Block Public Access;gcloud storage↔aws s3 cp。
+2. 各种最低时长/天数:Nearline30/Coldline90/Archive365;Soft Delete默认7天可配0-90;Turbo/RTC 15分钟。
+3. 语义方向易错:Retention Policy=删前门槛(非删后保存);一致性"最终一致历史"是S3不是GCS;Turbo只用于dual-region不是multi-region;gcloud storage需网络不是无网络用。
+4. GCS特有机制:parallel composite upload;扁平命名空间vs HNS;Autoclass双向自动+不收retrieval费。
