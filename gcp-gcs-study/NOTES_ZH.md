@@ -219,3 +219,47 @@
 ---
 
 **批次 3 小结**：Q5=6、Q6=4,均分5。补强→①最终一致历史是S3不是GCS②GCS默认扁平命名空间+prefix/delimiter模拟文件夹③GCS初始1000写/5000读、auto-scaling无硬上限、靠随机前缀+ramp-up冲高。
+
+---
+
+## 批次 4：Q7–Q8（2026-09-02）
+
+### Q7. 访问控制 IAM / ACL / UBLA
+
+**伟伟答**：IAM是用户,ACL是每个对象object,bucket-level access是不是S3 bucket policy。
+
+**① 对照**：✅ IAM用户/项目级、ACL对象级 两个定位对；❌ UBLA类比错(不是bucket policy,是"禁用ACL统一用IAM"的开关,对标S3 Bucket owner enforced);❌ 漏 IAM∪ACL 并集优先级;❌ 漏为何推荐UBLA。
+
+**② 参考答案**：
+- **IAM**(推荐主力):project级+bucket级(**不能到单对象**),role绑principal,集中/可继承/可审计/支持Conditions。
+- **ACL**(传统):bucket级+**单对象级**(唯一比IAM强处),每对象带(entity,permission)列表,分散难审计易误公开。
+- **优先级**:IAM与ACL是**并集(union),任一放行即放行**→ACL可能意外公开,是安全隐患。
+- **UBLA**:bucket开关,**开启后禁用ACL、全部只用IAM**。推荐因:消除ACL/IAM双轨泄露风险+集中可审计+安全最佳实践。代价:失去对象级ACL,需差异化授权改用IAM Conditions/Signed URL。
+
+**③ 概念**:principal=用户/组/服务账号/域/allUsers;role(一组permission) vs ACL单permission(READER/WRITER/OWNER);union语义=IAM∪ACL,UBLA消除ACL这一路。
+
+**④ AWS对照**:S3 bucket policy≈**GCS bucket级IAM**(不是UBLA!);S3 Object/Bucket ACL≈GCS ACL;**UBLA≈S3 Bucket owner enforced(禁用ACL)**。S3有显式Deny优先,GCS是并集无ACL Deny。👉纠正:UBLA不是bucket policy,是关ACL的开关。
+
+**⑤ 评分：6/10**。记忆点:IAM(project/bucket级,role绑principal,主力)+ACL(能到对象级,传统易泄露),两者并集放行;UBLA=关ACL只用IAM(对标S3 Bucket owner enforced)。
+
+### Q8. Signed URL
+
+**伟伟答**：临时签名,拿URL指定时间内可访问,给不能登录认证/动态变化的客户端,如匿名浏览。
+
+**① 对照**：✅ 临时签名、限时、给无身份客户端 对;🔶 "匿名浏览"易与"公开对象"混(Signed URL是限时定向授权,非永久公开);❌ 漏与IAM区别;❌ 漏能授权上传(PUT)+最长7天+绑定HTTP方法。
+
+**② 参考答案**：
+- Signed URL=URL查询参数带**加密签名+过期时间**,任何人拿到在有效期内按签名限定操作访问,**无需自身身份认证**。
+- 机制:用有权凭证(服务账号私钥 或 IAM signBlob)对"对象+HTTP方法+过期时间"签名;GCS验签名有效+未过期即放行,**验的是URL是被授权者签发的,不是访问者身份**。
+- 场景:给外部/匿名用户临时下载私有对象(如7天下载链接不建账号);让外部用户**直传上传**(签PUT,客户端直传GCS不过你服务器);前端不便存凭证时后端签发。
+- 有效期:签发时定,**V4最长7天**,过期403不可续。权限:绑定具体方法**GET/PUT/DELETE**+指定对象,只能干签的那件事。
+
+**③ 概念**:与"公开对象"区别——allUsers:objectViewer是永久公开,Signed URL是限时/限操作/会过期的定向授权(更安全)。签名靠服务账号私钥或signBlob(不落地私钥更安全)。过期硬性,只能重签。
+
+**④ AWS对照**:**Signed URL≈S3 Presigned URL**,都是带签名+过期的临时URL让无身份者限时限操作访问,常用于外部临时下载/客户端直传。区别在签名凭证来源(GCS服务账号/signBlob vs S3 IAM凭证)。
+
+**⑤ 评分：5/10**。记忆点:Signed URL=带签名+过期的临时URL,拿到即用无需认证,绑定对象+方法(GET/PUT)+时限(最长7天);对标S3 Presigned URL;≠公开对象(那是永久匿名)。
+
+---
+
+**批次 4 小结**：Q7=6、Q8=5,均分5.5。补强→①UBLA=禁用ACL统一IAM(对标S3 Bucket owner enforced),不是bucket policy②IAM∪ACL并集放行③Signed URL能授权上传、最长7天、绑定HTTP方法,≠公开对象。
