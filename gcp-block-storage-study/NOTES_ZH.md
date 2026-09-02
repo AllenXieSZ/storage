@@ -67,3 +67,45 @@
 ---
 
 **批次 1 小结**：Q1=6、Q2=6,均分6。补强→①PD四种:standard=HDD(官方明文),balanced/ssd/extreme=SSD,extreme可自定义IOPS②CLI默认pd-standard坑+最新机型只支持Hyperdisk③PD生命周期默认不独立(auto-delete=true),对标EBS DeleteOnTermination。
+
+---
+
+## 批次 2：Q3–Q4（2026-09-02）
+
+### Q3. Hyperdisk 是什么+与PD区别+类型
+
+**伟伟答**：PD下一代,性能更好,可单独配IOPS和throughput,有大吞吐ML,ML有限制(忘了)。
+
+**① 对照**：✅ 下一代/性能更好/单独配IOPS吞吐/ML大吞吐 核心全对(解耦这个魂抓住了);🔶 ML限制忘了;❌ 四种类型只答到ML,漏Balanced/Extreme/Throughput。
+
+**② 参考答案**：
+- Hyperdisk=GCP新一代块存储,PD进化版。**最新机型系列只支持Hyperdisk不再支持PD**。两大优势:①性能可自定义(独立于容量)②整体IOPS/吞吐上限更高。
+- 四类型:**Balanced**(通用默认,配IOPS+吞吐)/**Extreme**(超高IOPS,大型DB如SAP HANA)/**Throughput**(高吞吐成本优化,大数据/Kafka)/**ML**(AI专用超高聚合吞吐)。
+- **Hyperdisk ML限制(补)**:**只读**,可**多实例只读挂载**(几百上千个),给GPU集群共享一份数据(模型权重/训练集),聚合吞吐极高。不能写/不能当启动盘。
+
+**③ 概念**:最新机型只支持Hyperdisk(PD逐步被取代);四类型调节维度不同(Balanced调IOPS+吞吐,Extreme主打IOPS,Throughput主打吞吐,ML主打只读多挂聚合吞吐);ML价值=几百GPU读同一份模型,一块只读盘多挂避免各存一份。
+
+**④ AWS对照**:Balanced≈gp3;Extreme≈io2/io2 Block Express;Throughput≈st1(但SSD架构);ML无直接等价(类似io2 multi-attach只读语义/或FSx共享)。👉 Hyperdisk性能容量解耦对标gp3首创理念。
+
+**⑤ 评分：6.5/10**。记忆点:Hyperdisk=PD下一代(新机型只支持它),性能容量解耦+更高上限;四型=Balanced(通用)/Extreme(超高IOPS)/Throughput(高吞吐)/ML(只读多挂给AI集群共享)。
+
+### Q4. 性能与容量解耦
+
+**伟伟答**：容量小为了更好性能可配置不浪费容量,反过来一样。
+
+**① 对照**：✅✅ 核心完全正确(容量小也能配高性能/不浪费/双向独立),魂抓得准;🔶 没讲机制(PD绑定vs Hyperdisk三独立旋钮);🔶 没给具体例子。
+
+**② 参考答案**：
+- 传统PD:性能**由容量决定**,随容量线性增长,要高IOPS必须买大盘(官方"to improve performance you must increase its size")。
+- Hyperdisk:**容量/IOPS/吞吐三个独立配置项,分别设置分别计费,可在线动态调**(官方"performance independent of provisioned capacity")。
+- 例:100GB数据库要5万IOPS→PD得买几TB大盘(浪费),Hyperdisk开100GB容量+单独provision 5万IOPS(不浪费)。反向:10TB容量只要中等吞吐,不用为大容量付高性能钱。命令`--provisioned-iops --provisioned-throughput`分开指定。
+
+**③ 概念**:三个独立旋钮(容量/IOPS/吞吐分别计费),PD只有容量一个旋钮性能被动跟着走;可在线调(不重建不停机);成本精细化按需付费。
+
+**④ AWS对照**:老一代性能绑容量=gp2(3IOPS/GB)/PD;新一代解耦=**gp3**(容量IOPS吞吐独立)/Hyperdisk;超高预置=io2 Block Express/Hyperdisk Extreme。👉 Hyperdisk解耦≈AWS gp3核心卖点,演进思路一致(解决"为性能被迫买大容量"的浪费)。
+
+**⑤ 评分：7/10**。记忆点:性能容量解耦=容量/IOPS/吞吐三独立旋钮分别计费可在线调;PD性能随容量线性(要高IOPS买大盘浪费);对标AWS gp3(都从gp2/PD"IOPS随容量"进化来)。
+
+---
+
+**批次 2 小结**：Q3=6.5、Q4=7,均分6.75。补强→①Hyperdisk四型(Balanced/Extreme/Throughput/ML),ML=只读多挂给AI集群②最新机型只支持Hyperdisk③性能容量解耦=三独立旋钮,对标gp3。
