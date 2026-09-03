@@ -196,3 +196,59 @@
 ---
 
 **批次 4 小结**：Q7=7.5、Q8=5,均分6.25。重点纠错→**①regional PD 是"同一Region内跨两个zone(跨AZ)"同步复制,不是跨Region!RPO=0容单zone故障**②PD性能=min(磁盘类型×容量,VM上限)三者取小③复制3态Fully/Degraded/Catching up④regional PD块层跨AZ同步是GCP特色,AWS EBS无原生等价(靠RDS Multi-AZ)。
+
+---
+
+## 批次 5：Q9–Q10（2026-09-03）
+
+### Q9. PD 多挂载(multi-writer / read-only)
+**伟伟答**：multi-writer多个VM写会互相覆盖,必须上层有集群文件系统;read-only是一写多读,分享数据使用。
+
+**① 对照**：✅✅ multi-writer需要上层集群文件系统(PD本身不提供锁/协调)——核心限制答对;✅ read-only多读用于分享数据——对;🔶 "一写多读"表述不准:read-only模式下**没有任何实例能写**(不是"一个写多个读"),是纯只读多挂;🔶 漏具体限制数字(multi-writer仅**最多2个N2 VM+SSD PD**;read-only可挂很多)。
+
+**② 参考答案(GCP官方,已核实)**：
+- **read-only 多挂载**:一块PD可同时以只读模式挂到**多个VM**,**所有实例都只能读、谁都不能写**。用于把静态数据集(ML模型权重、参考数据、软件包)分发给一批VM,只存一份省钱省管理。⚠️不是"一写多读"——是**全只读**;要更新内容得先全部卸载、挂到单个可写VM改完再重新只读分发。
+- **multi-writer 模式**:**SSD Persistent Disk** 可同时**读写挂载到最多 2 个 N2 VM**,两个VM都能读写。⚠️**PD 本身不做写协调/锁**,两VM各写各的会**互相覆盖/损坏数据**——所以**必须在上层跑集群感知(cluster-aware)/共享文件系统或应用**(如带分布式锁的DB、集群FS)自己管并发。它只提供"共享块设备"这块地基。
+- 限制小结:read-only=纯只读、可多挂;multi-writer=SSD PD、**上限2个N2 VM**、需上层集群FS/应用管锁。
+
+**③ 概念**:块存储多挂载的根本难点=**并发写一致性**。read-only回避问题(禁写);multi-writer把并发控制责任甩给上层(PD只保证两VM能同时连到同一块设备,不保证不冲突)。普通ext4/xfs是单机文件系统,多写会损坏,必须用GFS2/OCFS2这类集群文件系统或应用层锁。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 只读多挂 | PD read-only mode(多VM) | EBS 无原生只读多挂(AWS一般用EFS/S3分发);快照多次创卷 |
+| 读写多挂 | multi-writer(SSD PD,最多2×N2) | **EBS Multi-Attach**(io1/io2,最多**16个**同AZ实例) |
+| 都需上层管锁 | 是(集群FS) | 是(EBS Multi-Attach同样要cluster-aware FS,普通FS会损坏) |
+👉 概念一致(共享块存储都需集群FS管并发);差异:AWS EBS Multi-Attach支持**16个**读写实例、限io1/io2、需同AZ;GCP multi-writer仅**2个**N2、限SSD PD。GCP的只读多挂AWS没有直接对应(EBS不支持只读多挂,AWS走EFS/S3)。
+
+**⑤ 评分：7.5/10**。记忆点:read-only=**全只读**多挂分发静态数据(非"一写多读");multi-writer=SSD PD最多**2个N2 VM**读写,**PD不管锁必须上层集群FS**;对标AWS EBS Multi-Attach(io1/io2,最多16实例,同样要集群FS)。
+
+### Q10. 在线扩容 / 能否缩小 / 扩容后文件系统操作
+**伟伟答**：可以扩展容量,不能缩小,文件系统要resize,lvm要extend。
+
+**① 对照**：✅✅✅ 全对!在线扩容✓、不能缩小✓、扩完要resize文件系统✓、用了LVM要先extend✓。答得干净准确。🔶 可补:①扩容不停机(无需卸载/重启)②有分区表的还要先扩分区(growpart)③resize命令具体名。
+
+**② 参考答案(GCP官方)**：
+- **在线扩容**:PD/Hyperdisk 可**不停机在线增大容量**(`gcloud compute disks resize` 或控制台),VM运行中、盘挂着就能扩,不用卸载。
+- **不能缩小**:官方明确**只能增不能减**(要减只能建小盘+迁数据)。
+- **扩完的文件系统层操作(关键,分层)**:
+  1. (若盘上有**分区**)先扩分区:`growpart /dev/sdb 1`。
+  2. (若用**LVM**)扩物理卷+逻辑卷:`pvresize` → `lvextend`。
+  3. **扩文件系统**:ext4 用 `resize2fs`;xfs 用 `xfs_growfs`(xfs只能扩不能缩)。
+  - 顺序:先扩盘(云层)→再扩分区→(LVM)扩PV/LV→最后扩文件系统。不做最后这步,`df`看到的可用空间不会变(云层扩了但FS没跟上)。
+
+**③ 概念**:云层扩容(把块设备变大)和**客户机OS内文件系统扩容是两回事**——云把 `/dev/sdb` 从100G变200G,但文件系统还认为自己只有100G,必须在OS里 resize2fs/xfs_growfs 才用得上新空间。缩小危险(要先缩FS再缩设备,极易丢数据)所以云厂商普遍禁止块设备缩小。
+
+**④ AWS对照**:
+| | GCP PD | AWS EBS |
+|--|--|--|
+| 在线扩容 | ✓(disks resize) | ✓(modify-volume,弹性卷) |
+| 缩小 | ✗不能 | ✗不能 |
+| 扩后OS操作 | growpart+resize2fs/xfs_growfs | 完全相同(growpart+resize2fs/xfs_growfs) |
+👉 **两家几乎一模一样**:都能在线扩、都不能缩、扩完都要在OS里 growpart + resize2fs/xfs_growfs。AWS弹性卷扩完还有个"optimizing"过渡期,GCP无此概念。
+
+**⑤ 评分：9/10**。记忆点:PD在线扩容(不停机)、**只增不能缩**;扩完必须OS内跟进——有分区先growpart、LVM先lvextend、最后resize2fs(ext4)/xfs_growfs(xfs);和AWS EBS流程完全一致。
+
+---
+
+**批次 5 小结**：Q9=7.5、Q10=9,均分8.25(本批最高!)。补强→①read-only是**全只读**多挂(非一写多读);multi-writer仅**2个N2+SSD PD**且**PD不管锁需上层集群FS**,对标EBS Multi-Attach(io1/io2最多16)②扩容:在线扩、不能缩、扩完OS里growpart+lvextend+resize2fs/xfs_growfs,与AWS EBS完全一致。
