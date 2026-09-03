@@ -252,3 +252,56 @@
 ---
 
 **批次 5 小结**：Q9=7.5、Q10=9,均分8.25(本批最高!)。补强→①read-only是**全只读**多挂(非一写多读);multi-writer仅**2个N2+SSD PD**且**PD不管锁需上层集群FS**,对标EBS Multi-Attach(io1/io2最多16)②扩容:在线扩、不能缩、扩完OS里growpart+lvextend+resize2fs/xfs_growfs,与AWS EBS完全一致。
+
+---
+
+## 批次 6：Q11–Q12（2026-09-03）
+
+### Q11. 快照工作原理 + 增量 + 存哪
+**伟伟答**：快照记录磁盘数据块,复制传送到GCS;后续快照只传变化部分省空间;快照之间互相reference。
+
+**① 对照**：✅✅✅ 增量机制答得很准——首次全量、后续只传变化块、快照互相reference、省空间,核心全中;✅ "存到GCS"方向对(底层映射到Cloud Storage);🔶 措辞可精确:不是存进"你自己的GCS bucket",是Google托管的、**底层映射到Cloud Storage位置**的快照存储(多位置+校验和)。
+
+**② 参考答案(GCP官方)**：
+- **增量快照机制**:第一次快照=**全量**(该盘所有已用块);之后每次快照**只存自上次快照以来变化的块**,未变的块**引用(reference)已有快照的数据**——所以快照之间互相依赖、链式引用。
+- **省空间/省钱**:只为增量块付费,不是每次都全量拷一份。
+- **删除的智能处理(重点)**:删除某个中间快照时,**它独有、且被后续快照依赖的块会被"下放/合并"到下一个快照**,保证剩余快照仍可完整恢复——所以"删一个旧快照"并不会等比例释放空间(它引用的块可能还被后面用着)。
+- **存哪**:快照数据**存储在Google的Cloud Storage(底层),跨多个位置冗余存放+自动校验和(checksum)保证完整性**,与承载盘的物理存储分离(所以盘/zone挂了快照还在)。**不放在你的GCS bucket里**,是Compute Engine托管的独立快照存储,但存储位置可选regional/multi-regional(映射到GCS的region/multi-region)。
+
+**③ 概念**:增量+引用=块级去重的链;正因链式引用,"快照存储用量"不等于"各快照大小之和";首次快照最大最慢,后续快小快;和承载盘解耦(独立于zone),这是它能做跨zone/跨region恢复的基础。
+
+**④ AWS对照**:
+| | GCP PD Snapshot | AWS EBS Snapshot |
+|--|--|--|
+| 增量 | 是(首次全量后续增量) | 完全相同(增量) |
+| 底层存储 | Google Cloud Storage(多位置+校验) | **Amazon S3**(用户不可直接访问的托管S3) |
+| 删中间快照 | 块下放给后续快照,不破坏恢复 | 完全相同(块合并到下一快照) |
+👉 两家快照机制**高度一致**:都是块级增量、底层放对象存储(GCP→GCS / AWS→S3)、删中间快照都做块合并保证可恢复。
+
+**⑤ 评分：8.5/10**。记忆点:首次全量+后续只传变化块+链式reference+底层存Cloud Storage(多位置+校验);删中间快照块会下放给后续快照(所以删旧快照不等比例省空间);对标AWS EBS快照(底层S3),机制几乎一样。
+
+### Q12. 快照是什么级别资源 + 跨region恢复
+**伟伟答**：快照是regional,可以在另外regional恢复硬盘;可对磁盘拍快照传输到其他Region做迁移和容灾。
+
+**① 对照**：✅ 跨region恢复✓、用于迁移/容灾✓(用途完全对);❌ **关键错误:快照默认是 global(全局)资源,不是 regional**;🔶 混淆了"快照资源级别(global)"和"快照存储位置(可选regional/multi-regional)"两个概念。
+
+**② 参考答案(GCP官方,已核实)**：
+- **快照默认是 global 资源**(官方原文"Snapshots are, by default, global resources")——它不绑定某个zone或region,在**同一project内任意zone/region都能用它恢复出新盘/新VM**。⚠️伟伟说"regional"不对。
+- **但"存储位置"可配置**:创建时可指定快照**存储位置为 regional 或 multi-regional**(映射到GCS的region如`us-central1`或multi-region如`us`)。这是"数据实际存哪"的选择,和"资源是global(哪都能引用)"是两码事。
+- **跨region恢复**:正因为是global资源,**可以用一个zone拍的快照,在另一个region创建新磁盘**。→ 直接支撑**跨区容灾(DR)**和**跨region迁移**(把工作负载搬到别的region)。
+- **纠正**:资源级别=**global**;存储位置=可选regional/multi-regional。别把两者混成"快照是regional"。
+
+**③ 概念**:GCP资源分三级——zonal(如zonal PD、Local SSD)、regional(如regional PD、subnet)、global(如snapshot、image、VPC网络)。快照是global的意义=你不用关心它在哪个region就能全局引用来恢复,天然适合跨region迁移/DR;存储位置选项只影响数据落地的物理region(合规/就近/成本考虑)。
+
+**④ AWS对照**:
+| | GCP Snapshot | AWS EBS Snapshot |
+|--|--|--|
+| 资源作用域 | **global**(全局可用) | **regional**(绑定所在region) |
+| 跨region用 | 直接可跨region恢复 | 需先**copy-snapshot到目标region**再用 |
+👉 **重要差异**:GCP快照是global,跨region恢复更省事(直接引用);**AWS EBS快照是regional的,跨region要先显式copy一份到目标region**才能在那恢复。伟伟把GCP说成regional,恰好把它错当成了AWS的模型。
+
+**⑤ 评分：6/10**。⚠️主要扣在"快照是regional"这个定级错误(应为global)。记忆点:**GCP快照=global资源(哪个region都能恢复),存储位置可选regional/multi-regional**;跨region恢复→天然支持DR/迁移;对比AWS EBS快照是**regional、跨region要先copy-snapshot**(这正是伟伟记混的点)。
+
+---
+
+**批次 6 小结**：Q11=8.5、Q12=6,均分7.25。重点纠错→**①快照默认是 global 资源(不是regional!)——"资源global(哪都能恢复)" vs "存储位置可选regional/multi-regional"是两回事**②增量:首次全量+后续变化块+链式reference,删中间快照块下放给后续③底层存Cloud Storage(AWS存S3)④GCP快照global跨region直接恢复,**AWS EBS快照regional跨region要先copy-snapshot**(伟伟把GCP错记成了AWS模型)。
