@@ -262,3 +262,68 @@
 ---
 
 **批次 4 小结**：Q7=6、Q8=8,均分7。重点纠错→**①machine image=整台VM完整快照(多盘+配置+元数据+权限),与"机型/支持什么机型"无关(可覆盖机型);范围snapshot<custom image(单启动盘模板)<machine image;对标AWS AMI ②instance template不可变(immutable),改配置=新建模板+MIG滚动更新;MIG必须基于模板;对标AWS Launch Template(AWS支持多版本更灵活)/MIG↔ASG**。
+
+---
+
+## 批次 5：Q9–Q10（2026-09-03）
+
+### Q9. 启动脚本 / 关机脚本 / cloud-init / OS Login
+**伟伟答**：启动脚本=image启动运行的定制化脚本;关机脚本=关机前运行?放在user data?cloud-init是driver启动加载。
+
+**① 对照**：✅ 启动脚本=开机运行的定制脚本✓;✅ 关机脚本=关机前运行✓(基本对);❌ **"user data"是AWS术语**——GCP叫**实例元数据(metadata)的特定key**(`startup-script`/`shutdown-script`);❌ **cloud-init不是"driver启动加载"**(是跨云VM初始化框架,理解错了,见下);🔶 漏了OS Login。
+
+**② 参考答案(GCP官方,已核实)**：
+- **启动脚本(startup script)**:VM**每次启动时**(不只首次!首次+每次reboot都跑)自动以root执行的脚本,用于装包/配置/拉代码/注册服务。**放在实例元数据**里,key = **`startup-script`**(直接塞脚本内容)或 **`startup-script-url`**(指向Cloud Storage的脚本)。
+- **关机脚本(shutdown script)**:VM**在停止/删除/reset前**尽力(best-effort)执行的脚本,用于优雅关闭(排空连接、保存状态、上传日志)。key = **`shutdown-script`** / **`shutdown-script-url`**。⚠️**有时间限制**(正常关机约90秒、抢占约30秒),超时会被强杀;**不保证一定执行完**(如宿主机崩溃)。
+- **⚠️不叫user data**:AWS EC2叫"user data";**GCP叫"instance metadata"**,启动/关机脚本是其中的**保留元数据key**。这是术语纠正。
+- **cloud-init(纠正伟伟)**:**不是"driver启动加载"**!cloud-init是**业界通用的跨云VM首次启动初始化框架**(设主机名/建用户/写文件/装包/跑命令)。GCP部分镜像(如Container-Optimized OS、某些Ubuntu)支持用cloud-init配置;但GCE**原生机制是startup-script(通过guest agent执行)**,cloud-init是可选的另一套。两者都做"开机初始化",但startup-script是GCP原生、cloud-init是跨云标准。
+- **OS Login**:GCP管理SSH登录的机制——**用IAM角色+Google账号身份来授权SSH到VM**(而非手工管authorized_keys)。开启后SSH权限由IAM统一控制(如`roles/compute.osLogin`),便于集中管理/审计/撤销。与启动脚本无直接耦合,是登录鉴权层。
+
+**③ 概念**:startup/shutdown script=通过metadata下发、guest agent执行的"开机/关机自动化",实现无人值守配置;放metadata(GCP)而非user data(AWS)。cloud-init是可选的跨云init标准;OS Login是IAM驱动的SSH鉴权。理解:GCP用"元数据key下发脚本",AWS用"user data下发脚本",概念对应但名字不同。
+
+**④ AWS对照**:
+| GCP | AWS EC2 | 说明 |
+|-----|---------|------|
+| startup-script(metadata key) | **user data**(常配cloud-init) | 开机脚本;AWS user data默认只首次跑,GCP startup-script每次开机都跑(差异!) |
+| shutdown-script | 无原生等价(靠ASG lifecycle hook/spot中断处理/自建systemd) | AWS无直接"shutdown-script"元数据,常用其它机制 |
+| cloud-init | cloud-init(AWS广泛用) | 跨云通用,两家都支持 |
+| OS Login(IAM管SSH) | **EC2 Instance Connect / SSM Session Manager**(IAM管SSH) | 都用IAM鉴权SSH |
+👉 关键差异:①**GCP叫metadata不叫user data**;②**GCP startup-script每次boot都执行,AWS user data默认仅首次**(要每次跑需额外配);③GCP有原生shutdown-script,AWS无(靠lifecycle hook等);④OS Login↔Instance Connect/SSM。
+
+**⑤ 评分：5.5/10**。⚠️扣在"user data"(GCP叫metadata)+"cloud-init是driver加载"(错,是跨云init框架)。记忆点:**启动/关机脚本放实例metadata的key(startup-script/shutdown-script,或-url指GCS),不叫user data(那是AWS)**;startup-script每次开机都跑(AWS user data默认仅首次);shutdown-script尽力执行有超时;cloud-init=跨云VM初始化框架(非driver);OS Login=IAM管SSH登录。
+
+### Q10. 实例元数据 + metadata server 访问 + 常用项
+**伟伟答**：元数据包括机型、ip、硬盘,通过metadata server下载。
+
+**① 对照**：✅✅ 元数据含机型/IP/磁盘等实例信息✓、通过metadata server获取✓——核心对;🔶 漏了**访问必须带 `Metadata-Flavor: Google` 头**(关键,防SSRF);🔶 漏了最重要的用途之一:**取服务账号access token**(免密调GCP API);🔶 可补自定义元数据+域名/IP。
+
+**② 参考答案(GCP官方,已核实)**：
+- **实例元数据(instance metadata)**:每个VM可查询的键值信息,分两类:①**默认/项目/实例元数据**(Google提供的VM信息:机型、主机名、内外网IP、zone、project ID、磁盘、网络、维护事件等);②**自定义元数据**(你自己塞的key-value,含startup-script等)。
+- **metadata server 访问方式(关键,伟伟漏了头)**:VM内访问 **`http://metadata.google.internal/computeMetadata/v1/...`**(或IP **169.254.169.254**),**必须带请求头 `Metadata-Flavor: Google`**,否则拒绝。例:
+  ```
+  curl "http://metadata.google.internal/computeMetadata/v1/instance/machine-type" -H "Metadata-Flavor: Google"
+  ```
+  - ⚠️这个头是**强制的安全设计**:防止SSRF——外部诱导应用发的普通请求(无此头)拿不到元数据,只有明确带头的本地代码能取。
+  - 用 `?recursive=true` 可递归取整棵子树JSON。
+- **常用元数据项**:
+  - `instance/machine-type`、`instance/hostname`、`instance/zone`、`instance/network-interfaces/0/ip`(内网IP)、`.../access-configs/0/external-ip`(外网IP)、`instance/disks/`、`instance/attributes/`(自定义)。
+  - `project/project-id`、`project/numeric-project-id`。
+  - **🔑最重要:`instance/service-accounts/default/token`** —— 取当前VM绑定服务账号的**OAuth2 access token**,应用/SDK靠它**免密调用GCP API**(无需存密钥)。这是GCE安全模型的核心(不落地长期密钥)。
+  - `instance/maintenance-event`(监听主机维护事件,配合优雅迁移/处理)。
+  - `instance/preempted`(Spot VM是否被抢占)。
+
+**③ 概念**:metadata server = VM本地的"配置+身份信息端点"(169.254.169.254链路本地地址,无需鉴权授权但要Metadata-Flavor头)。核心价值:①启动脚本/应用无需外部授权就能拿自身信息;②**取SA token免密调API(workload identity的基础)**;③监听维护/抢占事件做优雅处理。带头要求=防SSRF安全闸。
+
+**④ AWS对照**:
+| | GCP | AWS EC2 |
+|--|--|--|
+| 元数据端点 | metadata.google.internal / 169.254.169.254 | **169.254.169.254(IMDS)** |
+| 防护头/机制 | 必须 **`Metadata-Flavor: Google`** 头 | **IMDSv2:先PUT取token再带`X-aws-ec2-metadata-token`**(防SSRF) |
+| 取身份凭证 | service-accounts/default/token(SA的OAuth token) | iam/security-credentials/(IAM role临时凭证) |
+👉 概念完全对应:都在169.254.169.254、都能取机型/IP/身份临时凭证、都为防SSRF加了防护(GCP靠固定头Metadata-Flavor,AWS靠IMDSv2的token握手)。SA token↔IAM role临时凭证(都实现"实例免密调API")。
+
+**⑤ 评分：7/10**。记忆点:**metadata server访问必须带 `Metadata-Flavor: Google` 头(防SSRF),端点metadata.google.internal或169.254.169.254**;含机型/IP/zone/磁盘/自定义;**最关键项=service-accounts/default/token(取SA的OAuth token免密调GCP API)**;还有maintenance-event/preempted;对标AWS IMDS(IMDSv2 token防护)+ IAM role临时凭证。
+
+---
+
+**批次 5 小结**：Q9=5.5、Q10=7,均分6.25。重点纠错→**①启动/关机脚本放"实例metadata的key(startup-script/shutdown-script)",GCP不叫user data(那是AWS);startup-script每次开机都跑(AWS user data默认仅首次) ②cloud-init是跨云VM初始化框架,不是"driver加载";OS Login=IAM管SSH ③metadata server访问必须带`Metadata-Flavor: Google`头(防SSRF),最关键项=SA token(免密调API);对标AWS IMDSv2+IAM role凭证**。
