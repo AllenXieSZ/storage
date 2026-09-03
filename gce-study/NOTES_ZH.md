@@ -616,3 +616,68 @@
 ---
 
 **批次 9 小结**：Q17=7、Q18=4,均分5.5。重点纠错→**①抢占:ACPI关机信号+metadata `instance/preempted`=TRUE,窗口30秒(可120秒),靠shutdown-script或metadata长轮询(无云端回调),checkpoint写PD/GCS;AWS Spot 2分钟+EventBridge真事件 ②⚠️SUD说反了:SUD=自动/零承诺/按月内时长自动打折(~20-30%,GCP独有,AWS无等价);CUD=承诺1年/3年换深折扣,resource-based(按容量≈RI)/spend-based Flexible(按$/hr≈Savings Plans)**。
+
+---
+
+## 批次 10：Q19–Q20（2026-09-03）
+
+### Q19. 预留(reservation) + 与CUD关系 + 保证容量 + 对照AWS
+**伟伟答**：on-demand按需启动资源;预留按一年保证容量;不知道对比。
+
+**① 对照**：✅ on-demand=按需启动✓;🔶 "预留按一年"不准——**预留(reservation)本身没有固定期限,不是"一年"**(那是CUD的承诺期);✅ **预留保证容量✓**(核心对);补齐预留vs CUD关系和AWS对照。
+
+**② 参考答案(GCP官方)**：
+- **预留(reservation)**:在**特定zone预先锁定一定数量/规格的实例容量**,确保你**要开机时一定有货**(防InsufficientCapacity)。预留一旦创建,**不管你用不用,那份容量都为你保留并计费**(按on-demand价)。**没有固定期限**——随时可建可删。
+  - 两类:**specific(特定)预留**(必须精确匹配机型才消费它) / **any-match**(任意匹配的实例都能用)。
+  - 作用:**只保证"容量可得"**,本身**不打折**(按需价)。
+- **on-demand reservation 和 CUD 的关系(重点)**:
+  - **预留 = 保容量(不打折);CUD = 打折(不保容量)**——两个正交的东西。
+  - **可叠加**:给一个预留**再买CUD**,则该预留容量既保证有货、又享受承诺折扣。**推荐:关键常驻负载 = 预留(保容量) + CUD(降价)组合**。
+  - CUD单独买(尤其spend-based/Flexible)**不保证具体容量**,只保证折扣;要容量保证必须配预留。
+- **预留能保证容量吗**:**能**(这是它的唯一目的)——在该zone为你占住硬件。伟伟对。
+- **AWS对照(伟伟"不知道对比",补上)**:
+  | GCP | AWS |
+  |-----|-----|
+  | reservation(保容量,按需价,无固定期) | **On-Demand Capacity Reservation (ODCR)**(保容量,按需价,无固定期) |
+  | reservation + CUD | ODCR + Savings Plans/RI(容量预留可与SP/RI折扣叠加) |
+  | CUD(纯折扣不保容量) | Savings Plans / RI(纯折扣;标准RI的zonal RI才附带容量保证) |
+  👉 **GCP reservation ↔ AWS On-Demand Capacity Reservation(ODCR)**:都"锁zone容量、按需价、无期限、可叠加折扣计划"。GCP把"保容量(reservation)"和"打折(CUD)"彻底解耦;AWS的zonal RI历史上把两者绑一起,现代做法也是ODCR(保容量)+SP(打折)分开,与GCP趋同。
+
+**③ 概念**:三层理解——**on-demand=随用随开(不保证有货);reservation=预占容量保证有货(按需价,不打折);CUD=承诺期换折扣(不保容量)**。要"既保证能开、又便宜"→reservation+CUD叠加。这是GCP容量+成本治理的标准组合。
+
+**④ AWS对照**:见②表。核心:reservation↔ODCR(保容量);CUD↔SP/RI(折扣);两家现代都推荐"容量预留+折扣计划"分开叠加。
+
+**⑤ 评分：6.5/10**。记忆点:**reservation=在zone预占容量、保证有货、按on-demand价计费、无固定期限、不打折;CUD=承诺1/3年换折扣但不保容量;二者正交可叠加(关键负载=预留保容量+CUD降价);对标AWS On-Demand Capacity Reservation(ODCR)+Savings Plans/RI**。
+
+### Q20. 主机维护事件 + live migration + 不能迁移的实例(GPU/Spot) + Local SSD能否迁移
+**伟伟答**：维护事件提前邮件/dashboard通知;live migration是故障或维护时把内存迁到其他物理机,配置/ID/磁盘映射保留;GPU不能live migration;AWS也有(user guide可能没描述,让查);live migration时Local SSD能一起迁移吗?
+
+**① 对照**：✅✅ 提前通知✓、维护/故障时迁到别的物理机✓、配置/ID/磁盘映射保留✓、GPU不能live migrate✓——核心全对且很准;🔥 两个好问题:AWS是否有live migration(见下,**答案:AWS没有GCP式透明live migration**)、Local SSD能否一起迁(**答案:能,见下**)。
+
+**② 参考答案(GCP官方,已核实)**：
+- **主机维护事件(host maintenance event)**:承载VM的物理宿主机需要维护(硬件/网络/电力/主机OS/BIOS/安全补丁)时发生的计划事件。GCE**提前通知**(metadata `instance/maintenance-event` + 可配通知,控制台/日志/可编程获取)。
+- **实时迁移(live migration)**:维护/预测到硬件故障时,GCE**把运行中的VM整体迁移到同zone的另一台宿主机**,**全程不重启、不中断、不改任何属性**。官方明确保留:**IP地址、元数据、块存储数据(block storage data)、应用状态(内存)、网络设置**——伟伟"配置/ID/磁盘映射保留"完全对。
+  - 触发场景:①基础设施维护;②安全更新/配置变更;③**硬件故障(预测到未彻底坏时做预防性迁移)**;彻底坏了才terminate+restart。
+- **哪些不能live migrate**:
+  - **GPU实例**:默认 **onHostMaintenance=TERMINATE**(不能live migrate),维护时停机(可配autorestart重启),伟伟对。
+  - **TPU、Bare metal(裸金属)、大部分Confidential VM**(仅N2D/C3D的AMD SEV支持)、**H4D带Local SSD**等也不支持。
+  - **Spot/Preemptible**:不适用live migration(它们本就是被抢占停掉,不迁移)。
+- **🔑 Local SSD 能否一起迁移(直接回答伟伟)**:**能!** 官方原文:"Compute Engine **can live migrate instances with Local SSD disks attached**...moves the compute instances **along with their Local SSD data** to a new host server in advance of planned maintenance"。→ **live migration会把Local SSD数据一起搬到新宿主机**(例外:Z3实例挂>18TiB Titanium SSD不支持)。所以**计划维护的live migration中,Local SSD数据保留不丢**(这也呼应批次3:Local SSD在live-migrate维护事件中数据保留)。
+- **🔑 AWS有没有live migration(直接回答伟伟)**:**AWS没有GCP这种"透明实时迁移"**。AWS对宿主机维护的做法是:**提前通知(scheduled event),到期stop/reboot/retire实例**——需要你(或ASG)应对,**实例会中断/重启**,不是无感迁移。AWS内部对部分场景也用过实时迁移技术,但**对用户不承诺、user guide不作为通用能力描述**;用户可感知的官方机制是"计划事件+重启/迁移到新硬件需你处理"。→ **这正是GCP相对AWS的一个标志性差异:GCP默认live migrate(无感),AWS默认给通知然后重启**。伟伟"AWS也有但user guide可能没描述"直觉对:AWS不把它当用户可依赖的通用特性写出来。
+
+**③ 概念**:live migration=GCP用"预拷贝内存+短暂blackout切换"把VM无感搬到新宿主机,维护/预测故障时保业务不断,连Local SSD数据都一起搬;GPU/TPU/裸金属/机密VM等因硬件绑定不能迁(改为TERMINATE)。与AWS的根本差异:GCP默认无感迁移,AWS默认通知+重启由你兜底。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 维护默认行为 | **live migration(无感,不重启)** | **计划事件通知→stop/reboot/retire(实例中断)** |
+| Local SSD维护时 | live migrate**一起搬,数据保留** | Instance Store维护/停机通常**数据丢**(需自行处理) |
+| GPU | 不能迁,TERMINATE | 同样通知后重启/迁到新硬件(Instance Store丢) |
+| 用户是否需应对 | 多数无感,GPU/例外需处理 | 需应对(重启窗口) |
+👉 **标志性差异:GCP默认live migrate(连Local SSD一起搬、无感);AWS默认给计划事件通知后重启/退役实例(需你兜底,本地盘可能丢)**。伟伟两个问题答案:Local SSD**能**一起迁;AWS**没有**GCP式透明live migration(不作为通用能力承诺)。
+
+**⑤ 评分：9/10**。记忆点:**live migration=维护/预测故障时把运行中VM无感迁到同zone另一宿主机,保留IP/ID/元数据/块存储/内存/网络,不重启;Local SSD数据一起迁(Z3>18TiB例外);GPU/TPU/裸金属/多数机密VM不能迁(TERMINATE);Spot不适用**。**AWS无GCP式透明live migration(默认计划事件+重启,本地盘可能丢)——这是两家标志性差异**。
+
+---
+
+**批次 10 小结**：Q19=6.5、Q20=9,均分7.75。重点→**①reservation=预占zone容量保证有货(按需价/无期限/不打折),CUD=承诺1/3年折扣(不保容量),二者正交可叠加(关键负载=预留+CUD),对标AWS ODCR+SP/RI ②live migration=无感迁VM到同zone新宿主机,保留IP/ID/元数据/块存储/内存;🔑Local SSD数据一起迁(Z3>18TiB例外);GPU/TPU/裸金属/多数机密VM不能迁(TERMINATE);🔑AWS无GCP式透明live migration(默认通知+重启,本地盘可能丢)=标志性差异**。
