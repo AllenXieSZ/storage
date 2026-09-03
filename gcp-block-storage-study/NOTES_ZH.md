@@ -489,3 +489,83 @@
 ---
 
 **批次 9 小结**：Q17=8、Q18=6.5,均分7.25。重点→**①PD性能=baseline+perGiB×容量(pd-balanced=3000+6/GiB),小盘先天慢;避坑加容量/换类型/上Hyperdisk解耦;对标gp2→gp3 ②Local SSD官方推荐RAID0(mdadm)提性能+容量,每块375GB;⚠️RAID1在Local SSD无意义(镜像同host,host挂全丢);RAID改变不了"绑宿主机+临时"的根本属性,持久数据必须用PD/Hyperdisk;对标AWS Instance Store**。
+
+---
+
+## 批次 10：Q19–Q20（2026-09-03）· 本套最后一批
+
+### Q19. PD/Hyperdisk/Local SSD 对应 AWS 什么
+**伟伟答**：PD对应上一代gp2/io1;Hyperdisk对应gp3/io2;Local SSD对应instance store。
+
+**① 对照**：✅✅✅ 三条对应全部正确!PD↔gp2/io1(上一代)✓、Hyperdisk↔gp3/io2(新一代)✓、Local SSD↔Instance Store✓——对照思路和代际划分都准。🔶 可补细化(哪个PD档对哪个EBS档、Hyperdisk各型对io2/gp3的细分)。
+
+**② 参考答案(逐一细化对照)**：
+| GCP | AWS | 说明 |
+|-----|-----|------|
+| pd-standard(HDD) | **st1 / sc1**(吞吐/冷HDD) | 低成本吞吐型 |
+| pd-balanced(SSD) | **gp2**(也可近似gp3基础档) | 通用均衡 |
+| pd-ssd(SSD) | **gp2/io1 之间** | 高性能通用 |
+| pd-extreme(可provision IOPS) | **io1 / io2** | 上一代高端预置IOPS |
+| **Hyperdisk Balanced** | **gp3**(容量/IOPS/吞吐解耦) | 新一代通用,伟伟对 |
+| **Hyperdisk Extreme** | **io2 / io2 Block Express** | 新一代超高IOPS(HANA/Oracle) |
+| Hyperdisk Throughput | **st1**(但SSD架构,可配吞吐) | 高吞吐成本优化 |
+| Hyperdisk ML | 无直接等价(近io2 multi-attach只读/或FSx共享) | AI只读多挂 |
+| **Local SSD** | **EC2 Instance Store(NVMe)** | 宿主机本地临时盘 |
+- 伟伟的"PD↔gp2/io1、Hyperdisk↔gp3/io2、Local SSD↔instance store"是**最核心正确的三组对应**,细化后如上。
+
+**③ 概念**:代际映射——**老一代"性能绑容量"**:PD(pd-*) ↔ EBS gp2/io1;**新一代"性能容量解耦"**:Hyperdisk ↔ gp3/io2;**宿主机本地临时**:Local SSD ↔ Instance Store。记住这三层就能快速在两家间换算。
+
+**④ AWS对照**:见②表。核心记忆:PD=老一代(gp2/io1)、Hyperdisk=新一代(gp3/io2)、Local SSD=Instance Store。
+
+**⑤ 评分：9/10**。记忆点:**PD↔gp2/io1(老一代绑容量)、Hyperdisk↔gp3/io2(新一代解耦)、Local SSD↔Instance Store(本地临时)**;细化:pd-standard↔st1/sc1、Hyperdisk Extreme↔io2 Block Express、Hyperdisk ML无直接对应。
+
+### Q20. Hyperdisk解耦 vs gp3 + 演进时间线(伟伟专门让查)
+**伟伟答**：对应gp3;Hyperdisk演进慢一点,让我查时间线。
+
+**① 对照**：✅✅ Hyperdisk解耦↔gp3✓、"Hyperdisk演进慢一点"✓——判断**完全正确**,直觉很准。下面用官方时间线坐实。
+
+**② 参考答案 + 时间线(已查官方核实)**：
+- **"性能与容量解耦"是同一思路**:两家都从"性能随容量线性(gp2/PD)"进化到"容量/IOPS/吞吐独立配置(gp3/Hyperdisk)",解决"为拿性能被迫买大容量"的浪费。演进方向一致。
+- **⏱ 时间线(伟伟"慢一点"成立)**:
+  - **AWS gp3:2020年12月**(re:Invent 2020)GA——首个"性能独立于容量"的通用SSD,官方原话"provision performance independent of storage capacity"。
+  - **AWS io2 Block Express:2020年12月预览,2021年7月GA**——超高端SAN(256K IOPS/4000MB/s/64TB)。
+  - **GCP Hyperdisk:2022年9月/10月**(Cloud Next '22)发布,GA约2023年铺开。
+  - → **AWS 比 GCP 早约 2 年**(gp3 2020-12 vs Hyperdisk 2022-09)。伟伟"Hyperdisk演进慢一点"**准确**。
+- **原因浅析**:AWS EBS起步早(2008)、gp2早就暴露"IOPS随容量"痛点,2020就推gp3解耦;GCP的PD长期也是容量绑性能,2022才用Hyperdisk跟进解耦。属于AWS在块存储解耦上先行、GCP后至但设计更细(Hyperdisk拆成Balanced/Extreme/Throughput/ML多型)。
+
+**③ 概念**:块存储"性能容量解耦"是行业共同演进方向(摆脱"买大盘换性能")。AWS gp3(2020)先行,GCP Hyperdisk(2022)跟进但分型更细。两家终点一致(三独立旋钮),路径都是从"绑容量的上一代(gp2/PD)"走来。
+
+**④ AWS对照**:
+| 维度 | AWS | GCP |
+|------|-----|-----|
+| 老一代(绑容量) | gp2(2014 GA) | pd-*(pd-balanced等) |
+| 新一代(解耦) | **gp3(2020-12)** | **Hyperdisk(2022-09)** |
+| 超高端 | io2 Block Express(2021-07 GA) | Hyperdisk Extreme |
+| 演进先后 | **先行~2年** | 后至,分型更细 |
+👉 思路一致(都解耦),**AWS早约2年**,GCP后发但把Hyperdisk拆成4型(Balanced/Extreme/Throughput/ML)覆盖更细分场景。
+
+**⑤ 评分：9/10**。记忆点:Hyperdisk解耦=对标gp3(思路一致,都从"绑容量"进化到"三独立旋钮");**时间线:AWS gp3 2020-12先行,GCP Hyperdisk 2022-09跟进,AWS早约2年**——伟伟"Hyperdisk慢一点"正确;GCP后发但分型更细(4种Hyperdisk)。
+
+---
+
+**批次 10 小结(收官)**：Q19=9、Q20=9,均分9(全套最高!)。核心→**①三组对应:PD↔gp2/io1(老一代)、Hyperdisk↔gp3/io2(新一代解耦)、Local SSD↔Instance Store ②解耦时间线:AWS gp3(2020-12)比GCP Hyperdisk(2022-09)早约2年,思路一致,GCP后发分型更细(Balanced/Extreme/Throughput/ML)**。
+
+---
+
+## 🏁 全套 20 题完成 · 总览
+
+| 批次 | 题号 | 主题 | 均分 |
+|------|------|------|------|
+| 1 | Q1-Q2 | PD类型 / 生命周期 | 6 |
+| 2 | Q3-Q4 | Hyperdisk / 性能容量解耦 | 6.75 |
+| 3 | Q5-Q6 | Local SSD | — |
+| 4 | Q7-Q8 | PD性能 / zonal-regional PD | 6.25 |
+| 5 | Q9-Q10 | 多挂载 / 在线扩容 | 8.25 |
+| 6 | Q11-Q12 | 快照增量 / global资源 | 7.25 |
+| 7 | Q13-Q14 | 快照计划 / 加密 | 7.25 |
+| 8 | Q15-Q16 | CSEK丢钥 / DB选型+latency | 7.5 |
+| 9 | Q17-Q18 | 小盘性能 / Local SSD RAID | 7.25 |
+| 10 | Q19-Q20 | AWS对照 / 解耦时间线 | 9 |
+
+**高频纠错点(复习重点)**:①regional PD=跨zone非跨region;②快照是global资源(非regional),AWS EBS快照是regional要copy;③CSEK已2026-07-20在CE弃用;④RAID1对Local SSD无意义;⑤PD性能=baseline+perGiB×容量;⑥GCP latency官方只给sub-millisecond定性;⑦解耦时间线AWS gp3(2020)早于Hyperdisk(2022)约2年。
+**趋势**:后半程明显进步(批次5起稳定7分+,收官9分);对照类(Q19-20)掌握最扎实。
