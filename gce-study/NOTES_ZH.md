@@ -472,7 +472,72 @@
 
 ---
 
-## 批次 8：Q15–Q16（2026-09-03）· 待批改
+## 批次 8：Q15–Q16（2026-09-03）
 
 ### Q15. MIG滚动更新/金丝雀 + maxSurge/maxUnavailable
-### Q16. Spot VM vs Preemptible VM + 回收条件/最长运行时间
+**伟伟答**：滚动更新跟kubernetes类似,升级一个下线一个;金丝雀是发布几个没问题再继续;maxSurge...
+
+**① 对照**：✅✅ 滚动更新类比K8s✓、金丝雀=先发少量验证再全量✓——理解准确;🔶 maxSurge/maxUnavailable只提了名字没展开,补全。
+
+**② 参考答案(GCP官方)**：
+- **滚动更新(rolling update)**:给MIG指定**新instance template**,MIG**逐步(分批)用新模板替换旧实例**,不停机平滑升级。你说"升级一个下线一个"对(具体节奏由下面两参数控制)。
+- **maxSurge(最大超出)**:更新期间**允许临时超出目标实例数的数量/百分比**——即可以**先多开几台新实例再删旧的**(容量不掉,先加后减)。例:目标10、maxSurge=3 → 最多同时存在13台。
+- **maxUnavailable(最大不可用)**:更新期间**允许同时不可用(被删/正在替换)的实例数/百分比**——控制"最多能少几台"。例:目标10、maxUnavailable=2 → 任意时刻至少8台在服务。
+- **两者配合控制升级节奏与容量**:
+  - `maxSurge>0, maxUnavailable=0` → **先加后删**(全程容量不低于目标,零容量损失,但要额外配额/成本);
+  - `maxSurge=0, maxUnavailable>0` → **先删后加**(不超配额,但升级时容量临时下降);
+  - 两者都>0 → 混合,更快。
+- **金丝雀(canary)**:滚动更新的一种模式——用**两个版本共存**,给新模板设一个**较小的目标数量(如`--canary-version ... template=NEW,target-size=2`)**,只让**一小部分实例跑新版**,观察无问题后再把**全部**滚到新版。伟伟"发布几个没问题再继续"完全对。
+- 更新可选**PROACTIVE(主动立即滚)**或**OPPORTUNISTIC(机会式,仅在扩容/重建时才用新模板,不主动替换)**。
+
+**③ 概念**:滚动更新=分批换模板不停机;maxSurge(先加)与maxUnavailable(允许少几台)是"容量 vs 配额/成本"的权衡旋钮;canary=先小流量验证再全量,降低发布风险。与K8s Deployment的rollingUpdate(maxSurge/maxUnavailable同名同义)几乎一模一样。
+
+**④ AWS对照**:
+| | GCP MIG | AWS |
+|--|--|--|
+| 滚动更新 | rolling update(换模板) | **ASG Instance Refresh**(换Launch Template) |
+| maxSurge/maxUnavailable | 同名参数 | Instance Refresh的**minHealthyPercentage**(类似maxUnavailable反向) / 或CodeDeploy | 
+| 金丝雀 | canary(双版本+小目标数) | CodeDeploy canary/linear、或ASG分批 |
+| 同源概念 | ≈K8s Deployment rollingUpdate | ≈K8s |
+👉 三家(K8s/GCP/AWS)滚动更新思路一致;**GCP的maxSurge/maxUnavailable和K8s Deployment完全同名同义**;AWS用Instance Refresh的minHealthyPercentage表达类似约束。
+
+**⑤ 评分：8/10**。记忆点:滚动更新=分批换模板不停机;**maxSurge=可临时多开几台(先加后减,保容量);maxUnavailable=允许同时少几台(先减后加,省配额)**;canary=新模板设小目标数先验证再全量;PROACTIVE vs OPPORTUNISTIC;与K8s Deployment同名同义,AWS对应Instance Refresh。
+
+### Q16. Spot VM vs Preemptible VM + 回收/最长运行时间(伟伟让查最新)
+**伟伟答**：spot便宜但会被回收,退出有grace time;preemptible不会回收自己终止;spot取消了最长时间限制(让查最新文档)。
+
+**① 对照**：✅ spot便宜、会被回收、退出有grace(preemption notice)✓;✅✅ **"spot没有最长时间限制"✓(查证成立)**;❌ **"preemptible不会回收、自己终止"说反了**——preemptible**既会被回收,又额外有24小时硬上限自动终止**(见下,重点纠正)。
+
+**② 参考答案(GCP官方,已查最新核实)**：
+- **两者共同点**:都是用**Google空闲容量**跑的**深度折扣(约60–91% off)**VM;**容量紧张时都会被抢占(preempted=停止/终止)**;抢占前都给**preemption notice(抢占通知)**+ ACPI关机信号,让你优雅处理(checkpoint、保存、摘流量)。
+- **Preemptible VM(旧,legacy)**:
+  - **有24小时硬性最长运行上限**:官方原话"preemptible VMs can only run for **up to 24 hours** at a time"——**即使没被容量抢占,满24小时也会被Compute Engine自动终止**。
+  - **会被回收**(容量需要时随时抢占)。→ 伟伟"不会回收、自己终止"**错**:它**又会被回收、又有24h自动终止**,两个都有。
+- **Spot VM(新,推荐)**:
+  - **没有最长运行时间限制**(官方原话"Spot VMs **don't have a maximum runtime** unless you limit the runtime")——可跑数天/数周,直到Google需要容量才抢占。**伟伟"取消了最长时间限制"方向对**(准确说:Spot本就没有24h上限,是比Preemptible更新的模型;Preemptible才有24h)。
+  - 同样会被抢占,同样有通知。**Google推荐新工作负载一律用Spot**(Preemptible仅为向后兼容保留)。
+- **抢占通知(grace/notice)时长**:默认 **30秒**;可设 **120秒(Preview)**——给需要更长时间收尾的工作负载。通知通过metadata(`instance/preempted`=TRUE)+系统关机信号下发,配合shutdown-script做优雅退出。
+- **核心区别小结**:
+  | | Preemptible(旧) | Spot(新,推荐) |
+  |--|--|--|
+  | 最长运行 | **24小时硬上限**(到点自动终止) | **无上限** |
+  | 被容量抢占 | 会 | 会 |
+  | 折扣 | ~60-91% | ~60-91% |
+  | 通知 | 30秒 | 30秒(可120秒Preview) |
+  | 定位 | legacy | 现役推荐 |
+
+**③ 概念**:Spot是Preemptible的升级替代——去掉了24h硬上限、机制更灵活,同样便宜同样可被抢占。都适合**容错/无状态/可checkpoint/可重试**的工作(批处理、渲染、CI、Spot GKE节点池)。设计要点:checkpoint+重试+跨zone分散+留少量on-demand baseline。伟伟"preemptible不会回收"是最大误区:它照样被回收,还多个24h自杀。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 折扣可抢占实例 | Spot VM / (旧)Preemptible | **EC2 Spot Instance** |
+| 最长运行 | Spot无上限;Preemptible 24h | EC2 Spot无固定上限(可设duration,早期有Spot Blocks已弃) |
+| 抢占通知 | 30秒(可120s Preview) | **EC2 Spot 2分钟中断通知(interruption notice)** |
+👉 GCP Spot ↔ AWS EC2 Spot(都空闲容量、深折扣、可被抢占、给通知)。差异:**通知时长GCP默认30秒(可120s),AWS是2分钟**;GCP有个旧的Preemptible(24h上限)已被Spot取代,AWS无"24h硬上限"这种旧型。
+
+**⑤ 评分：6/10**。⚠️主要扣在"preemptible不会回收、自己终止"(说反:它既会被回收、又有24h硬上限自动终止)。记忆点:**Spot(新,推荐)无最长运行限制;Preemptible(旧)有24小时硬上限到点自动终止;两者都会被容量抢占、都~60-91%折扣、都给抢占通知(默认30秒,可120秒Preview)**;对标AWS EC2 Spot(但AWS通知是2分钟,无24h旧型);设计=checkpoint+重试+跨zone。
+
+---
+
+**批次 8 小结**：Q15=8、Q16=6,均分7。重点纠错→**①滚动更新分批换模板不停机;maxSurge=可临时多开(先加后减保容量)/maxUnavailable=允许同时少几台(先减后加省配额);canary=新模板小目标数先验证;与K8s Deployment同名同义,AWS↔Instance Refresh ②⚠️Preemptible(旧)既会被抢占回收、又有24h硬上限自动终止(伟伟"不回收"说反了);Spot(新推荐)无最长运行限制;都~60-91%折扣+抢占通知(默认30秒/可120秒);对标AWS EC2 Spot(AWS通知2分钟)**。
