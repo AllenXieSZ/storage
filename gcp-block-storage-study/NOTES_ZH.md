@@ -109,3 +109,33 @@
 ---
 
 **批次 2 小结**：Q3=6.5、Q4=7,均分6.75。补强→①Hyperdisk四型(Balanced/Extreme/Throughput/ML),ML=只读多挂给AI集群②最新机型只支持Hyperdisk③性能容量解耦=三独立旋钮,对标gp3。
+
+---
+
+## 批次 3：Q5–Q6（Local SSD）已批改
+
+> 说明:本批(Q5-Q6)伟伟本人已作答且已在对话中批改完;当时批改正文未持久化到本文件,此处补记关键结论+伟伟提出的重要更正,供后续复习。以后每批批改后**立即写入本文件并推 GitHub**,避免再丢。
+
+### Q5. Local SSD vs PD(物理位置/持久性/性能)
+- **物理位置**:Local SSD=**物理挂在承载VM的宿主机上**(本地直连NVMe/SCSI),不走网络;PD=**网络附加**块存储(数据在Google分布式存储,走网络)。
+- **持久性**:Local SSD=**临时(ephemeral)**,生命周期绑定该VM实例;PD=**持久(durable)**,可独立于VM存活。
+- **性能**:Local SSD 因本地直连,**延迟极低、IOPS/吞吐极高**(远超PD);代价是不持久、不能独立、容量固定(按375GB分区块加,NVMe接口)。
+
+### Q6. Local SSD 何时丢数据 + 场景
+**⚠️ 伟伟的重要更正(已查GCP官方文档核实,成立)**:不是"任何停机都丢"——**数据是否保留分情况**:
+- **保留(数据在)**:guest OS 内部 reboot(重启操作系统);host maintenance 走 **live migrate**;部分较新机型(如带 Titanium/Local SSD 的第三代,维护策略 TERMINATE and RESTART)在维护事件的 terminate→restart 中 **Compute Engine 会保留 Local SSD 数据**;host error 若在 **Local SSD recovery timeout** 内恢复,数据保留。
+- **丢失(数据没)**:**stop / suspend / delete VM**;host error 超过 recovery timeout 未恢复;底层硬件故障;删除实例。
+- 所以"关机就一定丢"是错的——**取决于停机类型与机型/维护策略**;但**stop/suspend/delete 这类主动停机默认会丢**,不能当持久存储用。
+- **不适合存重要数据的原因**:无冗余/无跨宿主复制,绑定单台宿主机,stop/delete/硬件故障即失,无快照能力。
+- **典型场景**:临时高性能盘——缓存、临时文件、scratch space、数据库/大数据的临时溢写(temp/spill)、本地暂存后再落 PD/GCS、ML 训练的本地临时数据。生产要靠"shutdown 脚本或应用层把数据同步到 PD/GCS"来防丢。
+
+### ④ AWS 对照
+| | GCP Local SSD | AWS Instance Store(临时) |
+|--|--|--|
+| 物理位置 | 宿主机本地 | 宿主机本地 |
+| 持久性 | 临时,stop/delete丢 | 临时,stop/terminate丢 |
+| 数据保留 | reboot/部分维护事件保留 | reboot保留,stop/terminate丢 |
+| 对标 | Local SSD ≈ **EC2 Instance Store(NVMe SSD)** | |
+👉 都是"宿主机本地、极高性能、非持久、绑实例",行为几乎一致(reboot 保、stop/删 丢)。
+
+**批次 3 小结**：Local SSD=宿主机本地临时高性能盘,对标 EC2 Instance Store。关键更正:**不是所有停机都丢**——reboot/live migrate/部分维护事件(TERMINATE+RESTART)会保留;但 stop/suspend/delete 默认丢。场景=缓存/scratch/临时溢写,重要数据靠 shutdown 脚本同步到 PD/GCS。
