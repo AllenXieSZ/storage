@@ -139,3 +139,60 @@
 👉 都是"宿主机本地、极高性能、非持久、绑实例",行为几乎一致(reboot 保、stop/删 丢)。
 
 **批次 3 小结**：Local SSD=宿主机本地临时高性能盘,对标 EC2 Instance Store。关键更正:**不是所有停机都丢**——reboot/live migrate/部分维护事件(TERMINATE+RESTART)会保留;但 stop/suspend/delete 默认丢。场景=缓存/scratch/临时溢写,重要数据靠 shutdown 脚本同步到 PD/GCS。
+
+---
+
+## 批次 4：Q7–Q8（2026-09-03）
+
+### Q7. PD 性能由什么决定
+**伟伟答**：性能和容量成比例,最高性能不能超过VM支持的上限。
+
+**① 对照**：✅✅ 两大要点全中——性能随容量成比例增长 + 受VM(实例)上限封顶,核心机制抓准;🔶 没展开"第三个因素"(磁盘类型)也影响每GB性能系数;🔶 没说VM上限具体由什么决定(vCPU数)。
+
+**② 参考答案(GCP官方)**：PD 的 IOPS/吞吐由**三者共同决定**,取其中的**最小值(木桶效应)**:
+1. **磁盘类型**:不同类型每GB给的性能系数不同(pd-standard最低、balanced、ssd、extreme最高)。
+2. **磁盘容量(size)**:官方"performance scales with size"——**每GB一个baseline IOPS/吞吐,容量越大总性能越高**(线性),所以小盘性能差。
+3. **VM实例规格(尤其vCPU数)**:每个机型/vCPU数有 per-VM 的 IOPS/吞吐**上限(cap)**,盘再大也不能超过VM能吃下的上限。
+- **最终性能 = min(磁盘类型×容量给出的盘能力, VM实例上限)**。所以你说的"成比例"(容量)和"不超VM上限"(cap)正是这个 min 的两端;还差个"磁盘类型系数"。
+
+**③ 概念**:①per-GB baseline——如 pd-balanced 每GB约6 read IOPS,1000GB≈6000 IOPS(数字随类型/文档更新,以官方为准),要更高IOPS就加容量;②VM cap——大盘挂小VM,性能被VM的网络/存储带宽上限卡住(小VM给不了那么多IOPS);③要打满盘性能,得同时"容量够大 + VM规格够高 + 选对磁盘类型"。
+
+**④ AWS对照**:
+| | GCP PD | AWS EBS |
+|--|--|--|
+| 容量影响性能 | 是(per-GB baseline,随容量线性) | gp2是(3IOPS/GB);gp3/io2解耦(容量不再定IOPS) |
+| 实例上限 | VM per-instance cap(看vCPU) | EC2 **EBS-optimized 带宽/IOPS上限**(看实例规格) |
+👉 两家都有"实例侧上限"这层封顶(EBS叫EBS-optimized bandwidth,GCP叫per-VM limit);"容量定性能"GCP的PD类似AWS gp2,而Hyperdisk/gp3已解耦。
+
+**⑤ 评分：7.5/10**。记忆点:PD性能=**min(磁盘类型×容量, VM实例上限)**;容量线性(小盘慢)+VM封顶(小VM给不满大盘)+磁盘类型系数,三者取最小;对标EBS(容量like gp2、实例上限like EBS-optimized)。
+
+### Q8. zonal PD vs regional PD
+**伟伟答**：zonal指副本在同一个zonal;regional PD 跨Region Replication;有几种同步状态。
+
+**① 对照**：✅ zonal=单zone、regional有复制、"有几种同步状态"方向对;❌❌ **关键错误:regional PD 不是"跨Region"复制,而是跨"同一Region内的两个zone(跨AZ)"**;🔶 没说同步复制RPO=0;🔶 同步状态没具体说是哪几种。
+
+**② 参考答案(GCP官方,已核实)**：
+- **zonal PD**:数据只在**单个 zone**(可有多副本但都在同zone),该zone挂了盘不可用。
+- **regional PD**:**在同一个 region 内的两个 zone 之间同步复制(synchronous replication)**写入,**RPO=0**(写成功=两个zone都写入),可容忍**单个zone故障**仍可用。⚠️**是跨 zone(跨AZ),不是跨 region**——伟伟这里说反了。
+- **高可用机制**:一个zone挂 → 可把regional PD **force-attach / failover** 到另一个zone的VM,数据不丢(RPO=0)继续用。
+- **对性能影响**:因为**每次写都要同步到两个zone(等两边都确认)**,写延迟比zonal略高(多一跳跨zone网络往返);读通常从本地zone副本读不受影响。这是HA的代价——用一点写延迟换RPO=0的跨zone容灾。
+- **复制状态(replication states,官方3种)**:
+  1. **Fully replicated(完全复制)**:两zone副本都最新,健康态。
+  2. **Degraded(降级)**:只有一个副本在同步(另一zone副本掉了/未跟上),此时无HA保护。
+  3. **Catching up(追赶中)**:降级后正在自愈,副本重新同步,追平后回到 Fully replicated。
+  (另有 per-replica 的 Replica State 指标可单独监控每个副本。)
+
+**③ 概念**:同步复制=写必须两zone都落盘才返回成功(RPO=0,不丢数据),代价是写延迟↑;zonal只1个zone无跨zone保护;regional靠"两zone同步副本+failover"扛单zone故障,是MySQL/SQLServer等关键DB要HA时的主存储选择;复制状态用于HA合规监控(Fully→Degraded告警→Catching up自愈)。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 单zone盘 | zonal PD | EBS(单AZ) |
+| 跨zone同步HA盘 | **regional PD / Hyperdisk Balanced High Availability** | **io2 Block Express Multi-Attach 不等价**;更接近的是 **无原生等价**——EBS本身单AZ,AWS靠 **应用层复制(如RDS Multi-AZ)** 或 **io2 跨AZ无**;真正对标是 GCP regional PD 独有的"块层跨AZ同步" |
+👉 重点差异:**GCP regional PD 提供块存储层的跨AZ同步复制(RPO=0),AWS EBS 无同等的原生跨AZ块复制**(AWS通常在数据库/应用层做Multi-AZ,如RDS/Aurora),这是两家HA思路的一个明显区别。
+
+**⑤ 评分：5/10**。⚠️主要扣在把"跨zone"说成"跨Region"(方向性错误,HA范围理解偏了)。记忆点:**regional PD=同一region内跨两zone同步复制(RPO=0),容单zone故障**(不是跨region!);写要等两zone→写延迟略高;3种复制态=Fully replicated/Degraded/Catching up;AWS EBS无原生跨AZ块复制(靠RDS等应用层Multi-AZ)。
+
+---
+
+**批次 4 小结**：Q7=7.5、Q8=5,均分6.25。重点纠错→**①regional PD 是"同一Region内跨两个zone(跨AZ)"同步复制,不是跨Region!RPO=0容单zone故障**②PD性能=min(磁盘类型×容量,VM上限)三者取小③复制3态Fully/Degraded/Catching up④regional PD块层跨AZ同步是GCP特色,AWS EBS无原生等价(靠RDS Multi-AZ)。
