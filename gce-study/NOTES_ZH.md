@@ -541,3 +541,12 @@
 ---
 
 **批次 8 小结**：Q15=8、Q16=6,均分7。重点纠错→**①滚动更新分批换模板不停机;maxSurge=可临时多开(先加后减保容量)/maxUnavailable=允许同时少几台(先减后加省配额);canary=新模板小目标数先验证;与K8s Deployment同名同义,AWS↔Instance Refresh ②⚠️Preemptible(旧)既会被抢占回收、又有24h硬上限自动终止(伟伟"不回收"说反了);Spot(新推荐)无最长运行限制;都~60-91%折扣+抢占通知(默认30秒/可120秒);对标AWS EC2 Spot(AWS通知2分钟)**。
+
+> 💡伟伟追问:preemptible不是"独占"的意思吗? 答:**不是,正好相反**。preempt=抢占(主动夺),**-ible=可被…的**(被动),所以**preemptible="可被抢占的"→这台VM随时可能被Google抢走回收**,是最不独占的(用别人闲置容量)。"独占"是另一回事:独占物理机=**Sole-tenant node**(AWS Dedicated Host/Instance);独占容量=**Reservation**(AWS Capacity Reservation)。记忆:preemptible=可被抢占(便宜/被动/随时回收)≠独占;AWS对应EC2 Spot(同为"可被中断回收"非独占)。
+
+---
+
+## 批次 9：Q17–Q18（2026-09-03）· 待批改
+
+### Q17. 抢占通知(preemption notice) + 优雅关机 + 实例内监听checkpoint
+### Q18. SUD(持续使用折扣) vs CUD(承诺使用折扣) + 对照AWS SP/RI
