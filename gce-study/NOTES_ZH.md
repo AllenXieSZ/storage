@@ -546,7 +546,73 @@
 
 ---
 
-## 批次 9：Q17–Q18（2026-09-03）· 待批改
+## 批次 9：Q17–Q18（2026-09-03）
 
-### Q17. 抢占通知(preemption notice) + 优雅关机 + 实例内监听checkpoint
-### Q18. SUD(持续使用折扣) vs CUD(承诺使用折扣) + 对照AWS SP/RI
+### Q17. 抢占通知 + 优雅关机 + 实例内监听checkpoint
+**伟伟答**：preemption notice,30s;监听是不是有callback? checkpoint是不是写文件?
+
+**① 对照**：✅ preemption notice、30秒✓;🔶 "callback"——**没有推送式回调,是"关机信号+metadata标志"两种监听途径**(见下);✅✅ **checkpoint=写文件(存状态到盘/GCS)✓**。
+
+**② 参考答案(GCP官方)**：
+- **抢占通知机制**:Google要回收容量时,给Spot/Preemptible VM发**抢占通知**:
+  1. **发送 ACPI G2 soft-off(软关机)信号** → 触发操作系统关机流程;
+  2. **同时把 metadata `instance/preempted` 置为 `TRUE`**。
+  - 默认给 **30秒**(可设120秒Preview)窗口做收尾,超时强制停/终止。
+- **实例内如何"监听"(纠正callback)**:**不是云推给你一个HTTP回调**,而是两种本地途径:
+  1. **shutdown-script(最常用)**:抢占触发系统关机→**自动运行你配的shutdown-script**,在里面做收尾(checkpoint、上传、摘流量、通知)。这就是"事实上的抢占处理钩子"。
+  2. **轮询metadata**:在实例内**循环查 `http://metadata.google.internal/computeMetadata/v1/instance/preempted`(带Metadata-Flavor: Google头)**,值变`TRUE`就触发处理逻辑(可用`?wait_for_change=true`做长轮询,近似"事件通知"但仍是你主动hold住请求,不是云回调)。
+  - 所以"callback"更准确说是:**监听OS关机信号(跑shutdown-script)** 或 **长轮询metadata标志**,没有云端主动HTTP回调你的服务。
+- **checkpoint(你说的写文件,对)**:在这30秒里把**内存/进度状态写到持久位置**——写**持久盘(PD)** 或 **GCS**,下次新实例起来能从checkpoint续跑。批处理/训练/渲染常用:定期checkpoint + 抢占时最后再存一次 + 重试。
+
+**③ 概念**:抢占是"关机信号+metadata标志"双通道,处理靠shutdown-script(被动触发)或metadata长轮询(主动监听);没有云推回调。checkpoint=把易失状态落到PD/GCS,配合"任务可重试+跨zone分散"让Spot工作负载能容忍随时被抢。30秒(或120秒)是收尾预算,要写得快、幂等。
+
+**④ AWS对照**:
+| | GCP Spot | AWS EC2 Spot |
+|--|--|--|
+| 通知渠道 | ACPI关机信号 + metadata `instance/preempted`=TRUE | **IMDS的instance-action元数据**(轮询) + **EventBridge "Spot Interruption Warning"事件**(可推给Lambda/SNS,真·事件) |
+| 窗口 | 30秒(可120秒) | **2分钟** |
+| 处理 | shutdown-script / 轮询metadata | 轮询IMDS / EventBridge事件触发 |
+| checkpoint | 写PD/GCS | 写EBS/S3 |
+👉 都靠"元数据标志+收尾窗口",都用checkpoint到持久存储。**差异:AWS有EventBridge真事件推送(可触发Lambda),GCP主要靠shutdown-script+metadata轮询(无云端推送回调)**;AWS窗口2分钟 vs GCP 30秒(可120秒)。
+
+**⑤ 评分：7/10**。记忆点:抢占通知=**ACPI关机信号+metadata `instance/preempted`=TRUE**,窗口**30秒(可120秒)**;监听靠**shutdown-script(被动)或metadata长轮询(wait_for_change)**,**无云端HTTP回调**;checkpoint=写PD/GCS(你说的写文件对);对标AWS Spot(2分钟窗口,有EventBridge真事件推送)。
+
+### Q18. SUD vs CUD + 对照AWS SP/RI
+**伟伟答**：SUD按年购买;CUD按容量购买。
+
+**① 对照**：❌ **SUD不是"按年购买"——SUD是自动、无需购买、无承诺的月度折扣**(说反了,重点纠正);🔶 **CUD"按容量购买"只对了一半**(resource-based CUD是按容量,还有spend-based按花费),且漏了"1年/3年承诺"这个核心。
+
+**② 参考答案(GCP官方,已核实)**：
+- **SUD(持续使用折扣, Sustained Use Discount)**:
+  - **自动生效、无需购买、无任何承诺**。当**某类资源(GCE预定义/自定义机型、sole-tenant node)在一个计费月里运行时间占比越高,GCP自动给的折扣越高**,最高约 **20%~30%**(视资源类型)。
+  - 你啥都不用做——月底跑得久,GCP自动打折。**不是"按年购买"**(伟伟错在这)。
+  - ⚠️注意:E2、A2等部分系列**不享受SUD**(它们已经是低价/或走CUD);SUD主要针对N1等。
+- **CUD(承诺使用折扣, Committed Use Discount)**:
+  - **你承诺用满 1年 或 3年,换更低价**(承诺期内不管用不用都要付费)。折扣比SUD深(可到~57%甚至更高)。两种:
+    1. **resource-based CUD(基于资源)**:承诺**具体量的vCPU+内存(某region某机型系列)** → 伟伟"按容量购买"对应这个。
+    2. **spend-based / Compute Flexible CUD(基于花费)**:承诺**每小时最低消费额($/hr)**,更灵活(跨机型/region适用)。
+  - 适合**稳定长期负载**(基线常驻的生产)。
+- **区别总结**:
+  | | SUD | CUD |
+  |--|-----|-----|
+  | 是否购买/承诺 | **否(自动、零承诺)** | **是(承诺1年/3年)** |
+  | 折扣力度 | 较小(~20-30%) | 较大(~最高57%+) |
+  | 触发 | 月内运行时长自动累加 | 买了就享受 |
+  | 适合 | 中等常跑但不想锁定 | 稳定长期基线负载 |
+
+**③ 概念**:SUD=用得久自动省(无脑、无承诺、力度小);CUD=承诺锁定期换深折扣(要预测长期用量)。策略:**稳定基线用CUD锁深折扣,弹性/波动部分靠SUD自动省+Spot**,组合最优。CUD的spend-based版比resource-based更灵活(不锁死具体机型)。
+
+**④ AWS对照**:
+| GCP | AWS | 说明 |
+|-----|-----|------|
+| **SUD(自动持续折扣,无承诺)** | **无直接等价**(AWS无"用得久自动打折";早期RI/如今SP都需承诺) | GCP特色:零操作自动折扣 |
+| **resource-based CUD** | **Reserved Instances (RI)** | 承诺具体实例/规格 |
+| **spend-based/Flexible CUD** | **Savings Plans (SP)** | 承诺$/hr花费,跨机型灵活 |
+| 承诺期 | 1年/3年 | 1年/3年 |
+👉 **CUD↔RI/SP(都1年/3年承诺换折扣;resource-based≈RI,spend-based≈Savings Plans);但SUD是GCP独有——AWS没有"用满一定时长自动打折、零承诺"的东西**(这是GCP相对AWS的一个差异化卖点)。
+
+**⑤ 评分：4/10**。⚠️扣在SUD理解反(自动无承诺,不是按年购买)。记忆点:**SUD=自动、零承诺、按月内运行时长自动给折扣(~20-30%),GCP独有(AWS无等价);CUD=承诺1年/3年换深折扣(~57%+),resource-based(按vCPU+内存,≈AWS RI) / spend-based Flexible(按$/hr,≈AWS Savings Plans)**;策略:基线用CUD、弹性用SUD+Spot。
+
+---
+
+**批次 9 小结**：Q17=7、Q18=4,均分5.5。重点纠错→**①抢占:ACPI关机信号+metadata `instance/preempted`=TRUE,窗口30秒(可120秒),靠shutdown-script或metadata长轮询(无云端回调),checkpoint写PD/GCS;AWS Spot 2分钟+EventBridge真事件 ②⚠️SUD说反了:SUD=自动/零承诺/按月内时长自动打折(~20-30%,GCP独有,AWS无等价);CUD=承诺1年/3年换深折扣,resource-based(按容量≈RI)/spend-based Flexible(按$/hr≈Savings Plans)**。
