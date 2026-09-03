@@ -396,3 +396,69 @@
 ---
 
 **批次 6 小结**：Q11=7.5、Q12=7.5,均分7.5。重点→**①MIG=同模板相同VM+四大能力(自动伸缩/自动修复autohealing/滚动更新canary/regional跨zone);unmanaged IG=手工异构VM仅供LB后端(无自动化);MIG↔ASG ②MIG原生伸缩4类=CPU/LB serving capacity(请求)/Cloud Monitoring指标/schedule;⚠️内存非原生(须Ops Agent上报自定义指标),AWS同理(须CloudWatch agent)**。
+
+---
+
+## 批次 7：Q13–Q14（2026-09-03）
+
+### Q13. MIG autohealing 判断不健康的机制 + 与LB健康检查的区别
+**伟伟答**：怎么判断实例不健康,是不是通过ping、CPU负载?
+
+**① 对照**：❌ **不是ping/CPU负载!**(重点纠正)——autohealing用的是**应用级健康检查(application-based health check)**,探测你的应用本身(HTTP/HTTPS/TCP/SSL);ping通、CPU不高但应用挂了照样算不健康。下面给完整机制。
+
+**② 参考答案(GCP官方,已核实)**：
+- **autohealing判据 = 应用级 health check(不是ping/CPU)**:你配一个health check,定期向实例发探测:
+  - **HTTP/HTTPS**:请求某路径(如`/healthz`),要求返回**200**(可校验响应体);
+  - **TCP/SSL**:能否建连到某端口。
+  - 连续失败达阈值(unhealthy threshold)→判定不健康 → **MIG重建(recreate)该实例**(不是重启,是按模板重新造一台)。
+  - ⚠️**ping(ICMP)/CPU负载都不是判据**:ping只说明网络通、机器活着,证明不了"应用能正常服务";CPU高低更不代表健康(高CPU可能正忙、低CPU可能进程已死)。**autohealing要的是"应用层面能正确响应"**——所以用HTTP/TCP探测,不用ping/CPU。这是伟伟的主要误区。
+  - **initial delay(初始延迟)**:autohealing有启动宽限期,给应用足够时间boot起来再开始探测,避免刚启动就被误判重建。
+- **和负载均衡(LB)健康检查是不是同一个?——不是同一用途(重点)**:
+  | | autohealing health check | LB health check |
+  |--|--|--|
+  | 作用 | 不健康→**重建VM(recreate)** | 不健康→**停止转发流量到该VM**(不重建) |
+  | 后果严重性 | 高(直接干掉重造) | 低(只是不发流量,VM还在) |
+  | 官方建议 | **用单独、更保守(更宽松)的health check** | 可以更敏感 |
+  - **虽然都用"health check"这类资源,但强烈建议用两个不同的检查**:autohealing的检查要保守(阈值宽松、延迟足够),否则**瞬时抖动就大面积重建实例=雪崩**;LB检查可敏感些(快速摘流量)。
+  - 二者可独立存在:可只配LB health check不autoheal,也可只autoheal不接LB。
+
+**③ 概念**:autohealing=应用级探测失败就"重造实例"实现自愈,关键是探"应用真能服务"(HTTP 200/TCP连通),而非机器活着(ping)或忙不忙(CPU)。与LB健康检查分工:LB管"流量走不走",autoheal管"要不要换机器"。保守配autoheal检查是生产铁律,防误判雪崩。
+
+**④ AWS对照**:
+| | GCP MIG | AWS ASG |
+|--|--|--|
+| 自愈健康检查 | 应用级health check(HTTP/TCP)→重建 | **ASG health check**:EC2状态检查 或 **ELB health check(应用级)**→替换实例 |
+| 判据 | 非ping/CPU,是HTTP/TCP探测 | EC2 status check(底层)或ELB探测(应用级);同样非CPU |
+👉 概念一致:都靠"应用级探测(HTTP/TCP)"判定不健康并**替换/重建**实例,都不是靠ping或CPU。AWS ASG可选"EC2 status check"(底层健康)或"ELB health check"(应用健康),后者对应GCP的应用级检查。
+
+**⑤ 评分：4/10**。⚠️主要扣在"ping/CPU判断健康"这个误区(实际是应用级HTTP/TCP health check)。记忆点:**autohealing靠应用级health check(HTTP返200 / TCP连通),不是ping/CPU!失败→重建VM(recreate);有initial delay防误判**;**与LB health check不同用途(LB=摘流量不重建;autoheal=重建),建议autoheal用更保守的单独检查防雪崩**;对标AWS ASG(ELB health check应用级→替换实例)。
+
+### Q14. zonal MIG vs regional MIG + 默认分布 + AWS对照
+**伟伟答**：zonal实例在同一个az,regional跨az;AWS没有这么区分。
+
+**① 对照**：✅✅ zonal MIG单zone、regional MIG跨zone✓——核心对;🔶 没说regional默认"均匀跨zone分布(evenly)"和推荐用途;⚠️ **"AWS没有这么区分"不完全准**:AWS ASG默认就跨多AZ(相当于GCP的regional行为),只是命名上AWS不分"zonal/regional两种ASG",而是靠"给ASG配几个子网(AZ)"决定——见下纠正。
+
+**② 参考答案(GCP官方,已核实)**：
+- **zonal MIG**:所有实例在**单个zone**。该zone故障→整组不可用。适合:zone内批量、对HA要求不高、或需要实例都在同一zone(如配合zonal资源)。
+- **regional MIG**:实例**跨同一region内的多个zone(默认3个)分布**。单zone故障时其他zone的实例继续服务→**高可用**。**默认分布=均匀(EVEN,`target-distribution-shape=EVEN`)**,MIG尽量把实例平均分到各zone(如6实例/3zone≈每zone 2个);伸缩时也尽量维持均衡。**生产推荐用regional MIG**(GCP官方默认建议)。
+  - 其它分布形态:BALANCED(优先可用容量,允许不均)、ANY(最大化可获得性,不强求均匀)、EVEN(严格均匀)。
+- **AWS对照纠正**:**AWS ASG本身就设计为跨多AZ**——你在创建ASG时指定多个子网(每个子网属一个AZ),ASG默认**跨这些AZ均衡分布实例(AZ balancing)**,单AZ挂了在其他AZ补。所以:
+  - **AWS没有"zonal ASG / regional ASG"这种显式两分命名**,但**功能上ASG默认≈GCP regional MIG(跨AZ均衡HA)**;
+  - 想要"单zone"就给ASG只配一个AZ的子网(≈GCP zonal MIG)。
+  - 所以伟伟"AWS没有这么区分"**部分对**:AWS确实没有这个命名区分,但**能力上AWS ASG跨AZ均衡=GCP regional MIG的默认行为**,并非AWS缺这个能力。
+
+**③ 概念**:regional MIG跨zone分布是GCP做计算层HA的核心手段(单zone故障容忍),默认均匀分布(EVEN);zonal MIG局限单zone。GCP把这做成"两种MIG类型"显式选择;AWS则把它内建进ASG(配几个AZ子网就跨几个AZ),不单列类型。终点一样:跨AZ/zone分散实例扛单点故障。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 单zone组 | **zonal MIG** | ASG只配1个AZ子网 |
+| 跨zone组(HA) | **regional MIG**(默认EVEN跨zone) | **ASG配多AZ子网**(默认AZ均衡) |
+| 是否显式两分 | 是(zonal/regional两种) | 否(靠子网数决定,内建跨AZ) |
+👉 能力对等(都能跨AZ均衡做HA);差异仅命名/配置方式:**GCP显式分zonal/regional MIG,AWS靠ASG配几个AZ子网(默认跨AZ均衡)**。伟伟"AWS不这么区分"指命名对,但别理解成"AWS没有跨AZ HA能力"。
+
+**⑤ 评分：7/10**。记忆点:**zonal MIG=单zone;regional MIG=跨同region多zone(默认3个)均匀分布(EVEN),单zone故障仍可用,生产推荐**;分布形态EVEN/BALANCED/ANY;**AWS对照:无"zonal/regional"命名两分,但ASG默认跨多AZ均衡(配几个AZ子网决定)=功能等价GCP regional MIG**(伟伟"AWS不区分"仅指命名,非缺能力)。
+
+---
+
+**批次 7 小结**：Q13=4、Q14=7,均分5.5。重点纠错→**①⚠️autohealing靠应用级health check(HTTP返200/TCP连通)判不健康,不是ping/CPU!失败→重建VM;与LB health check不同(LB摘流量不重建),autoheal建议用更保守的单独检查防雪崩;对标AWS ASG ELB health check ②zonal MIG单zone/regional MIG跨zone(默认EVEN均匀,生产推荐);AWS无zonal/regional命名两分但ASG默认跨多AZ均衡=功能等价(伟伟"不区分"仅指命名)**。
