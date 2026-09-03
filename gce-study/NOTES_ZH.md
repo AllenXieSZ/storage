@@ -327,3 +327,16 @@
 ---
 
 **批次 5 小结**：Q9=5.5、Q10=7,均分6.25。重点纠错→**①启动/关机脚本放"实例metadata的key(startup-script/shutdown-script)",GCP不叫user data(那是AWS);startup-script每次开机都跑(AWS user data默认仅首次) ②cloud-init是跨云VM初始化框架,不是"driver加载";OS Login=IAM管SSH ③metadata server访问必须带`Metadata-Flavor: Google`头(防SSRF),最关键项=SA token(免密调API);对标AWS IMDSv2+IAM role凭证**。
+
+> 💡伟伟追问:cloud-init是不是脚本?哪个路径查?怎么保证只运行一次(标志位/标志文件)? 答(官方核实):
+> - **不是单脚本**,是Python写的初始化框架/守护(几个systemd服务分阶段拉起);你写的是**cloud-config(YAML)**,框架执行内置模块(建用户/写文件/装包/runcmd)。
+> - **路径 `/var/lib/cloud/`**:`instance/`(软链→当前实例)、`instances/<instance-id>/`、`instance/user-data.txt`(用户数据);日志`/var/log/cloud-init.log`+`cloud-init-output.log`;配置`/etc/cloud/cloud.cfg(.d)`。
+> - **只运行一次靠"semaphore信号量标志文件"(伟伟猜对了)**:每模块有frequency——**per-once**(永远一次,标志在`/var/lib/cloud/sem/`,不绑instance-id)/**per-instance**(每个instance-id一次,标志在`/var/lib/cloud/instances/<id>/sem/config_<模块>.<freq>`)/**per-always**(每次跑)。模块跑成功写semaphore文件标记;开机对比**instance-id**(记在`/var/lib/cloud/data/instance-id`):相同→per-instance跳过;不同(克隆出新VM)→重跑。`cloud-init clean`清标志强制重跑。
+> - 对比:**GCE startup-script每次boot都跑(无semaphore,幂等要自己保证);cloud-init靠semaphore+instance-id天然per-instance只跑一次**。AWS也用同一个cloud-init(机制完全一样),user data默认仅首次正是per-instance语义。
+
+---
+
+## 批次 6：Q11–Q12（2026-09-03）· 待批改
+
+### Q11. MIG vs 非托管IG + MIG能力(自动伸缩/修复/滚动更新/多区域)
+### Q12. MIG自动伸缩依据的指标 + 对照AWS ASG
