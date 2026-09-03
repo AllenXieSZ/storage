@@ -362,3 +362,68 @@
 ---
 
 **批次 7 小结**：Q13=8、Q14=6.5,均分7.25。重点补强→**①快照计划=附加到盘的策略,频率+max-retention-days自动删过期+删盘行为,对标AWS DLM/Backup ②加密三层GMEK(默认)/CMEK(Cloud KMS,合规首选)/CSEK ③🔥CSEK已于2026-07-20在Compute Engine弃用(2027移除)——现在PD只用GMEK/CMEK ④CSEK≠client-side加密;CMEK对标AWS KMS客户管理密钥;GCS加密同一套体系**。
+
+---
+
+## 批次 8：Q15–Q16（2026-09-03）
+
+### Q15. CSEK 密钥丢失 + 快照/扩容额外要求
+**伟伟答**：密钥丢了,数据无法解密;快照必须能够读密钥权限。
+
+**① 对照**：✅✅ 密钥丢=数据永久无法解密✓(核心对);✅ 快照/操作必须能拿到同一个CSEK密钥✓(方向对);🔶 措辞:CSEK是"每次操作都要**在API里重新提供原始密钥**",不是"读密钥权限"(那是CMEK/KMS的IAM权限概念);🔶 漏了"CSEK加密盘做的快照也是CSEK加密、后续从该快照建盘/扩容都要再传密钥"这个链式要求;🔥 应点出**CSEK已于2026-07-20在CE弃用**。
+
+**② 参考答案(GCP官方)**：
+- **密钥丢失后果**:CSEK的密钥**Google完全不保存**,只用它包裹(wrap)真正加密数据的密钥。**密钥一丢,Google无法帮你恢复,数据永久无法解密=等于数据永久丢失**。这是CSEK最大的运维风险(也是它被弃用的原因之一)。
+- **快照/扩容等操作的额外要求**:CSEK加密盘的**每一个后续操作都必须重新提供同一个原始密钥**:
+  - 创建快照 → 快照继承CSEK加密,建时要传密钥;
+  - 从CSEK快照恢复/建新盘 → 要传密钥;
+  - 扩容、创建镜像 → 都要传密钥;
+  - 挂载启动VM → 要传密钥(否则VM起不来)。
+  - 本质:因为Google不存密钥,**任何要解密盘内容的动作都得你临时把密钥送进去**。伟伟"必须能读密钥"意思对,但准确说是"**必须重新提供原始密钥**"。
+- 🔥**时效(必记)**:**CSEK 自 2026-07-20 起在 Compute Engine 弃用,不能再用于 PD/快照/镜像;2027-07-20 彻底移除**。现在要"自管密钥"应用 **CMEK(Cloud KMS)**——CMEK靠IAM授权访问密钥(禁用密钥=锁盘),不用每次传原始密钥,运维安全得多。伟伟"读密钥权限"这个说法其实更贴合CMEK。
+
+**③ 概念**:CSEK=你拿钥、Google不留→丢钥=数据死,且每次操作要重新递钥(极繁琐+高危);CMEK=钥放Cloud KMS你授权→靠IAM控制访问、可轮换/禁用/审计,禁用即锁盘但不丢(重新启用可恢复)。这就是CSEK被CMEK取代的根本原因:同样"客户掌控密钥",CMEK更安全易用。
+
+**④ AWS对照**:
+| | GCP CSEK(已弃用) | GCP CMEK | AWS EBS |
+|--|--|--|--|
+| 密钥保管 | 你自己(Google不存) | Cloud KMS | AWS KMS |
+| 丢钥后果 | 数据永久不可恢复 | 禁用可恢复(重新启用) | 同CMEK(KMS key删了才彻底丢) |
+| 每次操作递钥 | 要 | 不要(IAM授权) | 不要(IAM/KMS授权) |
+👉 AWS EBS **无CSEK等价**(从来只有KMS托管密钥);AWS对应的是CMEK↔KMS CMK:靠IAM+KMS策略授权,禁用/撤销key即锁数据,删key才永久丢。GCP弃用CSEK后,两家的"客户管钥"模型就趋于一致了(都走KMS)。
+
+**⑤ 评分：7/10**。记忆点:CSEK丢钥=数据永久死(Google不存钥);CSEK加密盘的**快照/扩容/建盘/启动每步都要重新提供原始密钥**;🔥CSEK已2026-07-20在CE弃用→改用CMEK(Cloud KMS,IAM授权、禁用锁盘可恢复,对标AWS KMS)。
+
+### Q16. 数据库块存储选型 + latency官方数值(伟伟专门问)
+**伟伟答**：选hyperextreme(如Oracle/HANA),普通选pd-ssd,看成本和机型VM;并问:GCP官方文档有没有注明latency具体多少ms?
+
+**① 对照**：✅✅ Hyperdisk Extreme给顶级DB(Oracle/SAP HANA)✓、普通pd-ssd✓、要看成本和VM机型✓——选型思路完全正确;🔶 可补"pd-extreme的定位"和"选型判据的量化门槛(IOPS/吞吐阈值)"。
+
+**② 参考答案(GCP官方选型)**：
+- **判据优先级**:①**延迟需求**→要SSD级(亚毫秒)选Hyperdisk Balanced/Extreme或pd-ssd;②**单卷IOPS/吞吐需求**→<160K IOPS且<2.4GiB/s,**Hyperdisk Balanced**够用且划算;要**>160K IOPS(超高)→Hyperdisk Extreme**;③**成本+机型支持**(关键:Hyperdisk只在特定第三代+机型支持,老机型只能pd-*)。
+- **具体选型**:
+  - **pd-ssd**:通用高性能DB,中等IOPS,老机型/不支持Hyperdisk时的选择。
+  - **pd-extreme**:PD里最高性能、可provision IOPS,高端DB(SAP HANA)——但属"上一代"高端。
+  - **Hyperdisk Extreme**:**新一代最高性能**,超高IOPS(单卷可到很高)、亚毫秒延迟,给Oracle/SAP HANA/大型高事务DB——伟伟选它给HANA/Oracle**完全正确**。
+  - 趋势:新机型只支持Hyperdisk,Google主推 Hyperdisk Balanced(通用DB)/Extreme(顶级DB)取代 pd-ssd/pd-extreme。
+
+**③ 关于latency官方数值(直接回答伟伟的问题)**：
+- **GCP官方文档对块存储latency只给"定性"描述,不给具体ms数字/SLA**。查到的官方原文(Hyperdisk overview):
+  - **"Hyperdisk Balanced and Hyperdisk Extreme offer sub-millisecond latency"**(亚毫秒,即 **<1ms**)。
+  - 官方还说:把 Hyperdisk Balanced/Balanced HA/Extreme/ML 的延迟**类比企业级SSD(enterprise SSD)**;把 Hyperdisk Throughput 类比**HDD**的延迟。
+  - 选型博客原文:"If your workload requires **SSD-like latency (i.e., sub-millisecond)**, it likely should be served by Hyperdisk Balanced or Hyperdisk Extreme."
+- **结论**:GCP**没有**在官方文档标注像"0.5ms/0.3ms"这样的精确数字或延迟SLA,只承诺**"sub-millisecond(亚毫秒,<1ms)"**这个定性级别(IOPS/吞吐才有精确数值和计费)。要精确延迟得自己在目标机型上实测(fio)。⚠️这条我查了官方文档核实:延迟无官方精确ms值,只有"sub-millisecond"表述——不是我记不清,是GCP确实不公布精确数。
+
+**④ AWS对照**:
+| | GCP | AWS EBS |
+|--|--|--|
+| 顶级DB(HANA/Oracle) | Hyperdisk Extreme / pd-extreme | **io2 Block Express**(亚毫秒,可到256K IOPS) |
+| 通用高性能DB | Hyperdisk Balanced / pd-ssd | gp3 / io1 |
+| 官方latency数值 | 只给"sub-millisecond"定性 | AWS **io2 Block Express官方称"sub-millisecond"**;也主要定性,精确值靠实测 |
+👉 两家都**只承诺"亚毫秒(sub-millisecond)"定性级别,不给精确ms SLA**。顶级DB:GCP Hyperdisk Extreme ↔ AWS io2 Block Express;通用:Hyperdisk Balanced ↔ gp3。选型逻辑一致(延迟/IOPS/吞吐/成本/机型支持)。
+
+**⑤ 评分：8/10**。记忆点:选型三判据=延迟(要亚毫秒选Hyperdisk Balanced/Extreme或pd-ssd)+单卷IOPS/吞吐(>160K选Extreme)+成本&机型支持;HANA/Oracle→Hyperdisk Extreme(对标AWS io2 Block Express);**GCP官方latency只给"sub-millisecond(<1ms)"定性,无精确ms数值/SLA,精确值靠fio实测**。
+
+---
+
+**批次 8 小结**：Q15=7、Q16=8,均分7.5。重点→**①CSEK丢钥=数据永久死+每步操作(快照/扩容/建盘/启动)要重传原始密钥;已2026-07-20在CE弃用→改CMEK(Cloud KMS,IAM授权)②DB选型:延迟(亚毫秒)+单卷IOPS(>160K选Extreme)+成本&机型;HANA/Oracle→Hyperdisk Extreme↔AWS io2 Block Express ③🔍伟伟问的latency:GCP官方只给"sub-millisecond(<1ms)"定性,不公布精确ms/SLA,类比企业SSD;精确值靠实测**。
