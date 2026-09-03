@@ -305,3 +305,13 @@
 ---
 
 **批次 6 小结**：Q11=8.5、Q12=6,均分7.25。重点纠错→**①快照默认是 global 资源(不是regional!)——"资源global(哪都能恢复)" vs "存储位置可选regional/multi-regional"是两回事**②增量:首次全量+后续变化块+链式reference,删中间快照块下放给后续③底层存Cloud Storage(AWS存S3)④GCP快照global跨region直接恢复,**AWS EBS快照regional跨region要先copy-snapshot**(伟伟把GCP错记成了AWS模型)。
+
+> 💡伟伟追问:快照global会不会违反数据隐私/主权(GDPR)? 答:**不会**。global 只是**控制面"全局可寻址/可引用"**,不是数据物理全球乱放。**数据落地位置由 `--storage-location` 控制,可锁 regional(如europe-west1,数据只在该region)或 multi-regional(如eu,限该大区内冗余)**。官方明确此功能就是"meet data residency/regulatory requirements(如病历/金融数据存特定位置)"。合规做法:建快照显式设 storage location 到合规region + 用 Org Policy `gcp.resourceLocations` 从组织层强制资源位置。合规责任在"你把快照restore到哪",不在"快照是不是global"。对比AWS EBS快照regional(默认锁死region,跨region要copy)——GCP更灵活但合规更依赖你正确设location。
+
+---
+
+## 批次 7：Q13–Q14（2026-09-03）待批改
+
+### Q13. Snapshot Schedule(快照计划)：自动定期备份+保留策略,对比手动快照的优势?
+
+### Q14. GCP块存储默认加密怎么做? CMEK 和 CSEK 在 PD 上分别是什么? 和对象存储(GCS)加密概念一致吗?
