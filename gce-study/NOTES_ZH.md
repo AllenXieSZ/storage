@@ -462,3 +462,17 @@
 ---
 
 **批次 7 小结**：Q13=4、Q14=7,均分5.5。重点纠错→**①⚠️autohealing靠应用级health check(HTTP返200/TCP连通)判不健康,不是ping/CPU!失败→重建VM;与LB health check不同(LB摘流量不重建),autoheal建议用更保守的单独检查防雪崩;对标AWS ASG ELB health check ②zonal MIG单zone/regional MIG跨zone(默认EVEN均匀,生产推荐);AWS无zonal/regional命名两分但ASG默认跨多AZ均衡=功能等价(伟伟"不区分"仅指命名)**。
+
+> 💡伟伟类比:GCE health check是不是像K8s的health check、探一个路径URL? 答:**完全正确,同一套设计**。
+> - 探测:GCE HTTP/TCP/SSL ↔ K8s httpGet/tcpSocket/exec/gRPC;都探路径URL,HTTP返2xx算活。
+> - 参数对应:check-interval↔periodSeconds、healthy/unhealthy-threshold↔success/failureThreshold、**initial delay↔initialDelaySeconds/startupProbe**。
+> - **两种检查的对应(重要)**:**autohealing HC ↔ liveness probe**(不活→重建VM / 重启容器);**LB HC ↔ readiness probe**(没就绪→只摘流量不重建)。上批"两个HC用途不同"就是K8s的liveness vs readiness。
+> - 差异:K8s探**容器**(失败重启Pod,秒级);GCE探**VM**(失败重建整机,分钟级,代价大)→GCE autoheal更要保守阈值+足够initial delay防雪崩。
+> - AWS同构:ALB/NLB Target Group HC↔readiness(摘流量);ASG用ELB HC↔liveness(替换实例)。三家在"探路径判健康"上完全一致。
+
+---
+
+## 批次 8：Q15–Q16（2026-09-03）· 待批改
+
+### Q15. MIG滚动更新/金丝雀 + maxSurge/maxUnavailable
+### Q16. Spot VM vs Preemptible VM + 回收条件/最长运行时间
