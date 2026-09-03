@@ -427,3 +427,65 @@
 ---
 
 **批次 8 小结**：Q15=7、Q16=8,均分7.5。重点→**①CSEK丢钥=数据永久死+每步操作(快照/扩容/建盘/启动)要重传原始密钥;已2026-07-20在CE弃用→改CMEK(Cloud KMS,IAM授权)②DB选型:延迟(亚毫秒)+单卷IOPS(>160K选Extreme)+成本&机型;HANA/Oracle→Hyperdisk Extreme↔AWS io2 Block Express ③🔍伟伟问的latency:GCP官方只给"sub-millisecond(<1ms)"定性,不公布精确ms/SLA,类比企业SSD;精确值靠实测**。
+
+---
+
+## 批次 9：Q17–Q18（2026-09-03）
+
+### Q17. 小盘性能差 + 性能随容量线性机制 + 怎么避免瓶颈
+**伟伟答**：小容量IOPS/吞吐都低,容易达到上限;每个GB提供多少iops;用hyperdisk可以自由配置。
+
+**① 对照**：✅✅ 小盘IOPS/吞吐低、易达上限✓、每GB给固定iops(per-GB rate)✓、Hyperdisk解耦自由配✓——机制和解法全中;🔶 没给具体per-GB数值(可量化更好);🔶 还可补"加大容量"和"换机型"两个PD内的避坑手段。
+
+**② 参考答案(GCP官方,含具体数值)**：
+- **机制:PD性能 = 基线(baseline) + 每GiB速率 × 容量**,即**性能随容量线性增长**。官方实例(pd-balanced):**baseline 3,000 IOPS + 6 IOPS/GiB**。
+  - 例:100GiB pd-balanced = 3000 + 6×100 = **3,600 IOPS**;2000GiB = 3000 + 6×2000 = **15,000 IOPS**。
+  - 所以**盘越小,能叠加的"6×容量"越少,总IOPS越低** → 小盘性能差的根因。
+- **为什么线性**:GCP把PD性能按容量配额发放(每GiB一份性能),官方原话"to improve a Persistent Disk volume's performance, you must **increase its size**"——想要更高性能,只能加容量(或换更高档类型)。
+- **怎么避免小盘瓶颈(三招)**:
+  1. **加大容量**(哪怕用不满空间,也为拿性能而买大盘——传统PD无奈之举)。
+  2. **换更高档磁盘类型**(pd-ssd每GiB IOPS更高;pd-extreme可自定义IOPS)。
+  3. **✅最优:用Hyperdisk**——性能与容量**解耦**,小容量也能单独 provision 高IOPS/吞吐,不用为性能被迫买大盘(伟伟答的方向)。
+- ⚠️还要注意**VM实例上限**:盘性能再高也不能超过VM(vCPU数)的per-instance cap,小VM给不满大盘。
+
+**③ 概念**:PD "线性" = baseline + perGiB×size,是"用容量买性能"的配额模型 → 小盘先天性能低;Hyperdisk打破这个绑定(三独立旋钮),是Google给"小容量高性能"场景的正解;pd-extreme是PD内的过渡(可provision IOPS但仍属老一代)。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 容量定性能(线性) | pd-standard/balanced/ssd(baseline+perGiB) | **gp2**(3 IOPS/GiB,同样小盘慢) |
+| 解耦(容量与性能独立) | Hyperdisk / pd-extreme | **gp3**(独立配IOPS/吞吐) / io1/io2 |
+👉 完全同构:GCP的pd-balanced小盘慢 = AWS gp2小盘慢(3IOPS/GB);解法都是换解耦型(GCP Hyperdisk / AWS gp3)。
+
+**⑤ 评分：8/10**。记忆点:PD性能=**baseline + perGiB×容量**(pd-balanced=3000+6/GiB),小盘先天IOPS低;避坑=加容量/换高档类型/**上Hyperdisk解耦**(小容量也能高IOPS);还受VM实例cap封顶;对标AWS gp2(线性)→gp3(解耦)。
+
+### Q18. Local SSD RAID + 为何仍不能替代PD
+**伟伟答**：RAID0提升容量,RAID1提升持久性;但机器VM坏了数据跟着坏,所以不能替代PD。
+
+**① 对照**：✅ RAID0提升容量(和性能)✓、VM坏数据跟着坏所以不能替代PD✓——核心结论对;⚠️ **"RAID1提升持久性"在Local SSD上基本无意义(要纠正)**:所有Local SSD都在同一台宿主机,RAID1两份镜像也在同一host,host/VM挂了两份一起没——**RAID1挡不住Local SSD最主要的失效场景**;🔶 RAID0除了容量,更主要是**提升IOPS/吞吐**(条带化);🔶 GCP官方对Local SSD**推荐RAID0**。
+
+**② 参考答案(GCP官方)**：
+- **RAID配置**:每块Local SSD=**375GB NVMe分区**。**GCP官方推荐用 `mdadm` 做 RAID 0(条带化 striping)把多块Local SSD拼起来**,**同时提升容量(累加)和IOPS/吞吐(并行条带)**。要跑满性能还要用GCP镜像自带的Local SSD优化脚本。
+- **RAID0**:条带化,N块盘容量和性能≈N倍,**但无冗余**(一块坏全丢)——不过Local SSD场景本来就不追求冗余(见下)。
+- **⚠️ RAID1(镜像)在Local SSD上意义不大(纠正伟伟)**:RAID1靠"两份镜像在不同盘"防单盘故障。但**GCP的Local SSD全部物理绑定在承载VM的同一宿主机**——host宕机/VM停止/删除/迁移时,**所有Local SSD(含RAID1的两份镜像)一起丢**。所以RAID1挡不住Local SSD的主要失效场景(host级),白白牺牲一半容量。**这正是"RAID也救不了"的原因**。
+- **为何RAID也不能替代PD存持久数据**:
+  1. Local SSD是**临时(ephemeral)**存储,绑定宿主机;**stop/suspend/delete VM、host故障**都会丢数据(RAID0/1都救不了host级丢失)。
+  2. **无跨宿主机冗余、无快照、不能独立于VM存活、不能重挂到别的VM**。
+  3. RAID只是在"同一台host的多块临时盘"之间做条带/镜像,**改变不了"数据绑死在这台host"这个根本属性**。
+  - 所以:要持久/可恢复/可迁移的数据,必须用**PD/Hyperdisk**(网络块存储,独立于VM,有快照,跨zone/region能恢复)。Local SSD(即使RAID)只配当**临时高性能盘**(缓存/scratch/临时溢写),重要数据要靠应用/脚本同步落到PD/GCS。
+
+**③ 概念**:RAID解决的是"同一host内多盘的容量/性能/单盘冗余",解决不了"整台host丢失";Local SSD的持久性缺陷是**架构级(绑宿主机+临时)**,不是"多几块盘做冗余"能补的。PD的持久性来自"网络分布式存储+独立生命周期",这是Local SSD RAID永远给不了的。
+
+**④ AWS对照**:
+| | GCP Local SSD | AWS Instance Store |
+|--|--|--|
+| RAID提升性能/容量 | RAID0(mdadm,官方推荐) | RAID0(同样做法) |
+| RAID能否给持久性 | 否(绑同一host,host挂全丢) | 否(同理,绑实例) |
+| 持久数据该用 | PD/Hyperdisk | EBS |
+👉 完全同构:两家的本地临时盘做RAID0都只提性能/容量、都给不了持久性;持久数据都必须用网络块存储(PD/Hyperdisk 或 EBS)。
+
+**⑤ 评分：6.5/10**。⚠️主要纠正"RAID1提升持久性"——**在Local SSD上无效(镜像也在同一host,host挂全丢)**。记忆点:每块Local SSD=375GB NVMe,**官方推荐RAID0(mdadm)提升容量+IOPS/吞吐**;RAID救不了持久性(数据绑死宿主机,host/stop/delete全丢);持久数据必须用PD/Hyperdisk(独立生命周期+快照+跨zone恢复);对标AWS Instance Store RAID0(同样只提性能不给持久)。
+
+---
+
+**批次 9 小结**：Q17=8、Q18=6.5,均分7.25。重点→**①PD性能=baseline+perGiB×容量(pd-balanced=3000+6/GiB),小盘先天慢;避坑加容量/换类型/上Hyperdisk解耦;对标gp2→gp3 ②Local SSD官方推荐RAID0(mdadm)提性能+容量,每块375GB;⚠️RAID1在Local SSD无意义(镜像同host,host挂全丢);RAID改变不了"绑宿主机+临时"的根本属性,持久数据必须用PD/Hyperdisk;对标AWS Instance Store**。
