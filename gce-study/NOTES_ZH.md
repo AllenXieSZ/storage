@@ -132,3 +132,73 @@
 ---
 
 **批次 2 小结**：Q3≈7、Q4以提问为主(参考答案已给)。重点→**①E2=成本优化(灵活调度+超卖换低价,不支持GPU/Local SSD);共享核心e2-micro/small/medium=分数vCPU突发(baseline+credit),确实超卖,低负载超省钱满载被限,对标AWS T系 ②vCPU=1硬件线程,默认2vCPU/物理核(SMT);关超线程→单线程/HPC/按核License受益、高并发吞吐降;AWS概念完全一致(threads-per-core)**。
+
+---
+
+## 批次 3：Q5–Q6（2026-09-03）
+
+### Q5. 生命周期状态 + stop/suspend/reset/delete
+**伟伟答**：provisioning、running、terminated;stop了硬盘/根系统/网络ip还要付费;suspend是保留内存状态可resume,stop内存清理了。
+
+**① 对照**：✅ provisioning/running/terminated 对(是核心几个);✅✅ stop后硬盘+静态IP仍付费✓、suspend保留内存可resume✓、stop清内存✓——关键计费/数据判断都对;🔶 状态列全一点更好(还有STAGING/STOPPING(PENDING_STOP)/SUSPENDING/REPAIRING);⚠️**一个易错点:GCP把"停止"后的状态叫 TERMINATED(不是"stopped"!),但TERMINATED≠删除**(见下,这是GCP独特命名坑);🔶 suspend的内存"保留在哪+要不要收费"没说(要收费)。
+
+**② 参考答案(GCP官方,已核实)**：
+- **完整生命周期状态**:`PROVISIONING`(分配资源)→`STAGING`(准备启动/引导)→`RUNNING`(运行)→ 停止路径`STOPPING`/`PENDING_STOP`→**`TERMINATED`**;挂起路径`SUSPENDING`→`SUSPENDED`;修复`REPAIRING`。
+  - ⚠️**GCP命名坑**:stop一个实例后状态显示 **`TERMINATED`**——但**这只是"已停止",实例定义还在、可再启动**,**不等于delete(删除)**!(AWS里terminated=删除,GCP里terminated=停止,极易混,面试常考)。
+- **四个操作**:
+  | 操作 | 做什么 | 状态 | vCPU/内存计费 | 数据/内存 |
+  |------|--------|------|------|------|
+  | **stop(停止)** | 关机 | TERMINATED | **不收**vCPU/内存 | 内存**清空**;PD保留;临时外部IP**释放**,静态IP保留 |
+  | **suspend(挂起)** | 保存内存到磁盘后暂停 | SUSPENDED | **不收vCPU**,但**收保存内存的存储费** | **内存状态保存(存到PD standard)**,resume恢复现场 |
+  | **reset(重置)** | 硬重启 | 保持RUNNING | 照常收 | 类似断电重启,**内存丢失**(非优雅);盘/IP不变 |
+  | **delete(删除)** | 删实例 | (消失) | 停收 | 实例没了;启动盘按auto-delete决定删/留 |
+- **计费通则(官方原话)**:**vCPU+内存**只在 RUNNING/PENDING_STOP/SUSPENDING/SUSPENDED 收(注意suspend期间内存仍算);**挂载的盘、外部IP等资源只要存在就一直收,与实例状态无关**。→ 所以stop了盘和静态IP照付(伟伟对)。
+
+**③ 概念**:stop=关机省vCPU/内存钱但盘/静态IP照付(适合"暂时不用但要留着");suspend=把内存快照存盘、快速resume恢复现场(适合"想快速恢复工作状态",代价是内存存储费);reset=硬重启(卡死时用);delete=彻底删。**TERMINATED在GCP=已停止非删除**,是最大命名坑。
+
+**④ AWS对照**:
+| GCP | AWS EC2 | ⚠️ |
+|-----|---------|----|
+| stop→**TERMINATED**(已停止) | stop→**stopped** | **命名反直觉!AWS的terminate=删除,GCP的TERMINATED=停止** |
+| suspend→SUSPENDED(存内存) | **hibernate(休眠)**(存内存到EBS) | 概念对应 |
+| reset | reboot | 硬/软重启 |
+| delete | **terminate** | GCP叫delete,AWS叫terminate |
+👉 **最大坑:GCP `TERMINATED`=停止(可重启),AWS `terminated`=删除(不可逆)**。suspend↔hibernate,delete↔terminate,stop↔stop。
+
+**⑤ 评分：7.5/10**。记忆点:状态PROVISIONING→STAGING→RUNNING→(STOPPING→**TERMINATED**)/(SUSPENDING→SUSPENDED);**⚠️GCP TERMINATED=已停止非删除(AWS terminated才是删除)**;stop不收vCPU/内存但盘+静态IP照付、内存清空、临时IP释放;suspend存内存到PD可resume但收内存存储费;reset硬重启;delete才是真删。
+
+### Q6. stop 计费明细 + suspend vs stop
+**伟伟答**：(见Q5)stop硬盘/根/网络IP付费;suspend保留内存可resume,stop清内存。
+
+**① 对照**：✅✅ 全对:stop后付盘+IP、不付算力;suspend留内存、stop清内存。🔶 补三点:①stop不付的是vCPU+内存;②静态IP"未挂在运行实例上"才单独收(闲置静态IP收费);③**suspend要额外付"内存保存到PD"的存储费**(伟伟没提这点)。
+
+**② 参考答案(GCP官方)**：
+- **stop(TERMINATED)后**:
+  - **不付**:vCPU、内存(实例算力费停收)。
+  - **仍付**:①**挂载的持久盘/PD**(启动盘+数据盘,只要没删就按GB收);②**保留的静态外部IP**(⚠️注意:静态IP挂在运行实例上免费,但**实例停止后该静态IP变"未使用",会按闲置静态IP收费**);③其他附加资源(如已预留的额外IP)。
+  - **临时(ephemeral)外部IP**:stop时**释放**,重启可能拿到新IP(所以要固定IP得用静态IP)。
+- **suspend vs stop 区别**:
+  | | stop | suspend |
+  |--|------|---------|
+  | 内存 | **清空丢弃** | **保存到 PD standard**(内存快照) |
+  | 恢复 | 重新启动(冷启动,进程从头来) | **resume 恢复到挂起前现场**(内存/进程在) |
+  | vCPU/内存费 | 都不收 | vCPU不收,**但收"保存内存"的PD存储费** |
+  | 盘/静态IP | 照付 | 照付 |
+  | 适用 | 暂时不用、省钱 | 想快速恢复运行状态(如保留会话/热缓存) |
+  - **本质**:suspend像笔记本"睡眠(内存存盘)",stop像"关机(内存丢)"。suspend恢复快但要为存内存付存储费;stop更省(不存内存)但恢复是冷启动。
+
+**③ 概念**:计费三分离——**算力(vCPU+内存):只RUNNING/suspend相关态收;盘/静态IP:存在即收(与开关机无关);内存快照:suspend独有的额外存储费**。想彻底不花钱=delete实例+删盘+释放静态IP。只stop仍会为盘和静态IP持续扣费(常见"停了机还扣钱"的困惑根源)。
+
+**④ AWS对照**:
+| | GCP | AWS EC2 |
+|--|--|--|
+| 停机不付算力、付盘 | stop(TERMINATED),付PD+静态IP | stop(stopped),付EBS+闲置EIP |
+| 存内存快速恢复 | suspend(收内存存盘费) | **hibernate**(内存写EBS,收该EBS存储费) |
+| 闲置公网IP收费 | 停止后静态IP闲置收费 | **Elastic IP 未关联运行实例时收费** |
+👉 几乎完全一致:停机都省算力、都继续付盘、闲置公网IP都收费;suspend↔hibernate(都把内存存到块存储、都为此付存储费)。
+
+**⑤ 评分：8/10**。记忆点:**stop不付vCPU/内存,但付PD盘+闲置静态IP,临时IP释放,内存清空;suspend保存内存到PD(可resume恢复现场)但要付内存存储费**;想零费用=delete+删盘+放静态IP;对标AWS stop(付EBS+闲置EIP)/hibernate(存内存)。
+
+---
+
+**批次 3 小结**：Q5=7.5、Q6=8,均分7.75。重点→**①⚠️GCP `TERMINATED`=已停止(可重启)≠删除(AWS terminated才是删除,delete↔terminate);状态链PROVISIONING→STAGING→RUNNING→TERMINATED/SUSPENDED ②stop不付vCPU/内存,付盘+闲置静态IP,临时IP释放,内存清空 ③suspend存内存到PD可resume但收内存存储费(≈AWS hibernate);想零费用=delete+删盘+放静态IP**。
