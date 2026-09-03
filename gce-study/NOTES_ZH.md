@@ -202,3 +202,63 @@
 ---
 
 **批次 3 小结**：Q5=7.5、Q6=8,均分7.75。重点→**①⚠️GCP `TERMINATED`=已停止(可重启)≠删除(AWS terminated才是删除,delete↔terminate);状态链PROVISIONING→STAGING→RUNNING→TERMINATED/SUSPENDED ②stop不付vCPU/内存,付盘+闲置静态IP,临时IP释放,内存清空 ③suspend存内存到PD可resume但收内存存储费(≈AWS hibernate);想零费用=delete+删盘+放静态IP**。
+
+---
+
+## 批次 4：Q7–Q8（2026-09-03）
+
+### Q7. public image / custom image / machine image 区别
+**伟伟答**：公共=大家都能用来启动;自定义=自己装了driver做了配置;machine image是跟机型有关,看这个镜像支持什么机型。
+
+**① 对照**：✅✅ 公共镜像=Google/社区维护的可直接启动OS镜像✓;✅✅ 自定义镜像=在启动盘上装了driver/做了配置后打包✓;❌ **machine image理解错了:它跟"机型/支持什么机型"无关**,而是"**整台VM的完整快照(含多块盘+配置+元数据+权限)**"(见下,重点纠正)。
+
+**② 参考答案(GCP官方,已核实)**：
+- **公共镜像(public image)**:Google、开源社区、第三方厂商提供并维护的**OS启动盘镜像**(如 Debian/Ubuntu/RHEL/Windows Server)。用来做启动盘、直接开VM。
+- **自定义镜像(custom image)**:你在一个VM的**启动盘(单块boot disk)**上装好软件/驱动/配置后,打包成的**启动盘镜像**。本质=**一块启动盘的模板**,用于批量开"预装好环境"的VM(golden image)。伟伟"装driver做配置"对。
+- **机器镜像(machine image)——纠正伟伟**:它**不是"跟机型/支持什么机型"**!官方定义:machine image = **存储一台VM实例的"全部配置 + 元数据 + 权限 + 多块磁盘(启动盘+所有数据盘)的数据"**,即**整台VM的完整快照**。
+  - 用途:**备份/克隆/迁移整台VM**(尤其多盘VM),或复制一个完整实例到别处。
+  - 和custom image关键区别:**custom image只存一块启动盘;machine image存整台VM(多盘+配置)**。
+  - ⚠️和机型的关系:machine image会**记录源VM当时的machine type作为配置的一部分**,但**它不"绑定/限制"机型**——从machine image创建新VM时**可以改机型/其他配置**。所以"看支持什么机型"是误解:它不挑机型,只是把源VM配置(含机型)一起存了,可覆盖。
+- 三者层级(存的范围):**snapshot(单盘数据)< custom image(单块启动盘,可做启动模板)< machine image(整台VM:多盘+配置+元数据+权限)**。
+
+**③ 概念**:public image=拿来即用的OS;custom image=你的"黄金启动盘模板"(标准化批量开机);machine image=整台VM打包(含数据盘和配置,备份/搬迁整机首选)。选择:只要OS环境模板→custom image;要整机(多盘+设置)搬家/备份→machine image;只备份一块盘数据→snapshot。
+
+**④ AWS对照**:
+| GCP | AWS | 说明 |
+|-----|-----|------|
+| public image | 公共 **AMI** | 官方/市场OS镜像 |
+| custom image(单启动盘) | **自定义 AMI**(可含多EBS映射) | 启动模板;AWS AMI本身可含多卷映射,语义略比GCP custom image宽 |
+| machine image(整VM多盘+配置) | 最接近 **AMI + 实例配置** 组合;或 **EC2 Image Builder / CreateImage(含所有卷)** | AWS无单一"machine image"名,AMI(多卷)+launch template近似 |
+| snapshot(单盘) | EBS snapshot | 单盘备份 |
+👉 GCP把"启动盘模板(custom image)"和"整机快照(machine image)"分成两个东西;AWS的AMI(可含多卷)大致覆盖两者,配合launch template表达实例配置。**machine image ≠ 机型相关**,是整机快照。
+
+**⑤ 评分：6/10**。⚠️扣在machine image理解错(以为跟机型相关)。记忆点:**public=Google/社区OS镜像;custom image=单块启动盘模板(装好环境批量开机);machine image=整台VM完整快照(多盘+配置+元数据+权限,备份/搬迁整机),与机型无关(可覆盖机型);范围:snapshot<custom image<machine image;对标AWS AMI**。
+
+### Q8. instance template + 与MIG关系 + 能否修改
+**伟伟答**：instance template=启动image和机型规格,用MIG自动扩展;(问)模板启动时候可以修改吗?
+
+**① 对照**：✅✅ 模板=保存启动镜像+机型规格(等配置)✓、给MIG自动扩展用✓——核心对;🔥 好问题"能否修改":**不能——instance template是不可变(immutable)的**(见下,面试常考点)。
+
+**② 参考答案(GCP官方,已核实)**：
+- **instance template(实例模板)**:保存一份VM配置的资源,包含 **机型(machine type)、启动盘镜像、磁盘、网络、标签labels、启动脚本、服务账号、元数据** 等——一次定义,反复用它开出**配置一致**的VM。
+- **和MIG的关系**:**MIG必须基于instance template创建**。MIG按模板批量开出相同实例,并做自动伸缩/自动修复/滚动更新。模板是MIG的"实例蓝图"。也可以直接用模板单独开单个VM。
+- **能否修改(正面回答伟伟)**:**❌ 不能修改!instance template创建后是不可变(immutable)的**。要改配置只能:**新建一个模板**(或基于旧模板复制后改),然后:
+  - 对MIG执行**滚动更新(rolling update)**,把MIG指向新模板 → MIG按新模板逐步替换实例。
+  - 这种不可变设计是故意的:保证"同一模板开出的实例完全一致、可预测、可回滚"。
+- 补充:有 **global(全局)** 和 **regional(区域)** 两种模板;deterministic template(确定性模板)会把"latest镜像"等解析成固定版本,保证长期可复现。
+
+**③ 概念**:模板=不可变蓝图,配合MIG实现"声明式、一致、可回滚"的批量部署。改配置=换模板+滚动更新(而非原地改),这与"不可变基础设施(immutable infrastructure)"理念一致——不改运行中的东西,只用新版本替换。
+
+**④ AWS对照**:
+| | GCP | AWS |
+|--|--|--|
+| 实例蓝图 | **instance template**(不可变) | **Launch Template**(可出**多个版本version**) / 旧的Launch Configuration(不可变) |
+| 给谁用 | MIG | **Auto Scaling Group(ASG)** |
+| 改配置 | 新建模板+滚动更新 | Launch Template**加新版本**+ASG刷新;LaunchConfiguration则须新建 |
+👉 都用"模板+伸缩组"。差异:**GCP instance template不可变(改=新建)**,更像AWS老的Launch Configuration;**AWS Launch Template支持多版本(可加版本、指定用哪个版本)**,比GCP模板灵活一点。MIG↔ASG。
+
+**⑤ 评分：8/10**。记忆点:instance template=不可变的VM配置蓝图(机型+镜像+盘+网络+脚本+SA);**MIG必须基于模板创建**;**模板不能改(immutable),改配置=新建模板+对MIG滚动更新**(不可变基础设施);有global/regional两种;对标AWS Launch Template(但AWS支持多版本,GCP不可变更像Launch Configuration),MIG↔ASG。
+
+---
+
+**批次 4 小结**：Q7=6、Q8=8,均分7。重点纠错→**①machine image=整台VM完整快照(多盘+配置+元数据+权限),与"机型/支持什么机型"无关(可覆盖机型);范围snapshot<custom image(单启动盘模板)<machine image;对标AWS AMI ②instance template不可变(immutable),改配置=新建模板+MIG滚动更新;MIG必须基于模板;对标AWS Launch Template(AWS支持多版本更灵活)/MIG↔ASG**。
