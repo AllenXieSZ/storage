@@ -336,7 +336,63 @@
 
 ---
 
-## 批次 6：Q11–Q12（2026-09-03）· 待批改
+## 批次 6：Q11–Q12（2026-09-03）
 
-### Q11. MIG vs 非托管IG + MIG能力(自动伸缩/修复/滚动更新/多区域)
-### Q12. MIG自动伸缩依据的指标 + 对照AWS ASG
+### Q11. MIG vs 非托管IG + MIG能力
+**伟伟答**：MIG是同样模版、不同az,可以按压力资源扩展/收缩,能滚动升级。
+
+**① 对照**：✅✅ 同一模板✓、跨az✓(regional MIG)、按压力伸缩✓、滚动升级✓——核心能力抓准;🔶 漏了**自动修复(autohealing)**;🔶 没正面答"vs非托管IG"的区别。补全:
+
+**② 参考答案(GCP官方,已核实)**：
+- **MIG(托管实例组)**:一组**基于同一instance template创建的相同(identical)VM**,作为单一实体管理。四大能力:
+  1. **自动伸缩(autoscaling)**:按负载增/减实例(min/max)。
+  2. **自动修复(autohealing)**:靠health check探测,不健康实例**自动重建**(伟伟漏了)。
+  3. **滚动更新/金丝雀(rolling update/canary)**:换模板逐步替换实例。
+  4. **高可用分布**:regional MIG把实例**跨同region多个zone**分布,单zone故障仍存活。
+  5. (有状态可选)stateful MIG保留每实例的盘/IP/元数据。
+- **非托管实例组(unmanaged IG)**:**一堆任意的、可以不同配置(异构)的现有VM**手动加进一个组,仅用于**给负载均衡当后端分组**。**无自动伸缩/无自动修复/无模板/无滚动更新**——纯手动管理。
+- **核心区别**:MIG=模板化相同VM+全套自动化(伸缩/修复/更新/跨zone);unmanaged IG=手工凑的异构VM集合,只做LB后端,没有任何自动化。
+
+**③ 概念**:MIG是GCP实现"弹性+自愈+滚动发布"的核心单位,声明式(定模板+min/max+策略),平台自动维持期望状态;unmanaged IG只是"把几台已有VM打个组"给LB用,适合异构/特殊场景。生产弹性一律用MIG。
+
+**④ AWS对照**:
+| GCP | AWS |
+|-----|-----|
+| **MIG** | **Auto Scaling Group (ASG)** |
+| regional MIG跨zone | ASG跨多个AZ(subnet) |
+| autohealing(health check重建) | ASG health check替换不健康实例 |
+| unmanaged IG(异构VM给LB) | **直接把EC2注册到Target Group**(无ASG那套自动化) |
+👉 MIG↔ASG(都模板化+伸缩+自愈+跨AZ);unmanaged IG≈手动把实例挂到LB Target Group。
+
+**⑤ 评分：7.5/10**。记忆点:MIG=同模板相同VM+四大能力(**自动伸缩/自动修复autohealing/滚动更新canary/regional跨zone**);unmanaged IG=手工异构VM集合仅供LB后端(无自动化);MIG↔AWS ASG,unmanaged IG≈直接挂Target Group。
+
+### Q12. MIG自动伸缩指标 + 对照ASG
+**伟伟答**：可以按CPU、schedule、请求数、内存,和ASG类似。
+
+**① 对照**：✅ CPU✓、schedule✓、请求数(=负载均衡serving capacity)✓、和ASG类似✓;⚠️ **"内存"——GCP autoscaler不原生支持内存指标!**(要靠自定义指标间接实现,见下,重点纠正)。
+
+**② 参考答案(GCP官方,已核实)**：MIG autoscaler**原生支持4类伸缩信号**:
+1. **CPU利用率(CPU utilization)**:最常用,设目标平均CPU%。
+2. **负载均衡服务容量(load balancing serving capacity)**:按LB后端的利用率/每实例RPS(请求数)伸缩——伟伟"请求数"对应这个。
+3. **Cloud Monitoring 指标(含自定义custom metric)**:按任意Monitoring指标伸缩(队列长度、Pub/Sub积压等)。
+4. **计划(schedules)**:按时间表预置容量(如工作日9点预扩)。
+- **⚠️内存不是原生指标(纠正伟伟)**:GCP autoscaler**没有"内存利用率"这个内置伸缩信号**。要按内存伸缩,得先用**Ops Agent把内存用量作为Cloud Monitoring自定义指标上报**,再用"Cloud Monitoring指标"方式对该自定义指标伸缩(第3类)。所以内存是"间接支持",不是原生开关。
+- 可组合多信号(取最激进的扩容需求);有scale-in控制(冷却/稳定窗口防抖)。
+
+**③ 概念**:GCP原生伸缩信号=CPU/LB容量/Monitoring指标/schedule四类;内存/业务指标走"自定义指标"路子。这与AWS一样:CPU是内置最常用,内存也不是CloudWatch的EC2默认指标(要装CloudWatch agent才有MemoryUtilization)——**两家都"CPU原生、内存需agent上报"**,这是常考对照点。
+
+**④ AWS对照**:
+| 伸缩依据 | GCP MIG autoscaler | AWS ASG |
+|------|------|------|
+| CPU | ✅原生(CPU utilization) | ✅目标追踪 ASGAverageCPUUtilization |
+| 请求数/LB容量 | ✅LB serving capacity | ✅ ALBRequestCountPerTarget |
+| 自定义/其它指标 | ✅Cloud Monitoring指标 | ✅CloudWatch自定义指标(目标追踪/步进) |
+| 定时 | ✅schedule | ✅scheduled action |
+| **内存** | ❌非原生,需Ops Agent上报自定义指标 | ❌非原生,需CloudWatch agent上报MemoryUtilization |
+👉 高度一致(CPU/请求/自定义/定时都有);**关键共同点:内存两家都不是原生伸缩指标,必须靠agent上报自定义指标**。GCP用Cloud Monitoring指标,AWS用CloudWatch指标。
+
+**⑤ 评分：7.5/10**。⚠️扣在"内存"当原生指标(实际需自定义指标)。记忆点:MIG原生4类伸缩信号=**CPU利用率 / 负载均衡serving capacity(请求数) / Cloud Monitoring指标(自定义) / schedule**;**内存非原生,须Ops Agent上报自定义指标后按Monitoring指标伸缩(AWS同理,须CloudWatch agent)**;MIG autoscaler↔ASG目标追踪/步进/定时策略。
+
+---
+
+**批次 6 小结**：Q11=7.5、Q12=7.5,均分7.5。重点→**①MIG=同模板相同VM+四大能力(自动伸缩/自动修复autohealing/滚动更新canary/regional跨zone);unmanaged IG=手工异构VM仅供LB后端(无自动化);MIG↔ASG ②MIG原生伸缩4类=CPU/LB serving capacity(请求)/Cloud Monitoring指标/schedule;⚠️内存非原生(须Ops Agent上报自定义指标),AWS同理(须CloudWatch agent)**。
