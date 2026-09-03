@@ -310,8 +310,55 @@
 
 ---
 
-## 批次 7：Q13–Q14（2026-09-03）待批改
+## 批次 7：Q13–Q14（2026-09-03）
 
-### Q13. Snapshot Schedule(快照计划)：自动定期备份+保留策略,对比手动快照的优势?
+### Q13. Snapshot Schedule(快照计划)
+**伟伟答**：定时快照,保存多久,保存多少副本,自动不忘记,自动清理过期。
 
-### Q14. GCP块存储默认加密怎么做? CMEK 和 CSEK 在 PD 上分别是什么? 和对象存储(GCS)加密概念一致吗?
+**① 对照**：✅✅ 定时自动拍✓、保留时长(保存多久)✓、自动不忘✓、自动清理过期✓——核心全中;🔶 "保存多少副本"表述略偏:保留策略主要按**保留天数(max retention days)**,不是"固定副本数"(到期自动删,间接决定保有数量);🔶 漏了"计划附加到盘、可设频率(每小时/天/周)、可跨region存、删盘时快照保留策略"等细节。
+
+**② 参考答案(GCP官方)**：
+- **Snapshot Schedule = 资源策略(resource policy),附加到磁盘上,让Compute Engine按计划自动增量快照**。
+- **配置项**:①**频率(schedule)**:hourly/daily/weekly + 具体时刻;②**保留策略(retention)**:`max-retention-days` 到期**自动删除旧快照**;③**删盘行为**:`on-source-disk-delete`(删源盘时快照是保留keep还是一起删apply-retention);④存储位置(regional/multi-regional)、标签等。
+- **对比手动快照的优势**:①**自动化不遗漏**(人不会忘,合规必备);②**自动清理过期**(手动要自己记着删,不然快照堆积涨钱);③**一致的保留策略**(RPO可控);④一个策略可**附加到多块盘**统一管理;⑤审计/合规友好。
+- **实践**:一块盘可附加**最多10个**schedule(官方限制,以最新文档为准);策略改了对已存在快照的保留也生效。
+
+**③ 概念**:Snapshot Schedule本质是"自动增量快照+生命周期管理(到期自动删)"。手动快照=一次性动作,靠人;计划快照=策略驱动的持续备份,把"拍+留多久+到期删"自动化,是生产环境备份/DR的标准做法。保留策略决定RPO(多久一个恢复点)和成本(留越久越贵)。
+
+**④ AWS对照**:
+| | GCP Snapshot Schedule | AWS |
+|--|--|--|
+| 自动定期快照+保留 | Snapshot Schedule(resource policy) | **Data Lifecycle Manager (DLM)** 或 **AWS Backup** |
+| 机制 | 附加到盘,频率+max-retention-days | DLM按tag批量,policy定频率+保留数/天数 |
+👉 GCP Snapshot Schedule ≈ AWS **DLM**(轻量、EBS快照生命周期)或 **AWS Backup**(统一备份服务)。都做"自动拍+自动过期删",都是为了不靠人手、合规、控成本。
+
+**⑤ 评分：8/10**。记忆点:Snapshot Schedule=附加到盘的策略,自动按频率(时/天/周)增量快照+按max-retention-days自动删过期+可控删盘行为;优势=不遗漏/自动清理/统一保留策略/合规;对标AWS DLM或AWS Backup。
+
+### Q14. 默认加密 / CMEK / CSEK / 与GCS对照
+**伟伟答**：加密使用CMEK key,和GCS类似,读时自动解密,没有client side加密,不从on-premise上传。
+
+**① 对照**：✅ 用CMEK✓、和GCS类似✓、读时自动解密✓——对;🔶 漏了**默认加密(GMEK,Google托管)**这个最基础层(不配任何东西也默认加密);🔶 CMEK和CSEK没分清各是什么;⚠️ "没有client side加密"——**CSEK不等于客户端加密**,这里概念要厘清;🔥 **重大时效更新:CSEK在Compute Engine已于2026-07-20停用(deprecated)**,伟伟"没有客户提供密钥"这个直觉现在反而"歪打正着"(见下)。
+
+**② 参考答案(GCP官方,含2026最新变更)**：GCP块存储加密**永远默认开启(at-rest),数据落盘前自动加密、读时自动解密**,分三种密钥管理方式:
+1. **GMEK(Google-managed,默认)**:啥都不配,Google全自动管密钥。免费、透明、读写自动加解密。
+2. **CMEK(Customer-Managed,用Cloud KMS)**:你在**Cloud KMS**里建/管密钥,PD用它加密。你能控制密钥轮换/禁用/审计(密钥禁用=盘打不开)。这是企业合规最常用的"自己管钥但不离开云"的方案。
+3. **CSEK(Customer-Supplied,你自带原始密钥)**:你在API调用里**直接传入原始密钥**,Google用它保护数据但**不存你的密钥**(密钥丢=数据永久打不开)。
+   - 🔥**重大更新(必须知道)**:**CSEK 在 Compute Engine 已弃用——自 2026-07-20 起不能再用 CSEK 加密 PD/镜像/机器镜像/快照;2027-07-20 从Compute Engine彻底移除**。所以**现在(2026-09)PD 实际只推 GMEK 默认 或 CMEK**,CSEK 已是历史。→ 伟伟说"没有客户提供密钥"当下已基本成立(在CE场景)。
+- **读时自动解密**:对(GMEK/CMEK都是服务端透明加解密,应用无感)。
+- **⚠️厘清"client-side加密"**:CSEK ≠ 客户端加密。CSEK是**你提供密钥但加密仍在Google服务端做**;真正的**client-side encryption(CSE)是你在上传前自己在本地加密好**(GCS有CSE概念,PD块存储没有CSE概念)。伟伟"没有client side加密+不从on-premise上传"——**PD确实没有"本地先加密再上传"这种模式**(PD是VM挂载的块设备,不是你从本地传文件),这点直觉对,但用词该是"PD无CSE",别和CSEK混。
+
+**③ 概念**:三层控制权递增——GMEK(Google管)<CMEK(你用KMS管钥,数据和钥都在云)<CSEK(你自带钥,Google不留)。CMEK靠Cloud KMS做密钥生命周期(轮换/禁用/权限/审计),禁用密钥即刻锁死盘=合规"随时可撤销访问"。默认永远加密,加解密对应用透明(读时自动解)。CSEK因运维风险高(丢钥即丢数据)+管理麻烦,GCP已在CE弃用。
+
+**④ AWS对照**:
+| GCP | AWS EBS | 说明 |
+|--|--|--|
+| GMEK(默认) | 默认AWS托管密钥(aws/ebs) | 都默认加密(新EBS默认加密可开) |
+| CMEK(Cloud KMS) | **KMS CMK(customer managed key)** | 概念完全对应,都用KMS管钥 |
+| CSEK(自带原始钥,已弃用) | EBS**无**CSEK等价 | AWS EBS从来只有KMS托管/客户KMS,无"传原始密钥"模式 |
+👉 CMEK↔AWS KMS客户管理密钥,概念一致(自管密钥、可轮换/禁用/审计);GCP独有的CSEK正在退场,AWS本就没有对应物。**与GCS加密对照**:GCS同样有 GMEK默认/CMEK(KMS)/CSEK 三层——所以伟伟"和GCS类似"完全正确(GCP块存储与GCS的密钥模型是一套体系)。
+
+**⑤ 评分：6.5/10**。记忆点:块存储**永远默认加密**;三种密钥=**GMEK(默认Google管) / CMEK(你用Cloud KMS管,合规首选) / CSEK(自带原始钥——⚠️已于2026-07-20在Compute Engine弃用,2027彻底移除)**;读时服务端自动解密;CSEK≠client-side加密(PD无CSE);与GCS加密模型同一套;CMEK对标AWS KMS客户管理密钥。
+
+---
+
+**批次 7 小结**：Q13=8、Q14=6.5,均分7.25。重点补强→**①快照计划=附加到盘的策略,频率+max-retention-days自动删过期+删盘行为,对标AWS DLM/Backup ②加密三层GMEK(默认)/CMEK(Cloud KMS,合规首选)/CSEK ③🔥CSEK已于2026-07-20在Compute Engine弃用(2027移除)——现在PD只用GMEK/CMEK ④CSEK≠client-side加密;CMEK对标AWS KMS客户管理密钥;GCS加密同一套体系**。
