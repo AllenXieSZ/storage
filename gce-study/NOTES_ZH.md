@@ -848,3 +848,57 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 ---
 
 **批次 14 小结**：Q27=3.5、Q28=4,均分3.75。重点纠错→**①Shielded VM=防启动链/固件篡改(rootkit/bootkit:Secure Boot+vTPM Measured Boot+Integrity Monitoring),⚠️不防DDoS(那是Cloud Armor,AWS Shield才防DDoS≠GCP Shielded VM);Confidential VM=运行时内存加密(data in use)靠CPU硬件SEV/TDX非TPM;数据三态at rest/in transit/in use ②VPC firewall rules在VPC网络层靠target(全部/network tags/service account)匹配实例(非挂VM);GCP能显式deny+有priority(SG只allow无优先级);network tag=VM字符串标签(管控弱)/SA做target更安全(官方推荐);firewall rules≈SG但GCP规则找实例、AWS实例挂SG**。
+
+---
+
+## 批次 15（最后一批）：Q29–Q30（2026-09-04）
+
+### Q29. GCE计费规则(最小单位/按秒/SUD自动) + 成本优化
+**伟伟答**：最小计算按照秒,选择正确机型和磁盘,删除空跑磁盘和stop GCE。
+
+**① 对照**：🔶"按秒"半对漏关键:**有1分钟最低(头1分钟按1分钟收,之后按秒)**;✅右型(选对机型/盘)、删闲置盘、stop都对;🔶stop补坑:省vCPU/内存但盘+静态IP照付;🔶漏SUD自动规则(本题明确问了)、Spot、CUD、Recommender。
+
+**② 参考答案(GCP官方核实)**：
+- **计费**:①按秒+**1分钟最低**(短任务友好,不按整小时坑);②**SUD=资源用量>25%(月1/4)自动打折、无需购买无承诺、随用量递增(~20-30%)、未享其它折扣才给**;E2/A2不享受SUD。
+- **成本优化**:右型(Recommender自动建议降配)+Spot(省60-91%)+CUD(承诺1/3年,~57%+)+SUD(自动)+删闲置PD/快照/静态IP(存在即计费)+stop/suspend(省算力,盘+静态IP仍付)+MIG autoscaling。组合:基线CUD+弹性SUD+容错Spot+右型+删闲置。
+
+**③ 概念**:按秒+1分钟最低=为真实用量付费;折扣三档SUD(自动零承诺用量>25%触发,力度小)/CUD(承诺深折扣)/Spot(最便宜可被抢);闲置资源(盘/快照/静态IP)存在即计费与开关机无关(stop了还扣钱根源);Recommender=主动发现买大了。
+
+**④ AWS对照**:按秒+1分钟最低两家类似;⚠️SUD是GCP独有(AWS无自动折扣);CUD↔RI/SP;Spot↔Spot;Recommender↔Compute Optimizer;闲置PD/EIP都收费。
+
+**⑤ 评分：5/10**。⚠️漏"1分钟最低"+SUD规则没答(本题明确问)+漏Spot/CUD/Recommender。记忆点:**按秒+1分钟最低;SUD=用量>25%自动打折零承诺(~20-30%,E2/A2不享受);优化=右型(Recommender)+Spot+CUD+SUD+删闲置盘/IP+stop(盘+静态IP仍付);SUD是GCP独有,CUD↔RI/SP,Recommender↔Compute Optimizer**。
+
+### Q30. 综合对照 GCE vs EC2 六大维度(收尾题)
+**伟伟答**：其他异同不知道。
+
+**② 参考答案(六维总对照,均前面各批核实)**：
+1. **命名**:GCP family→series→type(如n2-standard-4)+custom machine type/共享核心e2-micro/无Mac;AWS family+代际.尺寸(m7i.large)+存储优化I/D系+EC2 Mac(有)。GCP 4大family(无网络/存储优化family)。
+2. **计费**:都按秒+1分钟最低;GCP custom按实配计费。
+3. **折扣**:GCP SUD(自动零承诺,独有)+CUD(resource↔RI/spend Flexible↔SP);AWS RI/Savings Plans,无SUD等价。
+4. **Spot**:都省60-91%;GCP Spot(旧Preemptible有24h上限)通知默认30s(可120s)无云回调;AWS EC2 Spot通知2分钟+EventBridge真事件。
+5. **伸缩**:MIG↔ASG;GCP instance template不可变(改=新建) vs AWS Launch Template多版本更灵活;GCP显式zonal/regional MIG vs AWS配多AZ子网;伸缩指标内存两家都非原生(需Ops Agent/CloudWatch agent);autohealing↔ASG ELB HC。
+6. **维护/HA**:GCP live migration无感(默认,招牌)vs AWS通知+stop/reboot/retire中断;GPU都停机重启;Local SSD维护 GCP一起迁数据保留/AWS丢;单机SLA GCP 99.9%(内存优化99.95%)vs AWS 99.5%;跨AZ/多区都99.99%。
+
+**③ 概念**:GCE四大独有(AWS无对应)=①custom machine type②SUD③live migration④单机SLA更高(99.9% vs 99.5%)。两家高度一致=Spot/CUD-RI-SP/MIG-ASG/按秒/内存非原生伸缩/跨AZ 99.99%/外部IP 1:1 NAT/防火墙有状态。易混大坑:GCP TERMINATED=已停止(AWS terminated=删除);AWS Shield=防DDoS≠GCP Shielded VM(防固件篡改);GCP静态外部IP=AWS Elastic IP(闲置都收费)。
+
+**④ 对照**:本题整体即对照(见六表)。主线:GCE独有custom machine type+SUD+live migration+更高单机SLA;其余逻辑基本一致。
+
+**⑤ 评分**:未作答(讲解)。记忆点:**六维:命名(GCP family→series→type+custom/无Mac vs AWS 固定type+Mac)/计费(都按秒+1分钟最低)/折扣(GCP SUD独有+CUD vs AWS RI/SP)/Spot(都60-91%;GCP 30s无回调 vs AWS 2分钟+EventBridge)/伸缩(MIG↔ASG;GCP模板不可变 vs AWS多版本;内存都需agent)/维护(GCP live migration无感+单机99.9% vs AWS通知重启+99.5%;跨AZ都99.99%)。GCE四大独有=custom machine type/SUD/live migration/单机SLA更高;大坑=TERMINATED≠删除、AWS Shield≠GCP Shielded VM、静态IP=Elastic IP**。
+
+---
+
+**批次 15 小结**：Q29=5、Q30讲解。重点→**①GCE计费=按秒+1分钟最低;SUD=用量>25%自动打折零承诺;优化=右型Recommender+Spot+CUD+SUD+删闲置盘IP+stop(盘/静态IP仍付) ②六维对照:GCE四大独有=custom machine type/SUD/live migration/单机SLA更高(99.9%);其余(Spot/CUD-RI-SP/MIG-ASG/按秒/内存非原生伸缩/跨AZ 99.99%)两家一致;大坑=GCP TERMINATED≠删除、AWS Shield(DDoS)≠GCP Shielded VM(固件)、静态IP=Elastic IP**。
+
+---
+
+## 🎓 全题库完成（Q1–Q30，2026-09-04）
+
+30 题全部批改完毕。得分记录:
+- 批次1 Q1=5/Q2=8;批次2 Q3≈7/Q4(讲解);批次3 Q5=7.5/Q6=8;批次4 Q7=6/Q8=8;批次5 Q9=5.5/Q10=7;批次6 Q11=7.5/Q12=7.5;批次7 Q13=4/Q14=7;批次8 Q15=8/Q16=6;批次9 Q17=7/Q18=4;批次10 Q19=6.5/Q20=9;批次11 Q21/Q22(讲解);批次12 Q23=4/Q24=8;批次13 Q25=6/Q26=3;批次14 Q27=3.5/Q28=4;批次15 Q29=5/Q30(讲解)。
+
+**高频薄弱点(复习重点)**:
+- **安全类最弱**:Q26服务账号SA/access scopes双层(3)、Q13 autohealing用应用级HC非ping/CPU(4)、Q27 Shielded VM防固件非DDoS/Confidential靠SEV非TPM(3.5)、Q28防火墙规则在VPC层靠target匹配(4)。
+- **折扣/预留**:Q18 SUD自动零承诺≠按年购买(4,说反过)、Q16 Preemptible既被抢又有24h上限(6)。
+- **概念错位**:Q23 HBM=GPU显存非CPU-GPU通道(4)、Q7 machine image=整机快照非机型相关(6)。
+- **GCE四大独有必记**:custom machine type / SUD / live migration / 单机SLA 99.9%(高于AWS 99.5%)。
+- **命名大坑必记**:GCP TERMINATED=已停止(≠AWS删除)、AWS Shield(防DDoS)≠GCP Shielded VM(防固件)、GCP静态外部IP=AWS Elastic IP。
