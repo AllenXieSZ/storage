@@ -808,3 +808,43 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 ---
 
 **批次 13 小结**：Q25=6、Q26=3,均分4.5。重点纠错→**①外部IP不是"动态路由"(那是Cloud Router/BGP)——是临时(ephemeral,停机变)/静态(reserved=AWS Elastic IP,闲置收费),且外部IP不在网卡上是1:1 NAT(VM只见内网IP);multi-NIC每NIC必须连不同VPC(GCP硬规则),NIC↔ENI(AWS多ENI更灵活) ②SA=身份(≈AWS EC2 IAM Role)不是role本身;授权双层「与」=IAM role∩access scope(IAM对但scope没开→403);最佳实践=自定义SA+最小IAM role+cloud-platform scope;默认SA=Editor隐患;access scopes是GCP独有一层(AWS只IAM policy一层)**。
+
+---
+
+## 批次 14：Q27–Q28（2026-09-04）
+
+### Q27. Shielded VM vs Confidential VM 各防护什么
+**伟伟答**：shielded VM防网络攻击(DDoS)?confident VM=加密计算,通过tpm验证内存环境安全,内存加密,隐私计算。
+
+**① 对照**：❌**Shielded VM答错方向**:不防网络/DDoS(那是Cloud Armor)!防**启动链/固件被篡改(rootkit/bootkit)**;✅Confidential VM抓住"加密计算/内存加密/隐私计算";🔶**vTPM机制安错了**:vTPM是Shielded VM的(Measured Boot),Confidential VM内存加密靠CPU硬件(SEV/TDX)不是TPM;🔶漏Shielded三大功能。
+
+**② 参考答案(GCP官方核实)**：
+- **Shielded VM=防启动链/固件篡改**(rootkit/bootkit/固件篡改),三功能:①Secure Boot(只启签名可信,建议开)②vTPM+Measured Boot(度量启动存vTPM,默认开)③Integrity Monitoring(对已知良好基线比对,不一致告警,默认开)。⚠️不涉及网络/DDoS/运行时内存加密。
+- **Confidential VM=运行时内存加密**(保护data in use,连hypervisor/云管理员都读不到明文),靠**CPU硬件AMD SEV/SEV-SNP、Intel TDX**(密钥CPU管,云厂商拿不到),不是TPM。补齐数据三态at rest/in transit的第三态in use。
+- 两者正交可叠加(Confidential VM通常也是Shielded VM)。
+
+**③ 概念**:数据三态at rest(盘)/in transit(TLS)/in use(内存运行时)→Confidential VM专治in use(CPU硬件加密内存);Shielded VM是另一维度=启动/固件完整性(信任根),非加密非网络。伟伟错在①Shielded当防DDoS②vTPM错安到Confidential(实际靠SEV/TDX)。
+
+**④ AWS对照**:Shielded VM↔NitroTPM/UEFI Secure Boot(启动信任根);Confidential VM↔Nitro Enclaves+SEV-SNP/TDX机密计算;⚠️**命名大坑:AWS "Shield"=防DDoS,GCP "Shielded VM"=防固件篡改,完全两回事!**GCP防DDoS是Cloud Armor。
+
+**⑤ 评分：3.5/10**。⚠️Shielded VM答错方向(当防DDoS,实防rootkit/bootkit)+vTPM错安到Confidential。记忆点:**Shielded VM=防启动链/固件篡改(rootkit/bootkit):Secure Boot+vTPM Measured Boot+Integrity Monitoring(后两默认开),不防网络/DDoS(那是Cloud Armor);Confidential VM=运行时内存加密(data in use),靠CPU硬件SEV/SEV-SNP/TDX非TPM;数据三态at rest/in transit/in use(Confidential治in use);AWS对照Shielded↔NitroTPM/Secure Boot、Confidential↔Nitro Enclaves+SEV/TDX;⚠️AWS Shield=防DDoS≠GCP Shielded VM!**
+
+### Q28. VPC firewall rules如何作用实例 + network tags/SA + 对照SG
+**伟伟答**：加rules到vm应用规则,network tags不知道,firewall rules对应security rules。
+
+**① 对照**：🔶"加rules到vm"模型说反了:**GCP规则定义在VPC网络层,靠target匹配实例(不是挂VM上,那是AWS SG模型)**;🔶network tags"不知道"(下面讲);✅firewall rules≈Security Group方向对;🔶漏方向/优先级/显式deny/隐含规则/tags vs SA区别。
+
+**② 参考答案(GCP官方firewall/network tags核实)**：
+- **作用方式**:规则定义在**VPC网络层**,字段:direction(in/egress)+action(⚠️**GCP可显式deny**,SG只能allow)+priority(0-65535,**小的优先**,SG无优先级)+**target(决定作用到哪些实例:全部/network tags/service account)**+source/dest(CIDR或source tags/SA)+协议端口。隐含规则=默认allow egress+deny ingress;**有状态**(响应自动放行)。
+- **network tags**:贴在VM上的字符串标签(非独立资源,VM的tags字段),防火墙target/source写tag即作用到带该tag的VM。例:target tag=web开80/443;target tag=db+source tag=web→只web能访问db的3306。打/去tag即纳入/移出规则。
+- **service account作target/source(更安全)**:tags谁有setTags权限都能贴(管控弱);改SA需IAM权限(更安全,**官方推荐用SA做防火墙目标**)。⚠️同规则tags和SA不能混用。
+
+**③ 概念**:心智=规则住VPC网络层,靠target"投射"到一组实例(全部/tag/SA);对比AWS"SG挂实例网卡"→GCP是"规则找实例",AWS是"实例挂规则"。tag最轻量但谁有权限都能贴(弱),SA做target更安全(改身份要IAM,呼应Q26)。GCP两个SG没有的特点:①可显式deny②有priority→能写"先deny某段再allow大段"。
+
+**④ AWS对照**:firewall rules≈SG(都有状态);差异:①GCP能allow+显式deny,SG只allow(deny用NACL);②GCP有priority,SG无(规则并集全放行);③GCP规则在VPC层靠tag/SA匹配,AWS把SG挂实例ENI;④network tag在AWS无精确对应(靠SG分组/资源tag),GCP用SA做target≈AWS "SG引用另一个SG"按组放行。
+
+**⑤ 评分：4/10**。⚠️模型说反(GCP规则在VPC层靠target匹配非挂VM)+network tags没答。记忆点:**VPC firewall rules定义在VPC网络层(非挂VM),靠target选实例:全部/network tags/service account;字段direction+action(GCP可显式deny,SG只allow)+priority(小优先,SG无)+source/target;隐含默认allow egress+deny ingress;有状态。network tag=VM上字符串标签(谁有setTags都能贴,弱);SA做target更安全(改SA需IAM,官方推荐);tags与SA同规则不能混。AWS:firewall rules≈SG;GCP多显式deny+priority、规则在VPC层靠tag/SA匹配(AWS SG挂实例);SA做target≈AWS SG引用SG**。
+
+---
+
+**批次 14 小结**：Q27=3.5、Q28=4,均分3.75。重点纠错→**①Shielded VM=防启动链/固件篡改(rootkit/bootkit:Secure Boot+vTPM Measured Boot+Integrity Monitoring),⚠️不防DDoS(那是Cloud Armor,AWS Shield才防DDoS≠GCP Shielded VM);Confidential VM=运行时内存加密(data in use)靠CPU硬件SEV/TDX非TPM;数据三态at rest/in transit/in use ②VPC firewall rules在VPC网络层靠target(全部/network tags/service account)匹配实例(非挂VM);GCP能显式deny+有priority(SG只allow无优先级);network tag=VM字符串标签(管控弱)/SA做target更安全(官方推荐);firewall rules≈SG但GCP规则找实例、AWS实例挂SG**。
