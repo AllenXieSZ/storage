@@ -681,3 +681,46 @@
 ---
 
 **批次 10 小结**：Q19=6.5、Q20=9,均分7.75。重点→**①reservation=预占zone容量保证有货(按需价/无期限/不打折),CUD=承诺1/3年折扣(不保容量),二者正交可叠加(关键负载=预留+CUD),对标AWS ODCR+SP/RI ②live migration=无感迁VM到同zone新宿主机,保留IP/ID/元数据/块存储/内存;🔑Local SSD数据一起迁(Z3>18TiB例外);GPU/TPU/裸金属/多数机密VM不能迁(TERMINATE);🔑AWS无GCP式透明live migration(默认通知+重启,本地盘可能丢)=标志性差异**。
+
+---
+
+## 批次 11：Q21–Q22（2026-09-04，伟伟表示不会 → 完整讲解）
+
+### Q21. onHostMaintenance(MIGRATE/TERMINATE) + automaticRestart 分别控制什么 + GPU默认
+**伟伟答**：不会。
+
+**② 参考答案(GCP官方 setting-vm-host-options 核实)**：VM可用性策略两字段,管"宿主机出事时VM怎么办"。
+- **onHostMaintenance**:①`MIGRATE`(普通VM默认)=维护时live migrate到同zone另一宿主机,不重启不中断;②`TERMINATE`=维护时直接停机(进TERMINATED),之后是否拉起看automaticRestart。
+- **automaticRestart**(true/false):VM因**非用户原因(硬件故障 / TERMINATE维护停机)**终止后是否自动重启。默认`true`。⚠️只对非用户、非抢占终止生效——自己stop的、Spot被抢占的不管。
+- **矩阵**:MIGRATE+true(默认,无感);TERMINATE+true(停机再自动重启,有中断);TERMINATE+false(停机不拉起,需外部处理)。
+- **🔑GPU默认**:GPU不支持live migration→onHostMaintenance默认且只能=TERMINATE;automaticRestart默认true→维护时停机再自动重启(有中断窗口)。TPU/裸金属/多数Confidential VM同理。
+
+**③ 概念**:两字段=宿主机层故障域应对。普通VM默认无感迁移(GCP招牌);硬件绑定型(GPU/TPU/裸金属)不能迁只能停机重启,必须自己设计容错(checkpoint/多副本/跨zone)。automaticRestart只重启同一台机器,治不了zone级故障。
+
+**④ AWS对照**:GCP MIGRATE(无感迁)= AWS无通用等价(通知+stop/reboot/retire);automaticRestart≈AWS实例auto-recovery(CloudWatch recover);GPU两家都是停机重启。**标志差异:GCP默认无感迁移,AWS通知+重启**。
+
+**⑤ 评分**:未作答(讲解)。记忆点:**onHostMaintenance=维护时MIGRATE(无感,普通VM默认)/TERMINATE(停机);automaticRestart=非用户原因挂掉后是否自动重启(默认true,不管stop/抢占);GPU强制TERMINATE+默认automaticRestart:true(停机再拉起,有中断);对标AWS(GCP无感迁移是招牌,automaticRestart≈auto-recovery)**。
+
+### Q22. GCE高可用手段 + 单VM SLA vs 分布式SLA
+**伟伟答**：不会。
+
+**② 参考答案(GCP官方 SLA页+HA文档,已核实)**：
+- **HA手段(故障域递进)**:①单机自愈=automaticRestart+live migration(只扛单宿主机,扛不住zone);②MIG autohealing(应用级HC失败重建实例);③**regional MIG跨zone**(默认EVEN分3zone,扛单zone故障,核心手段);④负载均衡(全局anycast IP,跨zone/region分发+故障摘除);⑤多region部署(扛region灾);⑥数据层(PD快照/machine image/regional PD跨zone同步盘)。典型:Global LB→多region的regional MIG(各跨3zone)+autohealing+autoscaling+跨region数据复制。
+- **🔑SLA(官方Compute Engine SLA,数字已核实)**:
+  | 覆盖对象 | 月度SLA |
+  |---|---|
+  | Instances in Multiple Zones(跨≥2 zone) | **≥99.99%** |
+  | Single Instance — 内存优化系列 | **≥99.95%** |
+  | Single Instance — 其它所有系列 | **≥99.9%** |
+  | Load balancing | **≥99.99%** |
+  - 单VM只99.9%(内存优化99.95%):落单zone单宿主机,zone故障必受影响。分布式(跨≥2 zone)才99.99%。⚠️**要4个9必须自己做跨zone分布**(不是默认送)。SLA=未达标赔Financial Credit,非保证不宕。
+
+**③ 概念**:HA=消除单点/打散故障域,单机→zone→region层层扛。SLA数字直接对应故障域:单VM单zone=99.9%,跨zone=99.99%。"要4个9必跨zone"是GCP高频结论;内存优化单机99.95%是对SAP HANA类大内存单实例的额外承诺。
+
+**④ AWS对照**:单实例SLA GCP 99.9%(内存优化99.95%) vs AWS 99.5%;跨AZ/多区 两家都99.99%;LB两家99.99%。逻辑一致(单机低、跨AZ才4个9);差异:GCP单机SLA略高+有live migration;内存优化单机99.95%是GCP特色。
+
+**⑤ 评分**:未作答(讲解)。记忆点:**HA手段:automaticRestart/live migration(单机)→MIG autohealing(实例)→regional MIG跨zone(扛zone)→LB→多region(扛region)。SLA:单VM=99.9%(内存优化99.95%)、跨zone(Instances in Multiple Zones)=99.99%、LB=99.99%——要4个9必须自己跨zone分布。对标AWS单实例99.5%/跨AZ 99.99%(逻辑同,GCP单机略高+live migration)**。
+
+---
+
+**批次 11 小结**：Q21/Q22 伟伟均不会,已完整讲解。重点→**①onHostMaintenance(MIGRATE无感/TERMINATE停机)+automaticRestart(非用户原因挂掉是否自动重启,默认true);GPU强制TERMINATE+自动重启(有中断);对标AWS无感迁移是GCP招牌/automaticRestart≈auto-recovery ②HA按故障域递进(单机自愈→autohealing→regional MIG跨zone→LB→多region);SLA单VM 99.9%(内存优化99.95%)/跨zone 99.99%/LB 99.99%,要4个9必跨zone;AWS单实例99.5%、跨AZ 99.99%逻辑同**。
