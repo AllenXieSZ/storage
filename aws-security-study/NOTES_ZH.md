@@ -47,3 +47,41 @@
 ---
 
 **批次 1 小结**：Q1=5、Q2=5,均分5。重点纠错→**①⚠️Role是「身份」不是「权限」(Policy才是权限);User=长期身份/Group=集合(非principal)/Role=临时身份/Policy=权限;identity-based(无Principal)vs resource-based(必带Principal可跨账号);评估三铁律=默认拒绝+任一allow并集+显式Deny压倒;AWS Role=身份而GCP role=权限(命名正相反,易混) ②Role vs User=临时凭证vs长期key;用Role不落地长期密钥+短命自动轮转;STS AssumeRole返三要素含SessionToken(临时独有);EC2 instance profile+IMDS自动取;对标GCP SA+metadata+OAuth token同哲学**。
+
+---
+
+## 批次 2：Q3–Q4（2026-09-04）
+
+### Q3. Permissions Boundary + 与SCP/identity/session关系 + 有效权限取交集
+**伟伟答**：不知道。
+
+**② 参考答案(AWS官方核实)**：
+- **Permissions Boundary**=附加到User/Role的托管策略,设"该身份能被授予的最大权限上限(ceiling)";⚠️**自己不授予任何权限**,只封顶;最终权限=**identity policy ∩ permissions boundary**(取交集,两边都allow才生效)。
+- 典型用途:**安全委派权限管理**——让开发者自助创建角色/用户,但创建出的身份权限不能超过boundary(防提权)。
+- **四类策略关系**:授权层(identity-based/resource-based,真正grant,取并集)+上限层(SCP组织级/Permissions Boundary身份级/Session Policy会话级,都不授权只砍权限,取交集)。**有效权限=SCP∩boundary∩session∩(identity∪resource),任一层显式Deny一票否决**。
+
+**③ 概念**:AWS权限两种力=授权(+,只identity/resource能grant)+设上限护栏(-,SCP/boundary/session都不授权只封顶)。最终=所有天花板之内+被某授权策略allow+无显式Deny。多层护栏给不同人管(组织管理员SCP/委派管理员boundary/临时会话session)。
+
+**④ AWS↔GCP对照**:SCP≈GCP Org Policy(组织护栏);⚠️**Permissions Boundary GCP无精确对应**(AWS更精细的身份级上限);授权:AWS identity/resource policy ↔ GCP IAM allow policy。
+
+**⑤ 评分**:未作答(讲解)。记忆点:**Permissions Boundary=User/Role的最大权限上限(托管策略),不授权只封顶,最终=identity∩boundary;用途=安全委派(自建角色不超边界防提权);四类策略=授权层(identity/resource并集)+上限层(SCP/boundary/session交集),显式Deny一票否决;GCP无精确对应(AWS特色),SCP↔Org Policy**。
+
+### Q4. SCP是什么+作用于谁+能否授权+与IAM如何生效
+**伟伟答**：scp定义整个org安全策略,作用于整个org。
+
+**① 对照**：✅"组织级安全策略"方向对;🔶"作用于整个org"不精确(可挂Root/OU/账号层层继承);🔶没答"能否授权"(核心:不能);🔶没答与IAM取交集;🔶漏"不影响管理账号"。
+
+**② 参考答案(AWS官方核实)**：
+- **SCP**=AWS Organizations组织策略,集中控制成员账号"最大可用权限"(护栏)。**附加层级**:Root(全组织)/OU(该OU及下)/单账号——挂哪层对该层及以下所有账号的所有IAM身份生效,层层继承。**⚠️例外:不影响管理账号(management account)+不影响service-linked role**→别在管理账号跑负载。
+- **⚠️能授权吗:不能**。SCP绝不授予权限,只设"最多能用哪些权限"上限;写Allow也只是allowlist(表示"在上限内"),真正权限靠账号内IAM policy授予。
+- **与IAM一起**:最终权限=**SCP允许 ∩ IAM授予**(取交集);操作要生效=SCP允许+IAM显式allow+无显式Deny;SCP的Deny压过IAM Allow。两种写法:Deny list(FullAWSAccess+Deny危险操作,常用)/Allow list(删FullAWSAccess只列白名单,严格)。
+
+**③ 概念**:SCP=组织级护栏,站在所有IAM之上先划红线。与Permissions Boundary同类(都上限/不授权/取交集/显式Deny优先),区别=SCP组织级(账号/OU)、boundary身份级。典型:禁关CloudTrail/限region/禁公网S3,再大的账号IAM管理员也越不过组织红线(多账号治理核心)。
+
+**④ AWS↔GCP对照**:**SCP≈GCP Organization Policy**(都组织级/层层继承/只护栏不授权/与IAM取交集);层级AWS Root/OU/Account↔GCP Organization/Folder/Project。
+
+**⑤ 评分：4/10**。⚠️没答"SCP不授权"(核心)+"作用整个org"不精确+没答取交集。记忆点:**SCP=Organizations组织护栏,挂Root/OU/账号层层继承;⚠️不授予权限(只设上限,Allow也只是allowlist);最终=SCP∩IAM,显式Deny压IAM Allow;常用Deny list(FullAWSAccess+Deny危险操作);⚠️不影响管理账号+service-linked role;同Permissions Boundary(SCP组织级/boundary身份级);对标GCP Org Policy,Root/OU/Account↔Org/Folder/Project**。
+
+---
+
+**批次 2 小结**：Q3(讲解)、Q4=4,重点→**①Permissions Boundary=身份级最大权限上限(不授权,identity∩boundary),用途=安全委派防提权;GCP无精确对应 ②SCP=组织级护栏(挂Root/OU/账号继承,不授权,SCP∩IAM,显式Deny优先,不管管理账号),对标GCP Org Policy ③核心规律:授权层(identity/resource,grant,并集)+上限层(SCP/boundary/session,不授权,交集)+显式Deny一票否决——这是IAM权限计算总公式**。
