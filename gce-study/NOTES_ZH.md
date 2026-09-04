@@ -724,3 +724,46 @@
 ---
 
 **批次 11 小结**：Q21/Q22 伟伟均不会,已完整讲解。重点→**①onHostMaintenance(MIGRATE无感/TERMINATE停机)+automaticRestart(非用户原因挂掉是否自动重启,默认true);GPU强制TERMINATE+自动重启(有中断);对标AWS无感迁移是GCP招牌/automaticRestart≈auto-recovery ②HA按故障域递进(单机自愈→autohealing→regional MIG跨zone→LB→多region);SLA单VM 99.9%(内存优化99.95%)/跨zone 99.99%/LB 99.99%,要4个9必跨zone;AWS单实例99.5%、跨AZ 99.99%逻辑同**。
+
+---
+
+## 批次 12：Q23–Q24（2026-09-04）
+
+### Q23. GCE如何挂GPU + 能否单独成实例 + A2/G2 vs N1附加
+**伟伟答**：gpu通常和CPU vm一起,之间数据走高速HBM。
+
+**① 对照**：✅ "GPU和CPU VM一起"方向对(GPU必须附加到VM,不能单独成实例);❌ **"CPU-GPU走HBM"概念错**:HBM是**GPU板载显存**(GPU↔自己显存),不是CPU-GPU通道!CPU↔GPU=PCIe/NVLink-C2C;GPU↔GPU=NVLink/NVSwitch;🔶没答A2/G2 vs N1区别。
+
+**② 参考答案(GCP官方docs/gpus+accelerator-optimized核实)**：GPU不能单独成实例,必须附加到VM。两种方式:
+| | 加速优化系列(pre-attached) | N1附加(user-attached) |
+|--|--|--|
+| 系列 | A4X/A4/A3/A2/G4/G2 | N1通用 |
+| GPU来源 | 机型预绑定(a3-highgpu-8g自带8×H100) | 手动attach |
+| 型号 | 固定(A2=A100/A3=H100/G2=L4/A4=B200) | 可选老型号T4/P4/P100/V100 |
+| 卡间互联 | **有NVLink/NVSwitch**(训练) | **无NVLink**(PCIe,卡间慢) |
+| 定位 | 大规模训练/推理/HPC | 轻量推理/图形/老负载 |
+一句话:加速优化=GPU出厂绑定+NVLink;N1附加=老型号GPU手动挂通用VM(灵活无NVLink)。
+
+**③ 概念**:数据路径三层:HBM=GPU板载显存(TB/s,最快);CPU↔GPU=PCIe/NVLink-C2C(Grace-Blackwell);GPU↔GPU同机=NVLink/NVSwitch(数百GB/s);跨机=EFA/网络+GPUDirect(AWS RDMA/GCP TCPX)。加速优化贵在NVLink让8卡协作(训大模型必需),N1附加无此。
+
+**④ AWS对照**:GPU预绑定机型 GCP加速优化A2/A3/G2 ↔ AWS P系(p4/p5)/G系(g5/g6);**N1灵活附加GPU是GCP特色,AWS无等价**(GPU都封在固定P/G系实例,不能给通用机挂GPU);卡间NVLink两家都有。
+
+**⑤ 评分：4/10**。⚠️扣在"CPU-GPU走HBM"错(HBM是GPU显存非通道)+没答A2/G2 vs N1。记忆点:**GPU不能单独成实例必须附加VM;①加速优化(A2/A3/G2)=GPU预绑定+NVLink(训练)②N1附加=手动挂老型号GPU无NVLink(轻量);HBM=GPU板载显存(非CPU-GPU通道!),CPU↔GPU=PCIe/NVLink-C2C,GPU↔GPU=NVLink/NVSwitch;N1灵活附加是GCP特色,AWS GPU都在固定P/G系**。
+
+### Q24. Sole-tenant node是什么 + 解决什么 + vs普通共享VM
+**伟伟答**：sole tenant是独占物理,解决合规,物理隔离,license问题。不会被noisy neighbor干扰。
+
+**① 对照**：✅✅独占物理✓、合规/物理隔离✓、license(BYOL按物理核)✓、无noisy neighbor✓——四点全对,答得很全;🔶补:按node计费+自己多VM仍共享该node+node affinity放置控制。
+
+**② 参考答案(GCP官方sole-tenancy核实)**：sole-tenant node=一台物理服务器完全专用于你一个客户(不与其他GCP客户共享该硬件),你在上面开自己的VM。解决:①合规/物理隔离(金融/医疗/政府法规);②BYOL软件按物理核/socket授权(Windows/Oracle/SQL Server,独占物理机才能合法+划算BYOL);③性能可预测/消除noisy neighbor;④node affinity labels控制VM放置/gang scheduling。
+vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费、Google自动调度;sole-tenant整机独占、**按整个node计费(premium,更贵)**、可控放置。⚠️关键:只隔离"跨客户",**你自己的多个VM仍可共享这台node**(不是单VM独占)。支持CPU overcommit+可结合承诺折扣。
+
+**③ 概念**:默认云多租户(你的VM和陌生人挤同物理机靠虚拟化隔离);sole-tenant把"物理机"层也划你独占,换合规/BYOL省license/性能确定/无邻居;代价=贵(为整台物理机买单即使没跑满)。是物理隔离非更强虚拟隔离。
+
+**④ AWS对照**:Sole-tenant node ≈ **AWS Dedicated Host**(都独占整台物理机、暴露socket/core、按物理核BYOL、host放置控制);AWS另有**Dedicated Instance**(弱一档:专属硬件但不暴露物理机细节/不便按核BYOL,GCP无明确中间档对应)。
+
+**⑤ 评分：8/10**。答得全(独占物理/合规/隔离/license/noisy neighbor全中),扣在没展开按node计费+自己多VM共享node+node affinity。记忆点:**sole-tenant node=独占整台物理服务器(不与其他客户共享),解决①合规/物理隔离②BYOL按物理核授权省license③无noisy neighbor/性能可预测④node affinity控制放置;vs普通VM(共享物理机/按VM计费)→整机独占/按node计费(更贵);⚠️只隔离跨客户,自己多VM仍共享该node;对标AWS Dedicated Host(AWS另有较弱的Dedicated Instance)**。
+
+---
+
+**批次 12 小结**：Q23=4、Q24=8,均分6。重点纠错→**①⚠️GPU数据路径:HBM=GPU板载显存(不是CPU-GPU通道!),CPU↔GPU=PCIe/NVLink-C2C,GPU↔GPU=NVLink/NVSwitch;GPU必须附加VM不能单独成实例;加速优化(A2/A3/G2)=GPU预绑定+NVLink(训练)vs N1附加=手动挂老型号无NVLink(轻量);N1灵活附加是GCP特色 ②sole-tenant=独占整台物理机(仅跨客户隔离,自己多VM仍共享),解决合规/BYOL按核/noisy neighbor,按node计费更贵,对标AWS Dedicated Host**。
