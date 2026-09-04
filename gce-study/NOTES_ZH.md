@@ -767,3 +767,44 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 ---
 
 **批次 12 小结**：Q23=4、Q24=8,均分6。重点纠错→**①⚠️GPU数据路径:HBM=GPU板载显存(不是CPU-GPU通道!),CPU↔GPU=PCIe/NVLink-C2C,GPU↔GPU=NVLink/NVSwitch;GPU必须附加VM不能单独成实例;加速优化(A2/A3/G2)=GPU预绑定+NVLink(训练)vs N1附加=手动挂老型号无NVLink(轻量);N1灵活附加是GCP特色 ②sole-tenant=独占整台物理机(仅跨客户隔离,自己多VM仍共享),解决合规/BYOL按核/noisy neighbor,按node计费更贵,对标AWS Dedicated Host**。
+
+---
+
+## 批次 13：Q25–Q26（2026-09-04）
+
+### Q25. 网络接口/内外部IP/静态vs临时/multi-NIC
+**伟伟答**：可以多个网络接口,是虚拟出来的,内部IP是VPC分配,外部IP是动态路由,静态IP是给一个Elastic IP。
+
+**① 对照**：✅multi-NIC可有✓、虚拟的✓、内部IP由VPC/subnet分配✓;🔶"外部IP是动态路由"用词错(动态路由=Cloud Router/BGP,应说"临时ephemeral外部IP");🔶"静态IP=Elastic IP"概念对但EIP是AWS名(GCP叫static external IP),类比方向对;🔶漏:外部IP是1:1 NAT不在网卡上、multi-NIC每NIC必须不同VPC、静态IP闲置收费。
+
+**② 参考答案(GCP官方核实)**：
+- NIC=虚拟网卡连VPC的一个subnet;至少nic0;**⚠️每个NIC必须连不同VPC(GCP硬规则,用于跨VPC/appliance/DMZ);数量随vCPU(每vCPU 1个,2~8个)**。
+- 内部IP:subnet CIDR分配,VPC内通信,**真实在VM网卡上(ip addr看得到)**,可临时/静态。
+- 外部IP:公网出入口,**⚠️不在VM网卡上,是底层1:1 NAT映射(VM里只见内网IP)**;两种:临时(ephemeral,停机释放/重建可能变=伟伟说的"动态")、静态(reserved,固定=AWS Elastic IP,⚠️绑运行实例免费/闲置收费)。
+
+**③ 概念**:三层=NIC(连VPC subnet,multi-NIC跨多VPC)/内部IP(网卡上,VPC内)/外部IP(不在网卡上,1:1 NAT,临时会变/静态固定)。常见困惑"VM里只看到内网IP"=外部IP从不配在网卡上是云NAT。
+
+**④ AWS对照**:NIC↔ENI(AWS多ENI更灵活可同VPC/subnet;GCP强制每NIC不同VPC);内部IP↔Private IP;静态外部IP↔Elastic IP(闲置都收费);外部IP两家都1:1 NAT不在网卡上。
+
+**⑤ 评分：6/10**。⚠️扣在"外部IP=动态路由"错+漏1:1 NAT/每NIC不同VPC/静态闲置收费。记忆点:**NIC=虚拟网卡连VPC subnet,multi-NIC每NIC必须不同VPC(每vCPU 1个,2~8);内部IP=subnet分配真实在网卡上;外部IP=不在网卡上是1:1 NAT,临时(停机变)/静态(=AWS Elastic IP,闲置收费);NIC↔ENI(AWS多ENI更灵活)**。
+
+### Q26. 服务账号SA + 默认vs自定义 + access scopes与IAM关系 + 为何cloud-platform scope
+**伟伟答**：服务账号是吧IAM role?
+
+**① 对照**：🔶"SA是不是IAM role"方向沾边但要分清:**SA=身份(≈AWS EC2的IAM Role,代表VM调API),IAM role=权限集合;关系是SA被授予IAM role,SA本身不是role**;🔶漏默认/自定义SA、access scopes、双层关系、cloud-platform最佳实践(本题核心)。
+
+**② 参考答案(GCP官方service-accounts核实)**：
+- **SA**=非人类身份,代表VM/应用认证调GCP API;VM附加SA,代码靠metadata取SA短期OAuth token免密调API(不落地JSON key,GCP安全核心)。
+- **默认SA vs 自定义SA**:默认SA(`PROJECT_NUMBER-compute@`)历史上被授Editor→权限过大,VM被攻破攻击者拿Editor改整个项目,**不推荐生产**;自定义SA=自建按需最小授权,爆炸半径小,生产推荐。
+- **access scopes与IAM双层「与」**:最终能力=**IAM role允许 ∩ access scope允许**。access scope是实例级OAuth旧限流层;**IAM配对了但scope没开→仍403**(最常见坑)。
+- **为何推荐 自定义SA+最小权限+cloud-platform scope(官方最佳实践)**:access scope是老的粗粒度机制难维护;正解=**scope设cloud-platform(放开OAuth这层不当限流器)+限权全交IAM role一处管(精细/可审计/易最小化)+自定义SA(专用身份隔离爆炸半径)**。
+
+**③ 概念**:双层授权=身份层(SA,≈AWS EC2 role)+权限层(IAM role)+OAuth范围层(access scope,与IAM取与)。历史先有scope(粗)后有IAM(细)→官方推荐scope全开cloud-platform、限权交IAM;默认SA=Editor是隐患→三件套:自定义SA+最小IAM role+cloud-platform scope。铁律:能不用长期密钥就不用(metadata取短期token)。
+
+**④ AWS对照**:SA≈AWS EC2 IAM Role(instance profile附加);IAM role(GCP授予SA)↔IAM policy(附加role);实例取凭证 metadata token 两家同;**⚠️access scopes是GCP独有额外一层(AWS只有IAM policy一层决定权限)**;默认权限:GCP默认SA=Editor隐患 vs AWS EC2默认无role(AWS默认更安全)。
+
+**⑤ 评分：3/10**(只答一句提问未展开)。记忆点:**SA=非人类身份(≈AWS EC2 IAM Role)不是role本身;授权双层「与」=IAM role ∩ access scope(IAM对但scope没开也403);默认SA=Editor权限过大不推荐;最佳实践=自定义SA+最小IAM role+cloud-platform scope(scope放开、限权全交IAM);VM靠metadata取SA短期token免密调API;access scopes是GCP独有一层(AWS无)**。
+
+---
+
+**批次 13 小结**：Q25=6、Q26=3,均分4.5。重点纠错→**①外部IP不是"动态路由"(那是Cloud Router/BGP)——是临时(ephemeral,停机变)/静态(reserved=AWS Elastic IP,闲置收费),且外部IP不在网卡上是1:1 NAT(VM只见内网IP);multi-NIC每NIC必须连不同VPC(GCP硬规则),NIC↔ENI(AWS多ENI更灵活) ②SA=身份(≈AWS EC2 IAM Role)不是role本身;授权双层「与」=IAM role∩access scope(IAM对但scope没开→403);最佳实践=自定义SA+最小IAM role+cloud-platform scope;默认SA=Editor隐患;access scopes是GCP独有一层(AWS只IAM policy一层)**。
