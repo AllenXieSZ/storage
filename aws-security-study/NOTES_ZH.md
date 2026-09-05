@@ -85,3 +85,45 @@
 ---
 
 **批次 2 小结**：Q3(讲解)、Q4=4,重点→**①Permissions Boundary=身份级最大权限上限(不授权,identity∩boundary),用途=安全委派防提权;GCP无精确对应 ②SCP=组织级护栏(挂Root/OU/账号继承,不授权,SCP∩IAM,显式Deny优先,不管管理账号),对标GCP Org Policy ③核心规律:授权层(identity/resource,grant,并集)+上限层(SCP/boundary/session,不授权,交集)+显式Deny一票否决——这是IAM权限计算总公式**。
+
+---
+
+## 批次 3：Q5–Q6（2026-09-05）
+
+### Q5. IAM policy 结构 + 哪个字段只有 resource-based 才有 + Condition 键 + 显式 Deny 优先
+**伟伟答**：IAM 是谁(principal),能够 allow 做什么 action,在什么 condition 下。
+
+**① 对照**：✅抓住骨架"谁+允许+action+condition"方向对;❌**最大坑:把 Principal 当成 IAM policy 通用字段——答反了!Principal 只有 resource-based policy 有且必须有,identity-based(挂 User/Role 那种)恰恰不写 Principal**(核心考点);🔶漏 Resource 字段;🔶只说 allow,没提 Effect 有 Deny、没答"显式 Deny 优先"(核心);🔶Condition 键没举例。
+
+**② 参考答案(AWS官方核实)**：
+- 五字段:**Effect**(Allow/Deny)、**Action**(哪些API操作如s3:GetObject)、**Resource**(对哪些资源ARN)、**Condition**(可选,什么条件才生效)、**Principal**(谁)。
+- **⚠️Principal:只有 resource-based policy 才有且必须写**(S3 bucket policy / Role trust policy),因为资源不知道谁来访问,必须声明"允许谁动我",且能**跨账号**授权;**identity-based 不写 Principal**(挂在身份上,"谁"已明确)。官方(reference_policies_elements_principal)："You must use the Principal element in resource-based policies"。
+- **Condition 常用键**:aws:SourceIp(限来源IP)、aws:PrincipalOrgID(限本Organization内账号,跨账号授权省事)、aws:MultiFactorAuthPresent(要求MFA)、aws:SecureTransport(强制HTTPS)、aws:RequestedRegion(限region)、s3:prefix(限S3路径)。
+- **显式 Deny 优先=是,一票否决**:①默认隐式拒绝→②任一显式Allow放行→③**任何显式Deny压倒所有Allow**。设计理由:拒绝必须比允许强,一条Deny兜底(如SCP禁关CloudTrail)无论下面怎么Allow都堵死。
+
+**③ 概念**:policy=判定一次API请求是否放行的规则集=Effect×Action×Resource×Condition×Principal(仅资源侧)。identity-based答"这身份能干啥"(无Principal);resource-based答"谁能动我"(必带Principal,可跨账号)。伟伟核心错=Principal记反。
+
+**④ AWS↔GCP对照**:AWS Effect/Action/Resource/Condition/Principal ↔ GCP IAM binding(role+members+condition);"谁"=AWS Principal(仅resource-based)↔GCP member;条件=AWS Condition block↔GCP IAM Condition(CEL);显式Deny=AWS核心机制↔GCP传统只allow后加Deny policy(也deny优先);跨账号=AWS resource-based带Principal↔GCP资源上直接绑他项目member。
+
+**⑤ 评分：4/10**。⚠️Principal记反(核心)+漏Resource/Effect的Deny/显式Deny优先。记忆点:**IAM policy五要素=Effect(Allow/Deny)+Action+Resource+Condition+⚠️Principal(只resource-based有且必须,identity-based不写);Condition常用aws:SourceIp/aws:PrincipalOrgID/aws:MultiFactorAuthPresent;评估三铁律=默认拒绝→任一Allow放行→显式Deny一票否决**。
+
+### Q6. STS + 三种AssumeRole场景 + 临时凭证字段 + 能否撤销
+**伟伟答**：STS是临时授权,比如Backup运行时assume role,运行状态授权。
+
+**① 对照**：✅"STS=临时授权"核心对;✅**"Backup运行时assume role"是很好的真实例子**(AWS Backup用service role,运行时STS发临时凭证代操作资源);✅"运行状态授权"抓住临时/运行时才拿凭证的精髓;🔶太简:三种AssumeRole没区分(重点)、临时凭证字段(SessionToken)没答、"能否撤销"(核心)没答。
+
+**② 参考答案(AWS官方核实)**：
+- **STS**=发临时凭证的服务(短命15min~12h自动过期,用完即弃)。Backup例子=服务用role+运行时拿临时凭证的标准范式。
+- **三种assume**:①**AssumeRole**=AWS内部身份互扮(跨账号/EC2/Lambda用role/服务如Backup用service role);②**AssumeRoleWithSAML**=企业SAML 2.0 IdP联合(AD/ADFS/Okta员工SSO进AWS);③**AssumeRoleWithWebIdentity**=OIDC/Web身份联合(Google/Facebook/Cognito登录的移动Web app,**EKS IRSA**也走这个)。一句话:内部/跨账号→AssumeRole,企业SAML员工→WithSAML,OIDC/Web/K8s→WithWebIdentity。
+- **临时凭证字段**:AccessKeyId(**ASIA**开头,长期是AKIA)+SecretAccessKey+⚠️**SessionToken(临时独有!长期key没有,是区分标志)**+Expiration。
+- **能撤销吗**:⚠️**不能直接吊销单份已发临时凭证**(过期前本身有效)。但两个实际手段:①**改Role权限/加显式Deny**(每次API调用实时重评Role当前policy,泄露凭证下次调用被拒,间接但立即生效);②**AWS官方"Revoke active sessions"**(Role上加带aws:TokenIssueTime条件的内联policy,控制台一键,Deny掉某时刻前签发的所有session,旧凭证瞬间全失效、新的不受影响)。③兜底=短命自动过期,爆炸半径限几小时内。
+
+**③ 概念**:STS哲学=机器/临时访问不拿长期密钥。申请assume role→拿短命凭证(带SessionToken)→到期自动重assume续期。泄露也只是几小时内失效的临时钥匙,且可Revoke sessions一键全撤。
+
+**④ AWS↔GCP对照**:AssumeRole↔GCP SA impersonation(generateAccessToken);WithSAML↔Workforce Identity Federation(SAML);WithWebIdentity↔Workload Identity Federation(OIDC);临时凭证含SessionToken↔短命OAuth2 token;Revoke sessions↔撤销/禁用SA或改权限。
+
+**⑤ 评分：5/10**。核心定义对+Backup例子好,但太简。记忆点:**STS=发临时凭证服务(短命自动过期);三种assume=AssumeRole(内部/跨账号/服务如Backup)/WithSAML(企业SAML)/WithWebIdentity(OIDC/Web/EKS IRSA);临时凭证=AccessKeyId(ASIA)+Secret+⚠️SessionToken(临时独有)+Expiration;⚠️不能直接吊销单份,靠①改Role policy/Deny间接立即失效②Revoke active sessions(aws:TokenIssueTime)③短命过期兜底;对标GCP SA impersonation/Workforce+Workload Identity Federation**。
+
+---
+
+**批次 3 小结**：Q5=4、Q6=5,均分4.5。重点纠错→**①⚠️Principal只有resource-based policy有且必须(identity-based不写)——伟伟答反了;policy五要素Effect/Action/Resource/Condition/Principal;显式Deny一票否决 ②STS临时凭证含SessionToken(标志);三种assume分内部/SAML/OIDC;⚠️临时凭证不能直接吊销,靠改policy或Revoke sessions或自动过期**。
