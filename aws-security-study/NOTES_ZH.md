@@ -212,3 +212,46 @@
 ---
 
 **批次 5 小结**：Q9=6、Q10=6,均分6(比前几批好)。重点纠错→**①⚠️EKS Pod Identity不是走node IAM!它正是为摆脱node IAM"所有Pod共享粗粒度权限"而生,走eks-pod-identity-agent(DaemonSet)+EKS Auth API AssumeRoleForPodIdentity;IRSA走OIDC+AssumeRoleWithWebIdentity;都=每Pod免密钥精细临时权限,对标GKE Workload Identity ②SG=实例级/有状态/只allow(不能deny)/无顺序;⚠️NACL=子网级/无状态/可allow可deny/按规则号命中即停——伟伟漏了"NACL也能deny"和"SG不能写deny",有状态/无状态答对(核心)**。
+
+---
+
+## 批次 6：Q11–Q12（2026-09-05）
+
+### Q11. VPC网络隔离与最小暴露(公有/私有子网+IGW/NAT+路由表让私有只出不进)
+**伟伟答**：公有子网可互联网访问,私有子网互联网不能直接访问;私有子网通过IGW访问公网;NAT让子网访问公网;路由表不会设置。
+
+**① 对照**：✅"公有可访问/私有不能直接访问"核心方向对;❌**核心错:"私有子网通过IGW访问公网"说反了——私有子网出公网走NAT Gateway不是IGW,恰恰"没有到IGW的路由"才使它成为私有**;🔶后句"NAT让子网访问公网"对但与前句矛盾(正解=私有→NAT→公网);🔶"路由表不会设置"=本题精髓,且公有/私有本质区别就在路由表(有无指向IGW的路由)。
+
+**② 参考答案(AWS官方核实)**：
+- **公有vs私有子网靠什么分**:⚠️子网无public/private开关属性,**唯一标准=关联的路由表里有没有`0.0.0.0/0→IGW`**。有=公有(带公网IP实例双向通网);无=私有(外部进不来,自己也不能直接出网)。
+- **IGW vs NAT**:IGW=VPC与互联网双向大门(公有子网用);NAT Gateway=单向出口,让私有子网实例主动出网(下载更新/调API)但外部无法主动连入(NAT本身要放在公有子网,它需经IGW出网)。
+- **路由表配置(核心)**:公有子网路由表`本地→local`+`0.0.0.0/0→IGW`;私有子网路由表`本地→local`+`0.0.0.0/0→NAT Gateway`(出网走NAT不是IGW!)。
+- **"只出不进"原理**:私有子网无IGW路由→外部流量无路径进来(进不来);私有实例出网走NAT(NAT用自己公网IP做source NAT代理,响应沿已建连接回来=出得去);NAT单向(只允许内部发起+外部响应,外部无法用NAT主动连入)。
+- **最小暴露三层**:公有子网只放ALB/NAT/堡垒机;私有子网放应用+数据库(无公网IP,出网靠NAT,入站靠ALB转发)。
+
+**③ 概念**:"私有"本质=路由表无IGW路由。伟伟最大坑=把私有出公网归给IGW(实际私有子网碰不到IGW,只能靠NAT)。IGW双向(门)、NAT单向(阀门)。最小暴露=面向互联网组件压到最少。
+
+**④ AWS↔GCP对照**:公网双向大门=IGW↔GCP default-internet-gateway路由+实例外部IP;私有单向出网=NAT Gateway↔**Cloud NAT**;"私有"判定=路由表无IGW路由↔实例无外部IP+靠Cloud NAT出网。核心一致:私有实例不给公网IP+只经NAT单向出网,外部无法主动进。
+
+**⑤ 评分：4/10**。公有/私有基本概念对,但核心错=私有出公网说成IGW(实际NAT),路由表机制(精髓)没答。记忆点:**公有vs私有唯一区别=路由表有没有0.0.0.0/0→IGW;IGW=双向公网大门(公有用),NAT Gateway=单向出口(私有用,放在公有子网);私有子网路由表0.0.0.0/0→NAT,无IGW路由所以外部进不来(只出不进),NAT只允许内部发起+外部响应;最小暴露:公有只放ALB/NAT/堡垒机,业务DB放私有;对照GCP NAT Gateway↔Cloud NAT**。
+
+### Q12. VPC Endpoint(Gateway vs Interface/PrivateLink) + S3不走公网 + 对照GCP
+**伟伟答**：VPC endpoint是VPC链接其他访问的端点,是不是kubernetes的Service?gateway endpoint是路由表,interface endpoint是网卡,非VPC范围服务可用;S3通过gateway endpoint和EC2链接。
+
+**① 对照**：✅**"Gateway endpoint是路由表"完全对**(靠路由表加指向endpoint的路由);✅**"Interface endpoint是网卡"完全对**(子网建带私有IP的ENI);✅"S3通过gateway endpoint"对(S3是Gateway典型);🔶**"是不是kubernetes的Service"不对**——K8s Service是集群内服务发现/负载均衡,VPC Endpoint是让VPC内流量私密(不走公网)访问AWS/第三方服务,别混;🔶"VPC链接其他访问端点"大意对但没点核心=流量不出VPC不经公网;🔶漏Gateway只支持S3/DynamoDB、Interface支持100+服务、收费差异、不走公网原理、GCP对照。
+
+**② 参考答案(AWS官方核实)**：
+- **VPC Endpoint**=让VPC内资源经AWS内部网络私密访问AWS/第三方服务,流量完全不经公网、不需IGW/NAT(提安全+省NAT流量费)。
+- **两类对比**:Gateway Endpoint=**改路由表**(加指向endpoint的前缀列表路由)/**免费**/⚠️**只支持S3和DynamoDB两个**/仅本VPC内路由/不能被本地/跨VPC/TGW访问;Interface Endpoint(PrivateLink)=子网建**ENI(私有IP网卡)**/**收费**(endpoint小时+数据处理)/支持**100+服务**及第三方PrivateLink/配私有DNS原域名自动解析到私有IP/可被VPN/DX/peering/TGW访问。
+- **S3不走公网**:方式一(推荐免费)=S3 Gateway Endpoint加进私有子网路由表→VPC内访问S3走私有路由不经NAT/IGW;方式二=S3 Interface Endpoint(收费,走ENI私有IP)用于从本地(DX/VPN)或跨VPC私密访问S3(Gateway做不到)。
+- **不走公网原理**:Gateway=路由表把S3目标前缀指向endpoint,流量在AWS骨干网内到S3;Interface=服务域名私有DNS解析到VPC内ENI私有IP,连的是私网地址流量不出VPC。
+
+**③ 概念**:两条分界=Gateway Endpoint(路由表+免费+只S3/DynamoDB+仅本VPC)vs Interface Endpoint/PrivateLink(ENI网卡+收费+100+服务+可跨本地/VPC/TGW)。伟伟机制都答对(路由表vs网卡),要补服务范围/收费/可否外部访问。别用K8s Service类比。
+
+**④ AWS↔GCP对照**:私密访问托管服务(如对象存储)=S3/DynamoDB Gateway Endpoint↔**Private Google Access**(无外部IP的VM私密访问Google API/GCS);私密访问服务/第三方(走私有IP)=Interface Endpoint/PrivateLink↔**Private Service Connect(PSC)**;机制=Gateway路由表/Interface ENI私有IP↔PGA子网开关+私有DNS/PSC内部IP端点。
+
+**⑤ 评分：6/10**。机制答得好(Gateway=路由表/Interface=网卡/S3走Gateway都对),但漏Gateway只支持S3/DynamoDB+免费、Interface 100+服务+收费+可跨本地,K8s Service类比不对。记忆点:**VPC Endpoint=让VPC内资源私密访问AWS/第三方服务(流量不出VPC不经公网,免IGW/NAT);Gateway Endpoint=改路由表+免费+只支持S3和DynamoDB+仅本VPC;Interface Endpoint(PrivateLink)=子网建ENI(私有IP)+收费+支持100+服务及第三方+可被本地/跨VPC/TGW访问;S3不走公网优先用免费S3 Gateway Endpoint(加路由表),跨本地用Interface;对照GCP Gateway↔Private Google Access,Interface/PrivateLink↔PSC;⚠️别和K8s Service混**。
+
+---
+
+**批次 6 小结**：Q11=4、Q12=6,均分5。重点纠错→**①⚠️私有子网出公网走NAT Gateway不是IGW!公有vs私有唯一区别=路由表有没有0.0.0.0/0→IGW;私有路由表0.0.0.0/0→NAT,无IGW路由所以只出不进;IGW双向/NAT单向;对照GCP Cloud NAT ②VPC Endpoint机制伟伟答对(Gateway=路由表/Interface=ENI网卡),要补:Gateway只支持S3/DynamoDB+免费+仅本VPC,Interface(PrivateLink)=ENI+收费+100+服务+可跨本地;对照GCP Private Google Access/PSC;别和K8s Service混**。
