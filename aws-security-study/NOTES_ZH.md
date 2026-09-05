@@ -295,3 +295,39 @@
 ---
 
 **批次 7 小结**：Q13=6、Q14=4,均分5。重点纠错→**①WAF=L7防SQLi/XSS,Shield防DDoS(Standard免费L3/4,Advanced付费$3000/月+L7+24/7 SRT人工+Cost Protection);对照Cloud Armor(WAF+DDoS合一);⚠️别和Shielded VM混(VM启动层安全,AWS对应Nitro/NitroTPM) ②⚠️KMS主密钥永不出KMS(HSM不可导出);三种key=customer managed(全控收费)/AWS managed(可见不可改)/AWS owned(看不见免费);Envelope Encryption信封加密=两层密钥,向KMS要data key(明文+密文),明文data key本地加密大数据后丢弃只存密文data key,解密时发回KMS解出——绕过4KB限+主密钥不出KMS**。
+
+---
+
+## 批次 8：Q15–Q16（2026-09-05）
+
+### Q15. KMS key policy + IAM policy如何配合 + 双重把关 + Grants
+**伟伟答**：key Policy分user/administer,谁可进行什么操作;IAM Policy授权可调用什么key/什么操作。
+
+**① 对照**：✅**"key Policy分user/administer"答得准**(Key Administrators管key生命周期/Key Users做加解密);✅"IAM Policy授权调用什么key/操作"对;🔶漏核心机制两者如何配合(⚠️要IAM policy能管某key,该key的key policy必须先含"启用IAM"的root语句,否则IAM写了没用);🔶漏"双重把关"概念;❌Grants完全没答。
+
+**② 参考答案(AWS官方核实)**：
+- **key policy**=KMS key的资源策略,官方:每个KMS key必须有且仅一个key policy,是控制访问的首要方式。分Key Administrators(改policy/启停/删除/轮换,默认不能加解密)+Key Users(Encrypt/Decrypt/GenerateDataKey等)。
+- **与IAM配合(核心坑)**:⚠️官方"To use an IAM policy to control access to a KMS key, the key policy must give the account permission to use IAM policies"——只有key policy含那条允许`iam::账号:root`的root语句时,账号IAM policy才有资格授权这把key;没这条则IAM怎么写都没用,访问必须直接写进key policy。最终=key policy允许∩IAM允许,显式Deny一票否决。常见组合=key policy开root语句+IAM做精细授权。
+- **双重把关(dual control)**:访问同过两道关=key policy(资源侧)+IAM policy(身份侧)。意义=即使IAM误授大权,key policy不认也用不了;密钥所有者可用key policy独立于账号IAM掌控访问(官方博客例:S3 bucket policy+IAM都允许EC2,但在KMS key policy禁掉该EC2 role即可切断其对加密数据访问)。
+- **Grants(第三种授权)**:细粒度/临时/程序化,给principal(常AWS服务/role)授某key特定操作(如只Decrypt/GenerateDataKey)而不改key policy;常用于AWS服务临时代用key(如EBS加密卷,AWS创建grant让EBS用key,卷删grant可retire);支持encryption context,可RetireGrant/RevokeGrant撤销。
+
+**③ 概念**:三种授权定位=key policy(每key必有,根基主控)+IAM policy(身份侧,须key policy先开IAM委托才生效,最易错)+Grants(细粒度临时可撤,常给AWS服务)。双重把关=key policy∩IAM,密钥所有者独立于账号IAM掌控。
+
+**④ AWS↔GCP对照**:密钥资源侧策略=AWS KMS key policy↔GCP Cloud KMS在key/keyring上的IAM(GCP无独立key policy,统一IAM在key层绑role);身份侧=AWS IAM↔GCP IAM(cloudkms.cryptoKeyEncrypterDecrypter);⚠️双重把关AWS特有,GCP靠统一IAM层级;Grants↔GCP无精确对应(靠IAM condition/短期授权)。
+
+**⑤ 评分：5/10**。key policy admin/user划分+IAM作用答对,漏两者配合(key policy须开IAM委托)、双重把关含义、Grants没答。记忆点:**key policy=KMS key资源策略每key必有且仅一个,分Key Administrators(管生命周期)/Key Users(加解密);⚠️要IAM policy管这把key,key policy必须先含启用IAM的root语句否则IAM无效;最终=key policy∩IAM显式Deny优先=双重把关(资源侧+身份侧同过关,所有者可用key policy独立于IAM切断访问);Grants=第三种授权细粒度/临时/可撤销(RetireGrant/RevokeGrant),常给AWS服务临时代用key(如EBS);对照GCP统一用IAM无独立key policy**。
+
+### Q16. S3四种加密(SSE-S3/SSE-KMS/SSE-C/客户端) + SSE-KMS Bucket Key降本
+**伟伟答**：SSE-S3托管,SSE-C客户端key加密;bucket key是SSE-S3可降低成本,是不是发一把key到bucket用多久/多少object再发新key,user guide没细讲。
+
+**① 对照**：✅"SSE-S3托管"对;✅"SSE-C客户端key"基本对(但注意:SSE-C加密仍是S3服务端做,只是你每请求带key,别和client-side混);🔶漏SSE-KMS(最常用+Bucket Key所属);🔶漏客户端加密(client-side);❌**"bucket key是SSE-S3"错——Bucket Key是SSE-KMS的特性**;🔶"发key到bucket用多久/多少object换"方向感对(复用中间key减KMS调用)但机制不是按数量/时间轮换,是桶级中间密钥派生对象密钥减少KMS调用。
+
+**② 参考答案(AWS官方核实)**：
+- **四种加密**:①SSE-S3=S3自己托管key(AWS全权,AES-256),服务端,最省心默认有但不可自定义key策略;②SSE-KMS=用KMS key,服务端(调KMS),可控key policy+CloudTrail审计每次加解密+可轮换,每次读写调KMS(有成本→Bucket Key优化),合规常用;③SSE-C=你提供key(Customer-provided),仍是S3服务端加密只是每请求带你的key,AWS不存你key,丢了解不开;④客户端加密(client-side)=数据在你本地加密好再上传,S3只存密文AWS全程看不到明文,最安全但全你自己管。前三种是服务端加密(SSE),区别在密钥谁管;客户端加密是出门前就加密。
+- **Bucket Key降本(核心)**:痛点=SSE-KMS每次上传/下载对象都调一次KMS(GenerateDataKey/Decrypt),海量对象+频繁访问→大量KMS调用,KMS按调用收费→账单可观。解法=开启S3 Bucket Key后,S3向KMS要一把**桶级短期密钥(bucket-level key)**,在S3内部用它派生各对象数据密钥→一段时间内桶内大量对象加解密只需少数几次KMS调用(生成/刷新bucket key)而非每对象一次→**大幅减少KMS调用(官方称最多约降99%)**降低SSE-KMS的KMS费。⚠️修正:不是"发key到bucket按对象数/时间显式轮换由你控",是S3自动用桶级中间密钥减少KMS调用,派生/刷新S3内部管,你只需开Bucket Key开关(刷新周期是S3内部实现,user guide确实不强调固定数量/时间)。
+
+**③ 概念**:四种本质区别=密钥谁管+加密在哪做(SSE-S3=S3管/服务端;SSE-KMS=KMS管/服务端可审计;SSE-C=你给key/服务端;客户端=你本地加密S3只存密文)。Bucket Key属SSE-KMS(非SSE-S3),目的=削减SSE-KMS高频访问的KMS调用成本(桶级中间密钥派生对象密钥,每对象一次→少数几次)。伟伟两处纠正:①Bucket Key是SSE-KMS不是SSE-S3;②靠桶级中间密钥减KMS调用降本,非按数量/时间换key。
+
+**④ AWS↔GCP对照**:SSE-S3↔GCP GCS Google-managed默认加密;SSE-KMS↔GCP CMEK(Cloud KMS);SSE-C↔GCP CSEK(Customer-Supplied);客户端加密↔GCP客户端加密;⚠️Bucket Key降本是AWS S3+KMS特有,GCP CMEK计费模型不同无对应。
+
+**⑤ 评分：5/10**。SSE-S3/SSE-C方向对+Bucket Key降本直觉对,漏SSE-KMS和客户端加密,Bucket Key错归SSE-S3(实为SSE-KMS),机制理解偏差。记忆点:**S3四种=SSE-S3(S3托管key服务端)/SSE-KMS(KMS key服务端可审计每次调KMS)/SSE-C(你提供key仍S3服务端每请求带key)/客户端加密(本地加密后上传S3只存密文);前三服务端区别在密钥谁管,客户端是出门前加密;⚠️Bucket Key是SSE-KMS特性(非SSE-S3):S3用桶级中间密钥派生对象密钥,把每对象一次KMS调用降为少数几次,削减SSE-KMS的KMS费(最多约99%),靠减少调用降本非按数量/时间换key;对照GCP SSE-S3↔默认加密,SSE-KMS↔CMEK,SSE-C↔CSEK**。
