@@ -167,3 +167,48 @@
 ---
 
 **批次 4 小结**：Q7=4、Q8=3,均分3.5(本批偏弱)。重点纠错→**①跨账号=双向握手(对端trust policy带Principal+本账号identity policy允许sts:AssumeRole);ExternalId=第三方SaaS专属秘密串,防confused deputy(混淆代理人),须不可猜测,GCP无对应 ②⚠️Identity Center管「内部员工」SSO多账号(不是外部!),Cognito管「外部app终端用户」注册登录——这是最易混的核心分界,伟伟这次把Identity Center说成外部授权,记牢:内部员工=Identity Center,外部用户=Cognito**。
+
+---
+
+## 批次 5：Q9–Q10（2026-09-05）
+
+### Q9. EKS IRSA + Pod Identity + Pod免密钥拿AWS权限 + 机制区别 + 对照GCP Workload Identity
+**伟伟答**：Service account映射到IAM role获得权限,EBS CSI driver就是例子;EKS Pod Identity也是通过node IAM授权。
+
+**① 对照**：✅**"SA映射到IAM role获得权限"=IRSA本质,完全对**;✅**"EBS CSI driver是例子"举得准**(集群插件靠IRSA拿AWS权限);❌**核心错:"Pod Identity通过node IAM授权"说反了**——Pod Identity恰恰是为摆脱node IAM"一节点所有Pod共享同一套粗粒度权限/过度授权"而设计,走独立的EKS Auth API+node agent(DaemonSet),给每Pod精细隔离权限,不继承node role;🔶漏IRSA底层(OIDC+AssumeRoleWithWebIdentity)、Pod Identity优势、GCP对照。
+
+**② 参考答案(AWS官方核实)**：
+- **共同目标**:让Pod免密钥拿AWS权限。三条演进:①硬编码长期key(最差)②node IAM role(简单但危险,同节点所有Pod共享权限,过度授权)③**IRSA/Pod Identity(每Pod精细隔离+临时凭证+免密钥,best practice)**。
+- **IRSA**:集群配OIDC provider→K8s SA加注解`eks.amazonaws.com/role-arn`指向IAM Role→Role的trust policy信任该集群OIDC provider(条件绑namespace+SA)→Pod用SA拿projected OIDC token调STS **AssumeRoleWithWebIdentity**(呼应Q6第三种assume)换临时凭证。EBS CSI driver典型。
+- **EKS Pod Identity(更新方案,非node IAM!)**:EKS Pod Identity Association把SA关联IAM Role→集群跑`eks-pod-identity-agent` DaemonSet(node agent)拦截凭证请求、本地校验Pod身份、调**EKS Auth API AssumeRoleForPodIdentity**(STS+session tags)发临时凭证。⚠️不靠node IAM;trust policy统一信任`pods.eks.amazonaws.com`,**跨集群可复用同一Role,不用每集群配OIDC provider**。
+- **IRSA vs Pod Identity**:机制=OIDC+AssumeRoleWithWebIdentity vs node agent+EKS Auth API;trust=每集群OIDC ARN vs 统一pods.eks.amazonaws.com(可跨集群复用);配置=每集群配OIDC较繁 vs 装agent addon更省;时间=IRSA早/生态广,Pod Identity 2023底推出/AWS现推荐。两者都=每Pod精细/临时/免密钥。
+
+**③ 概念**:演进=硬编码key→node IAM(粗,危险)→IRSA/Pod Identity(细,临时,免密钥)。伟伟核心错=Pod Identity初衷就是取代node IAM过度授权,绝非"通过node IAM授权",它有独立agent+EKS Auth API通道。IRSA用到Q6的AssumeRoleWithWebIdentity。
+
+**④ AWS↔GCP对照**:让Pod免密钥拿云权限=AWS IRSA/Pod Identity↔**GKE Workload Identity**;绑定=K8s SA↔IAM Role vs K8s SA↔GCP SA;底层=OIDC+AssumeRoleWithWebIdentity/EKS Auth API↔GKE metadata server换SA token;反面粗粒度=node IAM role↔node默认SA(都所有Pod共享)。哲学一致:K8s SA映射云IAM身份,Pod免密钥拿短命凭证,替代整节点共享一套权限。
+
+**⑤ 评分：6/10**。IRSA答得好(SA↔Role+EBS CSI例子准),但Pod Identity说成node IAM是核心错(它恰恰要摆脱node IAM)。记忆点:**IRSA=OIDC provider+SA注解映射IAM Role,Pod拿OIDC token调AssumeRoleWithWebIdentity换临时凭证(EBS CSI典型);EKS Pod Identity=更新方案,eks-pod-identity-agent(DaemonSet)+EKS Auth API AssumeRoleForPodIdentity,trust统一信任pods.eks.amazonaws.com跨集群可复用配置更省;⚠️两者都不是node IAM(Pod Identity正是为摆脱node IAM粗粒度而生);都=每Pod精细/临时/免密钥;对标GKE Workload Identity(K8s SA↔GCP SA)**。
+
+### Q10. Security Group vs NACL(有状态/无状态、allow/deny、层级、规则顺序)
+**伟伟答**：Security Group有状态,自动放行回来端口;NACL无状态。Security默认deny,NACL是allow。
+
+**① 对照**：✅**"SG有状态自动放行回程;NACL无状态"完全对**(最重要区别,面试最常考);🔶"SG默认deny"对但要说全——**SG只能写allow(没写即隐式拒绝),根本不能写deny**;🔶**"NACL是allow"不准确——NACL既能allow也能deny(支持显式拒绝,与SG一大区别)**,默认NACL全通/自定义NACL全拒;🔶漏层级(SG=实例/ENI级,NACL=子网级)、NACL按规则号从小到大命中即停(SG无顺序全评估)。
+
+**② 参考答案(AWS官方核实)**：
+- 层级:SG=实例/ENI级(挂网卡);NACL=子网级(整subnet)。
+- 状态:SG有状态(记出站连接,回程自动放行);NACL无状态(进出各自独立评估,响应要单独开临时端口1024-65535)。
+- 规则:SG只能allow(没写=隐式拒绝),不能deny;NACL能allow也能deny(可封恶意IP)。
+- 匹配:SG无顺序,所有规则一起评估,一条allow命中即放行;NACL按规则号从小到大命中第一条即停,末尾*默认拒绝。
+- 默认:SG默认拒入站/允出站;默认NACL全通,自定义NACL全拒。
+- **有状态vs无状态(最重要)**:SG开入站443,响应从443出去自动放行(记住连接);NACL不记连接,开入站443后响应出去还得单独在出站开临时端口(1024-65535)allow否则被挡(NACL最易踩坑)。
+- **规则顺序(NACL特有)**:编号100/200/300从小到大逐条匹配,命中(allow或deny)即停;想"先deny坏IP再allow网段",deny号排前。SG无此概念。
+
+**③ 概念**:纵深两层=NACL子网门口粗筛(无状态/可deny/整子网)+SG实例门口精筛(有状态/只allow/精确网卡);包进实例先过子网NACL再过实例SG,出去反之。口诀:SG=实例级/有状态/只allow/无顺序;NACL=子网级/无状态/可allow可deny/按号命中即停。伟伟答对最关键的有状态/无状态,要补:SG不能写deny、NACL能deny、层级、NACL按号命中即停。
+
+**④ AWS↔GCP对照**:实例级有状态防火墙=AWS SG↔GCP VPC Firewall Rules(GCP防火墙本身有状态);子网级过滤=AWS NACL↔⚠️GCP无直接无状态子网ACL(用Firewall Rules带priority+网络标签/SA+Hierarchical firewall policy,GCP防火墙支持allow/deny靠priority排序);规则优先级=NACL规则号↔GCP priority(0-65535越小越优先)。⚠️GCP VPC Firewall默认有状态(像SG)+支持allow/deny+priority(像NACL),相当于合并简化了SG+NACL。
+
+**⑤ 评分：6/10**。有状态/无状态答对(最重要),但"NACL是allow"漏了NACL也能deny(关键),SG没点出"不能写deny只有allow",漏层级和NACL规则顺序。记忆点:**SG=实例/ENI级+有状态(回程自动放行)+只能allow(不能deny)+规则无顺序全评估;NACL=子网级+无状态(进出独立,响应要单开临时端口1024-65535)+可allow可deny(封IP)+按规则号从小到大命中即停;默认NACL全通/自定义全拒;纵深=包先过子网NACL粗筛再过实例SG精筛;对照GCP VPC Firewall(默认有状态+支持allow/deny+priority,合并了SG+NACL)**。
+
+---
+
+**批次 5 小结**：Q9=6、Q10=6,均分6(比前几批好)。重点纠错→**①⚠️EKS Pod Identity不是走node IAM!它正是为摆脱node IAM"所有Pod共享粗粒度权限"而生,走eks-pod-identity-agent(DaemonSet)+EKS Auth API AssumeRoleForPodIdentity;IRSA走OIDC+AssumeRoleWithWebIdentity;都=每Pod免密钥精细临时权限,对标GKE Workload Identity ②SG=实例级/有状态/只allow(不能deny)/无顺序;⚠️NACL=子网级/无状态/可allow可deny/按规则号命中即停——伟伟漏了"NACL也能deny"和"SG不能写deny",有状态/无状态答对(核心)**。
