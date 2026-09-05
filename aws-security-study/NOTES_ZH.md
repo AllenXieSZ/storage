@@ -255,3 +255,43 @@
 ---
 
 **批次 6 小结**：Q11=4、Q12=6,均分5。重点纠错→**①⚠️私有子网出公网走NAT Gateway不是IGW!公有vs私有唯一区别=路由表有没有0.0.0.0/0→IGW;私有路由表0.0.0.0/0→NAT,无IGW路由所以只出不进;IGW双向/NAT单向;对照GCP Cloud NAT ②VPC Endpoint机制伟伟答对(Gateway=路由表/Interface=ENI网卡),要补:Gateway只支持S3/DynamoDB+免费+仅本VPC,Interface(PrivateLink)=ENI+收费+100+服务+可跨本地;对照GCP Private Google Access/PSC;别和K8s Service混**。
+
+---
+
+## 批次 7：Q13–Q14（2026-09-05）
+
+### Q13. WAF + Shield(Standard/Advanced) + 对照Cloud Armor(别和Shielded VM混)
+**伟伟答**：WAF是第七层,防SQL注入之类应用;Shield Standard是DDoS防御,advanced可提供人工服务。
+
+**① 对照**：✅**"WAF是L7,防SQL注入"完全对**(应用层Web防火墙);✅"Shield Standard是DDoS防御"对;✅"advanced提供人工服务"对(=SRT响应团队);🔶漏Shield防哪层(L3/4,Advanced扩到L7);🔶漏Standard vs Advanced完整区别(免费vs收费$3000/月、L7检测、cost protection);🔶漏WAF/Shield分工、Cloud Armor对照、别和Shielded VM混。
+
+**② 参考答案(AWS官方核实)**：
+- **WAF**=应用层(L7/HTTP)Web防火墙,挂CloudFront/ALB/API GW前,检查每个HTTP请求内容,防SQL注入/XSS/恶意bot/爬虫/速率攻击(rate-based),有Managed Rules(OWASP)。
+- **Shield=防DDoS**。**Standard**:免费+所有客户自动开+防L3/4常见DDoS(SYN flood/UDP reflection)。**Advanced**:付费(~$3000/月+数据费),加①L7 DDoS检测②**24/7 SRT(Shield Response Team)专家(=人工服务)**③**Cost Protection**(DDoS致扩容的额外账单可退)④与WAF深度集成+攻击可视化。
+- **WAF vs Shield分工**:WAF防应用层内容攻击(看请求内容对不对);Shield防DDoS洪水(看流量是不是异常洪水);实战常一起挂。
+
+**③ 概念**:按OSI层=Shield Standard防L3/4 DDoS,WAF防L7内容攻击,Shield Advanced横跨L3/4/7 DDoS+人工+费用保护。"人工服务"准确=SRT。免费vs付费是另一大区别。
+
+**④ AWS↔GCP对照**:WAF+Shield↔**Cloud Armor**(GCP把WAF功能+DDoS防护合一,L7防SQLi/XSS+L3/4/7 DDoS);托管规则=WAF Managed Rules↔Cloud Armor预配置规则;高级DDoS+人工=Shield Advanced(SRT+cost protection)↔Cloud Armor Managed Protection Plus。⚠️**别和GCP Shielded VM混**:Shielded VM是VM启动/固件层安全(Secure Boot/vTPM/integrity monitoring,防rootkit/bootkit),与网络攻击/DDoS/Web防火墙无关;AWS对应VM启动层安全的是Nitro/NitroTPM/Secure Boot(Q27),不是AWS Shield——面试常设混淆陷阱。
+
+**⑤ 评分：6/10**。WAF准+Shield方向对+答对Advanced人工服务;漏Shield层级(L3/4)、Standard/Advanced完整区别、WAF/Shield分工、GCP对照。记忆点:**WAF=L7 Web防火墙防SQLi/XSS/bot/速率(CloudFront/ALB前,Managed Rules);Shield防DDoS:Standard免费自动L3/4,Advanced付费$3000/月加L7检测+24/7 SRT人工+Cost Protection+WAF集成;分工=WAF防内容攻击/Shield防洪水;对照GCP Cloud Armor(WAF+DDoS合一);⚠️别和Shielded VM混(那是VM启动层安全=Secure Boot/vTPM,AWS对应Nitro/NitroTPM)**。
+
+### Q14. KMS + key三种类型 + Envelope Encryption信封加密
+**伟伟答**：KMS用来加密/解密key,可以托管,可以自己管理;envelope encryption不知道。
+
+**① 对照**：✅"KMS加密/解密key"大方向对;✅"可托管/可自己管理"碰到key类型核心(AWS管的vs你自己管的)但没说全三种;🔶漏KMS关键特性:**主密钥永不离开KMS(HSM保护/不可导出),加解密在KMS内完成**;❌Envelope Encryption不会(本题核心+KMS能加密大数据的关键机制)。
+
+**② 参考答案(AWS官方核实)**：
+- **KMS**=托管密钥服务,创建/管理/使用加密密钥。⚠️核心=**KMS key(原CMK)主密钥永不离开KMS,由HSM保护、无法导出明文**,所有加解密把数据/密钥发进KMS内部完成;受IAM+key policy双控,CloudTrail审计。
+- **三种key类型(控制权递减)**:①**Customer managed**=你自己创建管理,完全控制(轮换/key policy/启停/删除),收费,精细控制审计场景;②**AWS managed**=AWS为某服务自动创建(如aws/s3、aws/ebs),你不能改key policy,密钥免费只收调用费;③**AWS owned**=AWS完全拥有跨账号共享,你看不见管不了,免费。伟伟"可托管/可自管"对应前两类,补AWS owned即全。
+- **Envelope Encryption(信封加密)—本题核心**:为何不直接用KMS加密大数据=主密钥不出KMS且单次操作限4KB、大数据来回传慢又贵。解法两层密钥:①向KMS要**Data Key**,KMS用主密钥生成返回两份(明文data key+被主密钥加密的data key密文);②用**明文data key在本地对称加密(AES)大数据**(快、不限大小);③加密后**丢弃明文data key**,只存"加密数据+加密的data key密文";④解密时把加密的data key发回KMS用主密钥解出明文data key再本地解数据。好处=大数据本地快速对称加密+主密钥始终不出KMS+绕过4KB限+每份数据可用不同data key(爆炸半径小)。S3 SSE-KMS/EBS加密底层都用它。
+
+**③ 概念**:KMS安全根基=主密钥永不出KMS(HSM/不可导出,伟伟没点出)。信封加密=两层:主密钥(KMS内管小钥匙)+数据密钥(本地加密大数据);画面=数据锁进信封(data key),信封钥匙(data key)再锁进KMS保险箱(主密钥)。key类型控制权:customer>AWS managed>AWS owned。
+
+**④ AWS↔GCP对照**:托管密钥=KMS↔Cloud KMS;key类型=customer managed/AWS managed/AWS owned↔CMEK/Google-managed default;信封加密原理完全一样=主密钥(GCP叫KEK)加密数据密钥(GCP叫DEK)两层;主密钥不出服务两边一致(GCP还有Cloud HSM/EKM更高等级)。
+
+**⑤ 评分：4/10**。KMS方向对但没点"主密钥不出KMS"核心特性,三种key没说全,Envelope Encryption完全不会(本题核心)。记忆点:**KMS=托管密钥服务,主密钥永不离开KMS(HSM/不可导出)加解密在内部完成,IAM+key policy双控;三种key:customer managed(你全控收费)/AWS managed(AWS替你管某服务key可见不可改)/AWS owned(AWS自有看不见免费),控制权递减;Envelope Encryption=向KMS要Data Key(明文+主密钥加密的密文两份)→明文data key本地对称加密大数据(快不限大小)→丢明文只存加密数据+加密data key→解密发回KMS用主密钥解出;好处=大数据本地快加密+主密钥不出KMS+绕4KB限;对照GCP KMS↔Cloud KMS,主密钥=KEK/数据密钥=DEK**。
+
+---
+
+**批次 7 小结**：Q13=6、Q14=4,均分5。重点纠错→**①WAF=L7防SQLi/XSS,Shield防DDoS(Standard免费L3/4,Advanced付费$3000/月+L7+24/7 SRT人工+Cost Protection);对照Cloud Armor(WAF+DDoS合一);⚠️别和Shielded VM混(VM启动层安全,AWS对应Nitro/NitroTPM) ②⚠️KMS主密钥永不出KMS(HSM不可导出);三种key=customer managed(全控收费)/AWS managed(可见不可改)/AWS owned(看不见免费);Envelope Encryption信封加密=两层密钥,向KMS要data key(明文+密文),明文data key本地加密大数据后丢弃只存密文data key,解密时发回KMS解出——绕过4KB限+主密钥不出KMS**。
