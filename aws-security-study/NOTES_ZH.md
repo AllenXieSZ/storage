@@ -331,3 +331,40 @@
 **④ AWS↔GCP对照**:SSE-S3↔GCP GCS Google-managed默认加密;SSE-KMS↔GCP CMEK(Cloud KMS);SSE-C↔GCP CSEK(Customer-Supplied);客户端加密↔GCP客户端加密;⚠️Bucket Key降本是AWS S3+KMS特有,GCP CMEK计费模型不同无对应。
 
 **⑤ 评分：5/10**。SSE-S3/SSE-C方向对+Bucket Key降本直觉对,漏SSE-KMS和客户端加密,Bucket Key错归SSE-S3(实为SSE-KMS),机制理解偏差。记忆点:**S3四种=SSE-S3(S3托管key服务端)/SSE-KMS(KMS key服务端可审计每次调KMS)/SSE-C(你提供key仍S3服务端每请求带key)/客户端加密(本地加密后上传S3只存密文);前三服务端区别在密钥谁管,客户端是出门前加密;⚠️Bucket Key是SSE-KMS特性(非SSE-S3):S3用桶级中间密钥派生对象密钥,把每对象一次KMS调用降为少数几次,削减SSE-KMS的KMS费(最多约99%),靠减少调用降本非按数量/时间换key;对照GCP SSE-S3↔默认加密,SSE-KMS↔CMEK,SSE-C↔CSEK**。
+
+---
+
+## 批次 9：Q17–Q18（2026-09-05）
+
+### Q17. EBS/RDS/快照加密 + 默认加密开启 + 跨账号/跨区共享加密快照KMS注意
+**伟伟答**：EBS加密可account Level设置,跨区加密copy快照要全量,key要授权跨Region;加密通过kms拿data key。
+
+**① 对照**：✅"account Level设置"方向对(精确=encryption by default,是Region级per-Region设置);✅**"copy快照要全量"完全对**(官方:copy并换新KMS key重加密时产生完整非增量拷贝);✅**"通过kms拿data key"对**(EBS加密底层=信封加密);🔶"跨区加密key要授权跨Region"表述不准+混了两件事(跨区=目标region用它自己的KMS key重加密,KMS key是region内的不能跨region;跨账号才涉及把源账号key共享授权给目标账号);🔶漏RDS加密只能创建时启用(已有实例要走快照)、跨账号共享完整步骤。
+
+**② 参考答案(AWS官方核实)**：
+- **底层统一**:EBS/RDS/快照加密都=KMS+信封加密(向KMS要data key),对EC2/DB透明几乎无损耗。EBS加密卷+其快照+从快照恢复的卷都加密。
+- **RDS加密关键限制**:只能**创建实例时启用**;已有未加密实例不能原地加密→做快照→copy时启用加密(指定KMS key)→从加密快照恢复新实例。
+- **快照**:加密卷快照自动加密;⚠️不能改已存在卷/快照关联的KMS key,只能copy时换新key(=全量非增量拷贝)。
+- **默认加密(per-Region)**:`aws ec2 enable-ebs-encryption-by-default`为某region开;开后该region新建卷/快照自动加密(用默认KMS key或aws/ebs);⚠️Region级,开了就不能再单独给某卷/快照关加密(所以"account level"不精确)。
+- **跨区copy加密快照**:KMS key绑region内不能跨region直接用→目标region指定它自己的KMS key重加密(全量)。伟伟"key授权跨Region"不准,不是同一把key跨region而是目标region用自己的key重加密。
+- **跨账号共享加密快照(官方步骤)**:AWS managed key(aws/ebs)加密的快照不能跨账号共享,必须customer managed key;①源账号把加密用的customer managed KMS key共享/授权给目标账号(key policy允许目标账号用)②快照本身也共享给目标账号③目标账号用被授权的key copy该共享快照(通常copy时用自己的key重加密)。⚠️核心=跨账号共享加密数据必须同时共享"快照+加密它的KMS key使用权"。
+
+**③ 概念**:三者底层统一=KMS+信封加密。两条"不可原地改"规则:①已有未加密RDS不能原地加密(走快照copy)②不能改已存在卷/快照的KMS key(copy时换key且全量)。跨区vs跨账号别混:跨区=目标region用自己key重加密(全量);跨账号=必须customer managed key+把key使用权和快照都共享给目标账号。
+
+**④ AWS↔GCP对照**:块存储加密=EBS(KMS)↔PD(默认Google-managed或CMEK);默认加密=EBS per-Region开关↔GCP PD默认就加密(想自管用CMEK);数据库=RDS加密(创建时)↔Cloud SQL(默认加密+CMEK);KMS key region内↔Cloud KMS key location绑定同理。
+
+**⑤ 评分：6/10**。答对account/region级默认加密、copy换key全量、KMS拿data key信封加密;扣分=跨区/跨账号key授权含糊混了两件事,漏RDS创建时才能加密。记忆点:**EBS/RDS/快照加密底层=KMS+信封加密(要data key)透明无损;默认加密per-Region(enable-ebs-encryption-by-default)开后新卷/快照自动加密且不能单独关;⚠️不能改已存在卷/快照的KMS key只能copy时换key(全量非增量);RDS只能创建时启用加密,已有实例走快照→copy加密→恢复;跨区copy用目标region自己的KMS key重加密;跨账号共享加密快照必须customer managed key且同时共享key使用权+快照给目标账号再copy;对照GCP EBS↔PD/CMEK,RDS↔Cloud SQL/CMEK**。
+
+### Q18. Secrets Manager vs SSM Parameter Store(SecureString) + 自动轮换 + 为何不把密钥写进代码/环境变量
+**伟伟答**：未作答。
+
+**② 参考答案(AWS官方核实)**：
+- **对比**:两者都能安全存敏感信息(密码/API key/DB凭证)都用KMS加密,定位不同:Secrets Manager=专管机密功能全/**内置自动轮换**/和RDS等深度集成一键轮换/支持resource policy跨账号/**收费**(按secret月+调用);SSM Parameter Store(SecureString)=通用配置参数存储也能存机密(SecureString用KMS加密)/**无内置轮换**(自己写)/**标准参数免费**(Advanced收费)性价比高/跨账号较弱。选型:要轮换/RDS集成/跨账号→Secrets Manager;存配置或省钱→Parameter Store SecureString。
+- **Secrets Manager自动轮换**:配轮换周期(如30天)+轮换Lambda,到期自动触发Lambda走四步:①createSecret(生成新密码存AWSPENDING版本)②setSecret(更新到目标服务如改DB用户密码)③testSecret(用新密码测试能否连上)④finishSecret(测通把新版本标AWSCURRENT正式生效,旧版降级)。RDS/Aurora等有托管轮换几乎一键。好处=密码定期自动换,应用永远取"当前有效"密码不用人工改。
+- **为何不把密钥写进代码/环境变量**:①代码进Git(尤误推公开仓)/镜像被拉/反编译=长期密钥直接外泄(GitHub海量AKIA泄露皆此);②环境变量出现在进程列表/崩溃dump/日志/docker inspect/proc易旁路读到,且写死无法轮换要改代码重部署。正确做法=存Secrets Manager/Parameter Store,应用运行时靠IAM权限动态拉(EC2 instance role/EKS IRSA/Lambda execution role)+自动轮换→密钥不落地/可轮换不改代码/IAM控制+CloudTrail审计/凭证临时爆炸半径小。
+
+**③ 概念**:核心分野=有无内置自动轮换+是否收费。轮换四步create→set→test→finish由Lambda执行(生成新密码→更新到服务→测通→才切换,不中途搞挂服务)。密钥黄金法则:永不进代码/环境变量/镜像,用托管服务存+运行时靠IAM角色动态拉+自动轮换——串起Q2(用role不用长期key)/Q9(IRSA)/Q14(KMS)。
+
+**④ AWS↔GCP对照**:专用机密管理+轮换=Secrets Manager↔GCP Secret Manager(GCP轮换要配Cloud Functions/Scheduler,不像AWS对RDS一键托管);通用参数+加密=SSM Parameter Store SecureString↔GCP Secret Manager/Runtime Config;运行时取密钥=IAM role(instance/IRSA/Lambda)↔GCP SA(附加VM/GKE Workload Identity)。黄金法则一致=密钥不进代码,托管服务+工作负载身份运行时拉。
+
+**⑤ 评分：0/10(未作答)**。记忆点:**Secrets Manager=专管机密+内置自动轮换(Lambda四步createSecret→setSecret→testSecret→finishSecret)+RDS深度集成+跨账号+收费;SSM Parameter Store(SecureString)=通用配置/机密+KMS加密+无内置轮换+标准免费性价比高;选型要轮换/RDS/跨账号→Secrets Manager,存配置省钱→Parameter Store;不把密钥写进代码/环境变量因代码进Git镜像=泄露+环境变量在进程/日志/dump可见且写死无法轮换;正确=存托管服务+运行时靠IAM角色(instance role/IRSA/Lambda role)动态拉+自动轮换(不落地/可轮换/可审计/临时);对照GCP Secret Manager,运行时靠SA/Workload Identity**。
