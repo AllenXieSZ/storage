@@ -127,3 +127,43 @@
 ---
 
 **批次 3 小结**：Q5=4、Q6=5,均分4.5。重点纠错→**①⚠️Principal只有resource-based policy有且必须(identity-based不写)——伟伟答反了;policy五要素Effect/Action/Resource/Condition/Principal;显式Deny一票否决 ②STS临时凭证含SessionToken(标志);三种assume分内部/SAML/OIDC;⚠️临时凭证不能直接吊销,靠改policy或Revoke sessions或自动过期**。
+
+---
+
+## 批次 4：Q7–Q8（2026-09-05）
+
+### Q7. 跨账号访问(Role trust policy + AssumeRole + ExternalId) + ExternalId解决什么(confused deputy)
+**伟伟答**：对端account授权,本账号授权,ExternalId不知道是什么。
+
+**① 对照**：✅**"对端account授权+本账号授权"抓住双向握手核心**(资源方trust policy允许你assume+发起方identity policy允许自己assume);🔶不够精确:哪边trust policy、哪边identity policy的`sts:AssumeRole`没说清;❌ExternalId不会(核心考点);🔶漏confused deputy、ExternalId须"不可猜测的秘密"。
+
+**② 参考答案(AWS官方核实)**：
+- **跨账号双向握手(A访问B)**:①**B(资源方/对端)**建Role,挂访问B资源的权限,并在**trust policy(resource-based,必带Principal)**声明"允许A账号assume":`Principal:{AWS:arn:...:<A>:root}, Action:sts:AssumeRole`;②**A(访问方/本账号)**给自己身份挂identity policy允许`sts:AssumeRole` Resource=B的roleARN;③运行时A调sts:AssumeRole→STS两层校验(A允许assume+B trust允许A)→发临时凭证→A操作B资源。
+- **confused deputy(混淆代理人)**:deputy=被信任有权限的中间方(典型=第三方SaaS如Acme代多客户干活)。你建Role信任Acme账号;Acme服务很多客户若用同一账号,攻击者可诱骗Acme用其受信任身份去assume你的Role→Acme成"被搞糊涂的代理人"(有权限但被利用访问了不该访问的账号)。
+- **ExternalId堵洞**:=只有你和该第三方之间知道的秘密串,加在trust policy的`Condition:{StringEquals:{sts:ExternalId:"专属秘密"}}`。Acme代你干活带你的ExternalId→通过;别的客户/攻击者不知道你的ExternalId→assume失败。⚠️官方(id_roles_common-scenarios_third-party):ExternalId须**不可猜测**(可用发票号等唯一标识,别用客户名这类易猜的)。只要第三方SaaS跨账号访问你资源就该用ExternalId。
+
+**③ 概念**:跨账号=双向握手(对端trust policy信任+本账号identity policy允许assume,正好用上identity vs resource-based)。ExternalId=第三方多租户下的隔离锁——光信任其账号ID不够(它也服务别人),再加"只有你俩知道的暗号"确认"它这次真代表你来"。
+
+**④ AWS↔GCP对照**:跨账号=AWS Role trust policy+sts:AssumeRole↔GCP资源上绑他项目SA/SA impersonation(roles/iam.serviceAccountTokenCreator);**防混淆代理人=AWS ExternalId条件↔GCP无同名机制**(靠Workload Identity严格audience/subject绑定、per-customer SA)。ExternalId是AWS跨账号(尤其第三方SaaS)特色。
+
+**⑤ 评分：4/10**。抓住双向授权方向,但没说清trust vs identity policy,ExternalId不会。记忆点:**跨账号=双向握手(对端Role trust policy带Principal允许你assume+本账号identity policy允许sts:AssumeRole)→STS两层校验发临时凭证;ExternalId=你与第三方SaaS间"只有彼此知道的秘密串",放trust policy Condition防confused deputy(防服务多客户的第三方被诱骗越权访问你账号),须不可猜测;GCP无精确对应**。
+
+### Q8. IAM Identity Center(原AWS SSO) + 与联合身份/IdP关系 + 与Cognito区别(内部员工vs外部用户)
+**伟伟答**：IAM Identity Center是外部授权,需要创建账号,然后可访问AWS资源。Cognito不知道。
+
+**① 对照**：✅"Identity Center→访问AWS资源"方向对;🔶**"外部授权"说反了——Identity Center主要面向组织内部员工**;"需要创建账号"含糊(可内置目录建,也可接外部IdP不必单独建);❌Cognito不会;🔶漏核心区别"内部员工vs外部终端用户"。
+
+**② 参考答案(AWS官方核实)**：
+- **IAM Identity Center(原AWS SSO)**=集中管理**组织内部人员**访问多个AWS账号和应用的服务。①SSO:员工登一次进Organization下多个AWS账号(按permission set分权)+各SAML/云应用;②身份来源灵活:内置目录建用户,或**接外部IdP(Okta/Entra ID/AD/Ping,SAML+SCIM)**做联合登录=AWS侧联合登录枢纽;③permission set定义"某组人在某账号有什么权限",登录自动assume角色。与联合身份/IdP关系:它是把企业IdP接进来、统一分发到多账号/多应用那一层,**面向内部员工**。
+- **Amazon Cognito**=面向**你app的外部终端用户(客户)**的身份服务(你自己开发的移动/Web app的注册登录+用户目录)。①**User Pool**:管终端用户注册/登录/MFA/社交登录(Google/Facebook/Apple)+企业IdP;②**Identity Pool**:把登录用户换成AWS临时凭证(走**AssumeRoleWithWebIdentity**)让app用户访问S3/DynamoDB等。一句话=给你的应用装一套用户登录系统,对象是海量外部客户。
+- **核心区别(内部员工vs外部用户)**:Identity Center=内部员工SSO到多AWS账号/内部应用(员工数量级);Cognito=外部终端用户登录你的app(可百万级)。拿AWS权限:Identity Center靠permission set assume账号角色;Cognito靠Identity Pool的AssumeRoleWithWebIdentity换临时凭证。
+
+**③ 概念**:分界线=员工进公司AWS/内部系统→Identity Center;客户登录你做的App→Cognito。伟伟把Identity Center说成"外部授权"反了——它管内部;真正管外部终端用户的是Cognito(这是本题核心考点)。
+
+**④ AWS↔GCP对照**:内部员工SSO多账号=AWS Identity Center↔GCP Cloud Identity/Workspace+Workforce Identity Federation;外部app用户登录=AWS Cognito↔GCP Firebase Auth/Identity Platform;app用户换云临时凭证=Cognito Identity Pool(WithWebIdentity)↔Identity Platform+STS token交换。记:Identity Center↔Workforce(员工),Cognito↔Firebase Auth(app外部用户)。
+
+**⑤ 评分：3/10**。Identity Center方向沾边但把"内部"说成"外部";Cognito不会;核心分工没答。记忆点:**IAM Identity Center(原AWS SSO)=面向组织内部员工的SSO中枢(一次登录进多AWS账号/应用,可接企业IdP统一分发,permission set分权);Amazon Cognito=面向app外部终端用户的身份服务(User Pool管注册登录+Identity Pool用AssumeRoleWithWebIdentity换AWS临时凭证);核心分界:内部员工→Identity Center,外部app用户→Cognito;对标GCP Workforce Identity/Firebase Auth-Identity Platform**。
+
+---
+
+**批次 4 小结**：Q7=4、Q8=3,均分3.5(本批偏弱)。重点纠错→**①跨账号=双向握手(对端trust policy带Principal+本账号identity policy允许sts:AssumeRole);ExternalId=第三方SaaS专属秘密串,防confused deputy(混淆代理人),须不可猜测,GCP无对应 ②⚠️Identity Center管「内部员工」SSO多账号(不是外部!),Cognito管「外部app终端用户」注册登录——这是最易混的核心分界,伟伟这次把Identity Center说成外部授权,记牢:内部员工=Identity Center,外部用户=Cognito**。
