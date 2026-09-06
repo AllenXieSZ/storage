@@ -557,3 +557,39 @@
 **真实印证**：btmart 实例 SSM Agent 没注册→Session Manager 用不了→回退到 EC2 Instance Connect 推临时key+临时开SG。反证"无入站无公网"的便利全靠 Agent 那条出站反连，Agent 连不上 SSM(没注册)反向通道就断。
 
 **对照GCP**：IAP for TCP forwarding 同思路(不给公网IP/不开入站,经IAP隧道+IAM鉴权连入)；共同哲学=用"受控中转+IAM鉴权"取代"开公网入站端口"。
+
+---
+
+## 批次 14：Q27–Q28（2026-09-06）
+
+### Q27. Nitro Enclaves/NitroTPM/EC2 Secure Boot分别防什么 + 对照GCP Confidential VM/Shielded VM
+**伟伟答**：nitro Enclave是加密计算防数据被偷看;nitro TPM是认证硬件;secure boot是启动防rootkit。
+
+**① 对照**：✅**Nitro Enclaves答得准**(加密计算/隔离环境防敏感数据被偷看=机密计算保护in-use数据);✅NitroTPM"认证硬件"方向对(虚拟TPM 2.0做度量/attestation);✅**Secure Boot"启动防rootkit"完全正确**;🔶漏三者分属两个维度(Enclaves=运行时数据机密 / NitroTPM+Secure Boot=启动完整性);🔶漏Enclaves的attestation绑KMS用法+GCP对照。
+
+**② 参考答案(AWS官方核实)**：
+- **维度一 运行时数据机密(机密计算)=Nitro Enclaves**:从EC2切一块完全隔离计算环境(同源Nitro Hypervisor),无持久存储/无SSH交互/无外部网络,只经本地vsock通母实例;处理高敏感数据(PII/医疗/金融/密钥),母实例被攻破/root也看不到enclave内部。杀手锏=Cryptographic Attestation+KMS集成:enclave生成attestation文档证明跑的是哪段度量过的代码,KMS key policy用kms:RecipientAttestation条件规定"只有特定经认证的enclave代码才能解密某密钥"。
+- **维度二 启动完整性=Secure Boot+NitroTPM**:①EC2 Secure Boot(UEFI)启动链只加载可信签名的固件/bootloader/内核,拒绝未签名组件→防bootkit/rootkit;②NitroTPM=符合TPM 2.0的虚拟可信平台模块,安全存密钥/凭证+启动各阶段度量存PCR+支持attestation证明启动状态可信没被篡改,也给BitLocker等用。
+- **三者关系**:Secure Boot=启动只放行签名组件(防rootkit进来);NitroTPM=启动过程度量存证+对外证明可信;Nitro Enclaves=运行时切隔离飞地处理敏感数据(防偷看)。前两者管开机可信,后者管运行时数据机密。
+
+**③ 概念**:两维度别混:数据在用不被偷看=Nitro Enclaves(confidential computing);开机固件/内核没篡改=Secure Boot(防rootkit)+NitroTPM(度量/认证)。NitroTPM≠加密计算(是TPM,服务启动完整性)。Enclaves精髓=隔离+attestation绑KMS(密钥只交给经验证代码)。
+
+**④ AWS↔GCP对照**:机密计算=Nitro Enclaves↔GCP Confidential VM(⚠️实现不同:GCP用AMD SEV/Intel TDX整机内存加密对应用透明,AWS是切隔离飞地+attestation);启动完整性=Secure Boot+NitroTPM↔GCP Shielded VM(Secure Boot+vTPM+integrity monitoring,vTPM≈NitroTPM)。⚠️呼应Q13坑:Shielded VM是启动层安全对应Secure Boot+NitroTPM,不是AWS Shield(DDoS)。
+
+**⑤ 评分：8/10(本批答得好)**。三方向全对,扣分=没点两维度区分+enclave attestation绑KMS。记忆点:**两维度:①运行时数据机密=Nitro Enclaves(切隔离飞地无持久存储/无SSH/无外网只vsock,母实例root也看不到,杀手锏=attestation文档+KMS kms:RecipientAttestation让密钥只交给经认证enclave代码);②启动完整性=Secure Boot(UEFI只加载签名固件/内核防rootkit)+NitroTPM(虚拟TPM2.0存密钥+度量启动+attestation证明没篡改);对照GCP Nitro Enclaves↔Confidential VM(GCP走SEV/TDX整机内存加密),Secure Boot+NitroTPM↔Shielded VM(≠AWS Shield)**。
+
+### Q28. AWS Organizations多账号策略(OU/SCP/日志账号/安全账号) + 为何多账号=安全隔离
+**伟伟答**：organization是多账号,不同OU实现不同策略,cloudwatch logs可集中放一个账号。
+
+**① 对照**：✅"organization多账号"对;✅**"不同OU实现不同策略"抓住核心**(OU分组+挂不同SCP);✅"日志集中放一个账号"方向对(Log Archive账号思想,更常见是CloudTrail日志集中到日志账号S3);🔶漏完整多账号蓝图(管理/安全/日志账号);🔶漏核心"为何多账号=安全隔离";🔶漏GCP对照。
+
+**② 参考答案(AWS官方核实)**：
+- **典型设计(Landing Zone)**:①Management account(管OU/SCP/合并账单,⚠️不跑业务,SCP管不住它,权限收紧开MFA);②OU按职能/环境分组(Security/Infra/Workloads-Prod/NonProd/Sandbox)挂不同SCP护栏(如Prod禁删CloudTrail限region,Sandbox限昂贵服务);③Log Archive账号(Security OU下,集中全组织CloudTrail/Config/VPC Flow Logs到S3,只读+Object Lock几乎谁都不能删);④Security/Audit账号(集中GuardDuty/Security Hub/Config组织视图供安全团队监控);⑤业务账号(每团队/应用/环境一个独立账号)。
+- **为何多账号=安全隔离(核心)**:账号是AWS最强的资源与权限边界。①爆炸半径隔离(一账号被攻破/失误默认不波及其他,账号间资源/IAM/网络默认完全隔离);②权限边界天然清晰(IAM默认不跨账号,跨账号必须显式Role trust+AssumeRole,不会手滑串权限);③配额/成本隔离(按账号分,一账号打爆不拖累others);④策略分层管控(配SCP对OU/账号设组织红线,管理员越不过);⑤合规/环境隔离(PCI等单独账号边界清晰审计简单)。一句话=单账号IAM软隔离有配错风险,多账号是硬隔离(账号边界=AWS最强安全+爆炸半径边界)。
+- **落地工具**:Control Tower自动搭Landing Zone(管理账号+Log Archive+Audit+预置SCP守护栏)。
+
+**③ 概念**:多账号=硬隔离(账号是AWS最强边界,资源/IAM/网络/配额/账单默认全隔离)。蓝图=管理账号(不跑业务)+OU分组挂SCP+Log Archive(集中日志)+Security/Audit(集中GuardDuty/Security Hub)+业务账号。SCP组织护栏(Q4)+集中日志账号(Q19)+安全账号(Q21/Q22多账号聚合)全串起来。
+
+**④ AWS↔GCP对照**:多账号组织=Organizations(Management+OU+成员账号)↔GCP Resource Hierarchy(Org→Folder→Project,AWS账号≈GCP Project都是最强隔离边界);组织护栏=SCP↔Org Policy;集中日志=Log Archive账号(CloudTrail→S3)↔组织级aggregated log sink→日志项目;一键搭=Control Tower(Landing Zone)↔GCP无等价单品靠组织策略+蓝图/Terraform。
+
+**⑤ 评分：5/10**。Organizations/OU挂策略/日志集中账号方向对;扣分=漏完整蓝图(管理/安全/日志账号)+没答"为何多账号=安全隔离"。记忆点:**Organizations多账号:Management account(管OU/SCP/账单,⚠️不跑业务)+OU按环境分组挂不同SCP护栏+Log Archive账号(集中CloudTrail/Config/Flow Logs到S3只读+Object Lock)+Security/Audit账号(集中GuardDuty/Security Hub)+业务账号;为何多账号=安全隔离:账号是AWS最强边界(资源/IAM/网络/配额/账单默认全隔离)→爆炸半径隔离+权限边界清晰(跨账号须显式AssumeRole)+配额成本隔离+SCP分层红线+合规隔离=硬隔离胜过单账号IAM软隔离;落地用Control Tower;对照GCP Organizations↔Resource Hierarchy(账号≈Project),SCP↔Org Policy,Control Tower↔组织策略+蓝图**。
