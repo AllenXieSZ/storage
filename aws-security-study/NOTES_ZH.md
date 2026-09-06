@@ -402,3 +402,41 @@
 **④ AWS↔GCP对照**:资源配置记录+合规=Config↔Cloud Asset Inventory(清单+配置历史)+SCC/Org Policy(合规评估);自动修复=Config remediation(SSM Automation)↔Cloud Functions/Security Health Analytics;组织级合规包=Conformance Pack↔Org Policy+SCC基准;分工=Config记状态+CloudTrail记动作↔Asset Inventory记状态+Cloud Audit Logs记动作。
 
 **⑤ 评分：0/10(未作答)**。记忆点:**AWS Config=记录+评估资源配置状态及变化历史:configuration recorder记当前配置+时间线,Config Rules(AWS托管/自定义Lambda)判合规COMPLIANT/NONCOMPLIANT,remediation用SSM Automation自动修复(可自动/人工批准);⚠️与CloudTrail区别=CloudTrail记"动作"(谁调什么API),Config记"状态"(配置是什么/变没变/合不合规),事件流vs状态快照,互补;Conformance Pack打包CIS/PCI一键部署;对照GCP Cloud Asset Inventory+SCC/Org Policy**。
+
+---
+
+## 批次 11：Q21–Q22（2026-09-06）
+
+### Q21. GuardDuty + 数据源 + findings处理 + 对照GCP SCC
+**伟伟答**：guardduty是安全扫描/病毒扫描,可扫S3文件/Backup文件/vpc flow logs/DNS logs/cloudtrail,发现后标识/隔离,会不会删除?
+
+**① 对照**：✅**数据源答得全**(vpc flow logs/DNS logs/cloudtrail正是基础三源);✅恶意软件/S3扫描方向对(有Malware Protection+S3 Protection);🔶S3相关是分析CloudTrail S3 data events,恶意软件扫的是EBS卷(及后来S3对象);❌**核心概念纠正:GuardDuty是纯检测服务,只产生findings(报警),自己不隔离/不删除/不处置**——处置靠EventBridge→Lambda/SSM或人工;🔶"Backup文件"当时判断不是数据源→**后经伟伟提示已修正:2025/11新特性GuardDuty Malware Protection for AWS Backup确实能扫Backup recovery point**(见下方修正)。
+
+**② 参考答案(AWS官方核实)**：
+- **GuardDuty**=智能威胁检测服务,持续被动分析日志用ML+威胁情报(已知恶意IP/域名)+异常检测发现可疑行为(盗用凭证异常地区调API、连挖矿/C2域名、端口扫描、S3异常外泄)。⚠️定位=检测/报警,非防护/处置,只生成findings不阻断不隔离不删除。
+- **数据源(基础)**:VPC Flow Logs+CloudTrail management events+CloudTrail S3 data events+DNS logs+EKS audit logs+EBS volume data+容器runtime;可选保护计划:S3/EKS/Malware(扫EBS卷/S3对象)/RDS/Lambda Protection。⚠️无需手动开日志,GuardDuty独立拉取分析后丢弃不占存储。
+- **findings处理**:生成finding(带严重程度/类型/资源/证据);GuardDuty自己不处置,靠①EventBridge→Lambda/SSM自动响应(隔离实例/改SG/吊销凭证/通知)②汇总到Security Hub③人工。
+
+**③ 概念**:GuardDuty=报警器非处置器(只检测发findings)。核心三源=VPC Flow Logs(网络)+CloudTrail(API含S3 data events)+DNS(可疑域名)+可选保护计划。无需手动开日志+分析后丢弃。
+
+**④ AWS↔GCP对照**:威胁检测=GuardDuty↔GCP SCC的Event Threat Detection;数据源=VPC Flow/CloudTrail/DNS↔VPC Flow Logs/Cloud Audit Logs/Cloud DNS logs;⚠️GCP SCC范围更大≈GuardDuty+Inspector+Security Hub合体,GuardDuty精确对应SCC里Event Threat Detection。
+
+**⑤ 评分：6/10**。数据源好+方向对,核心纠正=只检测不隔离不删除。记忆点:**GuardDuty=智能威胁检测(ML+威胁情报+异常),数据源VPC Flow Logs+CloudTrail(management+S3 data events)+DNS logs+EKS/EBS+可选保护计划,无需手动开日志分析后丢弃;⚠️只生成findings报警,自己不隔离/删除,处置靠EventBridge→Lambda/SSM或人工;对照GCP SCC的Event Threat Detection**。
+
+### ⚠️ Q21修正(2026-09-06 伟伟提示后查AWS官方核实)
+- **Amazon GuardDuty Malware Protection for AWS Backup**:2025年11月GA(AWS What's New 2025/11)。GuardDuty集成进AWS Backup,对备份recovery point做恶意软件扫描,支持EC2/EBS快照/EC2 AMI/S3 recovery points。两种触发:①AWS Backup创建/更新备份时自动扫②对历史备份按需on-demand扫。多引擎+全量/增量扫描。核心价值=识别"最后一个已知干净备份(last known clean backup)",勒索恢复时挑无毒recovery point避免把恶意软件恢复回去。结果以GuardDuty finding呈现,处置仍靠EventBridge联动(GuardDuty不删备份)。
+- **教训**:此前判断"GuardDuty不扫Backup"是按旧知识,违反了伟伟规范(旧缺点≠仍存在,须查最新文档)。查证后伟伟说的对——GuardDuty现已能扫Backup recovery point。
+
+### Q22. Security Hub + 聚合GuardDuty/Inspector/Config + CIS/PCI/FSBP + 与单个检测服务关系
+**伟伟答**：不知道。
+
+**② 参考答案(AWS官方核实)**：
+- **Security Hub**=云安全态势管理(CSPM)+findings聚合中心。两大功能:①**聚合**:把GuardDuty(威胁)/Inspector(漏洞)/Macie(敏感数据)/Config(合规)/IAM Access Analyzer及第三方的findings用统一格式**ASFF(AWS Security Finding Format)**集中到一个面板,去重/排序/统一处置;②**合规检查(security standards)**:内置**FSBP(AWS Foundational Security Best Practices)/CIS AWS Foundations Benchmark/PCI DSS/NIST**等标准持续打分列不合规项。
+- **与单个检测服务关系(核心)**:GuardDuty/Inspector/Macie/Config="各专科探测器"(各产生findings:GuardDuty威胁/Inspector漏洞CVE/Macie敏感数据/Config配置合规);**Security Hub="中央指挥台"不自己做底层检测**,把它们findings汇总+跑CIS/PCI/FSBP合规评分,一个面板看整个账号/组织安全态势。
+- **处置联动**:EventBridge把聚合findings触发自动化响应(Lambda/SSM),Automation rules自动改finding状态/严重度;Organizations多账号聚合到"安全管理账号"集中看全组织。
+
+**③ 概念**:Security Hub=聚合+合规不做底层检测(价值=一个面板看全部+跑合规基准);ASFF统一格式才能去重排序;三大标准FSBP(AWS基础最佳实践)/CIS(业界)/PCI DSS(支付合规);链条=GuardDuty检测→finding→Security Hub聚合→EventBridge→Lambda/SSM处置。
+
+**④ AWS↔GCP对照**:态势管理+findings聚合+合规=Security Hub↔GCP SCC(SCC约等于GuardDuty威胁检测+Inspector漏洞(Security Health Analytics)+Security Hub聚合合规合体);合规标准CIS/PCI/FSBP↔SCC合规仪表盘(CIS GCP Benchmark/PCI)。
+
+**⑤ 评分：0/10(未作答)**。记忆点:**Security Hub=安全态势管理+findings聚合中心:①聚合GuardDuty/Inspector/Macie/Config的findings用统一ASFF格式集中一个面板去重排序;②内置FSBP(AWS基础最佳实践)/CIS/PCI DSS标准持续打分;⚠️不自己做底层检测,是中央指挥台把各"检测源"汇总+跑合规基准;EventBridge联动处置+Organizations多账号聚合到安全管理账号;对照GCP SCC(≈GuardDuty+Inspector+Security Hub合体)**。
