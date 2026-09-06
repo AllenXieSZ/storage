@@ -368,3 +368,37 @@
 **④ AWS↔GCP对照**:专用机密管理+轮换=Secrets Manager↔GCP Secret Manager(GCP轮换要配Cloud Functions/Scheduler,不像AWS对RDS一键托管);通用参数+加密=SSM Parameter Store SecureString↔GCP Secret Manager/Runtime Config;运行时取密钥=IAM role(instance/IRSA/Lambda)↔GCP SA(附加VM/GKE Workload Identity)。黄金法则一致=密钥不进代码,托管服务+工作负载身份运行时拉。
 
 **⑤ 评分：0/10(未作答)**。记忆点:**Secrets Manager=专管机密+内置自动轮换(Lambda四步createSecret→setSecret→testSecret→finishSecret)+RDS深度集成+跨账号+收费;SSM Parameter Store(SecureString)=通用配置/机密+KMS加密+无内置轮换+标准免费性价比高;选型要轮换/RDS/跨账号→Secrets Manager,存配置省钱→Parameter Store;不把密钥写进代码/环境变量因代码进Git镜像=泄露+环境变量在进程/日志/dump可见且写死无法轮换;正确=存托管服务+运行时靠IAM角色(instance role/IRSA/Lambda role)动态拉+自动轮换(不落地/可轮换/可审计/临时);对照GCP Secret Manager,运行时靠SA/Workload Identity**。
+
+---
+
+## 批次 10：Q19–Q20（2026-09-06）
+
+### Q19. CloudTrail + 三类事件(management/data/insights) + 日志防篡改
+**伟伟答**：cloudtrail记录Service的API调用,调用参数和返回结果。
+
+**① 对照**：✅**核心定义完全对**(记API调用:谁/何时/源IP/哪个API/参数/结果);🔶漏三类事件区分(management/data/insights);🔶漏日志防篡改(log file validation/S3 Object Lock/多账号聚合)。
+
+**② 参考答案(AWS官方核实)**：
+- **CloudTrail**=API调用审计,每条含谁(principal)/时间/源IP/哪个服务哪个action/请求参数/响应结果,投递S3/CloudWatch/Lake。
+- **三类事件**:①**management**(控制平面,资源管理操作如CreateBucket/RunInstances/AttachRolePolicy,**默认记+免费**);②**data**(数据平面,资源内数据操作如S3对象GetObject/PutObject、Lambda Invoke、DynamoDB item,量极大**默认不记+需手动开+收费**);③**Insights**(对管理事件调用模式做ML基线,异常活动如API调用量突增时告警,**默认不开+收费**)。
+- **防篡改**:①**Log File Validation**(对每个投递S3的日志算SHA-256+定期生成私钥签名的digest摘要文件,`validate-logs`可检测日志被改/删);②**S3 Object Lock**(WORM,保留期内谁都不能删/改,含root);③**多账号聚合**(Organization Trail把所有成员账号日志集中投递到专门"日志归档账号"S3桶,权限收极紧,业务账号被攻破也动不了集中日志=日志与被审计对象隔离)。
+
+**③ 概念**:CloudTrail="谁调了什么API"审计(control-plane为主),这是与Config(记配置状态)的根本区别。三类事件默认与收费是考点:management默认记免费,data和Insights默认不记需开收费。防篡改三板斧=log validation(哈希+签名检测)+Object Lock(WORM不可删)+多账号集中隔离。⚠️保存期:默认Event History只90天(超期自动删);要长期须建Trail落S3(保存期由S3 lifecycle定可永久)或CloudTrail Lake(最长3650天/10年)。
+
+**④ AWS↔GCP对照**:API审计=CloudTrail↔Cloud Audit Logs(Admin Activity≈management默认开免费不可关,Data Access≈data默认关需开量大);异常检测=Insights↔SCC/Event Threat Detection;防篡改=Log File Validation+Object Lock↔Audit Logs不可变+Bucket Lock;多账号=Organization Trail→日志归档账号↔组织级aggregated log sink→专门日志项目。
+
+**⑤ 评分：5/10**。核心定义准,漏三类事件+防篡改机制。记忆点:**CloudTrail=API调用审计(谁/何时/源IP/API/参数/结果);三类=management(控制平面默认记免费)/data(数据平面S3对象/Lambda Invoke,默认不记需开收费)/Insights(异常检测默认不开收费);防篡改=Log File Validation(SHA-256+签名digest检测篡改)+S3 Object Lock(WORM谁都不能删)+多账号聚合(Organization Trail→日志归档账号隔离);默认Event History仅90天,长期须Trail落S3或Lake(最长10年);对照GCP Cloud Audit Logs(Admin Activity≈management/Data Access≈data)**。
+
+### Q20. AWS Config + 与CloudTrail区别 + Config Rules合规检查与自动修复
+**伟伟答**：不知道。
+
+**② 参考答案(AWS官方核实)**：
+- **AWS Config**=记录+评估资源"配置状态"及变化历史。三件事:①**configuration recorder**持续记录资源当前配置+变化时间线(可回看某SG上周是什么样);②**Config Rules**检查配置是否合规(如S3必须加密、SG不能对0.0.0.0/0开22、EBS必须加密),标COMPLIANT/NONCOMPLIANT;③**remediation**自动修复不合规资源。
+- **Config vs CloudTrail(核心)**:CloudTrail记"谁调了什么API"(操作/事件流,动作);Config记"资源当前是什么配置+变化历史"(状态快照)。CloudTrail答"谁在何时做了什么操作",Config答"资源现在/过去配置长什么样+合不合规"。互补:Config发现桶变公开+违规,CloudTrail查出是谁几点调PutBucketAcl改的。
+- **Config Rules+remediation**:规则分AWS托管规则(如s3-bucket-server-side-encryption-enabled、restricted-ssh)和自定义规则(Lambda/Guard);配置变化触发或周期触发,评估标COMPLIANT/NONCOMPLIANT;对不合规资源关联**SSM Automation文档**自动修复(如自动给S3开加密、移除SG的0.0.0.0/0:22),可自动或人工批准;Conformance Pack可把一组规则+修复打包成合规包(CIS/PCI)一键部署多账号。
+
+**③ 概念**:Config=资源配置的"录像机(记历史)+合规检查器(Config Rules)+自动纠错器(remediation)"。与CloudTrail黄金对比:CloudTrail=动作日志(谁调什么API),Config=状态日志+合规(配置是什么/变化/合不合规)。remediation靠SSM Automation执行可自动或人工批准。
+
+**④ AWS↔GCP对照**:资源配置记录+合规=Config↔Cloud Asset Inventory(清单+配置历史)+SCC/Org Policy(合规评估);自动修复=Config remediation(SSM Automation)↔Cloud Functions/Security Health Analytics;组织级合规包=Conformance Pack↔Org Policy+SCC基准;分工=Config记状态+CloudTrail记动作↔Asset Inventory记状态+Cloud Audit Logs记动作。
+
+**⑤ 评分：0/10(未作答)**。记忆点:**AWS Config=记录+评估资源配置状态及变化历史:configuration recorder记当前配置+时间线,Config Rules(AWS托管/自定义Lambda)判合规COMPLIANT/NONCOMPLIANT,remediation用SSM Automation自动修复(可自动/人工批准);⚠️与CloudTrail区别=CloudTrail记"动作"(谁调什么API),Config记"状态"(配置是什么/变没变/合不合规),事件流vs状态快照,互补;Conformance Pack打包CIS/PCI一键部署;对照GCP Cloud Asset Inventory+SCC/Org Policy**。
