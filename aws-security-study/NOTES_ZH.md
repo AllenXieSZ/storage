@@ -479,3 +479,21 @@
 **④ AWS↔GCP对照**:元数据地址=AWS IMDS 169.254.169.254↔GCP metadata server也是169.254.169.254(及metadata.google.internal);防SSRF=AWS IMDSv2用PUT+session token↔GCP要求请求带`Metadata-Flavor: Google`自定义header(只响应带此header的请求);原理相通=SSRF只能发简单GET加不上自定义header,所以带不上Metadata-Flavor(GCP)或IMDSv2 token(AWS)被挡;取到凭证=AWS IAM Role临时凭证↔GCP附加SA的OAuth token。
 
 **⑤ 评分：1/10**。基本没答对+"影响SSH登录"要纠正。记忆点:**IMDS=EC2本地元数据服务(169.254.169.254)提供元数据+⚠️IAM Role临时凭证;IMDSv1=一个GET直取凭证(SSRF灾难);IMDSv2=先PUT拿session token(带TTL)→GET必须带token,SSRF只能发简单GET发不出PUT/加不上header→偷不到凭证,额外hop limit=1(容器可能需2);强制IMDSv2(HttpTokens=required)=纵深防御,与SSH登录无关;对照GCP metadata server同169.254.169.254,靠要求带Metadata-Flavor: Google header防SSRF(同原理)**。
+
+---
+
+## ⭐ IMDSv2 强化卡（伟伟标记的知识盲区，2026-09-06 单独重点记）
+
+**场景**：EC2 本地元数据服务 IMDS 地址固定 `http://169.254.169.254`，能吐出实例挂的 IAM Role 临时凭证(AccessKey+SecretKey+SessionToken)，SDK/CLI 靠它免密钥拿凭证。谁能读到这地址=谁拿到你实例的 AWS 权限，是攻击头号目标。
+
+**IMDSv1 为何危险**：请求/响应式，任何程序一个 GET `169.254.169.254/latest/meta-data/iam/security-credentials/<role>` 就直接返回凭证，无验证。致命组合=SSRF+IMDSv1：Web 应用有 SSRF 漏洞(帮我抓这个URL)→攻击者填 169.254.169.254 元数据路径→应用替他 GET 把 IAM 凭证抓回给攻击者→账号接管。现实案例=Capital One 2019 大泄露。
+
+**IMDSv2 防护(核心)**：会话式两步：①先 PUT `/latest/api/token` 拿 session token(带 X-aws-ec2-metadata-token-ttl-seconds)②再带 token(X-aws-ec2-metadata-token 头)GET。防 SSRF 原理=绝大多数 SSRF 只能发简单 GET，改不了方法为 PUT、加不了自定义 header→发不出 PUT→拿不到 token→GET 被拒→偷不到凭证。即"要求先做一件 SSRF 做不到的事"。
+
+**两道额外防线**：①hop limit=1(默认)：token 请求不能转发跳一跳，防经反向代理/容器多跳利用。⚠️容器/EKS 坑：Pod 到 IMDS 常多一跳，EKS 有时要设 hop limit=2 否则取不到凭证。②token 响应不允许带 X-Forwarded-For。
+
+**强制方式**：实例元数据选项设 HttpTokens=required(强制 IMDSv2 禁 v1)，启动时或运行中 `aws ec2 modify-instance-metadata-options`。AWS 新实例默认倾向强制。⚠️纠正误区(伟伟原答"影响 SSH 登陆")：强制 IMDSv2 与 SSH 登录完全无关，只管程序怎么访问 169.254.169.254；唯一副作用=老旧 SDK/脚本/容器用 v1 方式取凭证时取不到→升级 SDK 或调 hop limit。
+
+**GCP 对照**：metadata server 也是 169.254.169.254(及 metadata.google.internal)；GCP 防 SSRF 靠要求带 `Metadata-Flavor: Google` 自定义 header 否则不响应；原理与 IMDSv2 一模一样=要求带一个 SSRF 加不上的东西。
+
+**一句话总背**：IMDS(169.254.169.254)吐 IAM 临时凭证是攻击焦点；v1 一个 GET 直取凭证=SSRF 灾难(Capital One)；v2=先 PUT 拿 token 再带 token GET，SSRF 发不出 PUT/加不上 header 就偷不到，加 hop limit=1(容器可能设2)；强制 HttpTokens=required=纵深防御，与 SSH 无关；GCP 同理靠 Metadata-Flavor: Google header 防 SSRF。
