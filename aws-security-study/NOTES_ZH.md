@@ -533,3 +533,27 @@
 **④ AWS↔GCP对照**:漏洞评估/CVE扫描=Inspector↔GCP Container Analysis/Artifact Registry漏洞扫描(镜像CVE)+SCC Security Health Analytics/VM Manager OS漏洞扫描;威胁检测=GuardDuty↔SCC Event Threat Detection;分工哲学一致=漏洞评估(找弱点静态)vs威胁检测(找坏事动态)。
 
 **⑤ 评分：5/10**。Inspector扫CVE(EC2/ECR)对+Lambda方向对;GuardDuty定性答反(动态行为检测非静态扫文件)必须纠正。记忆点:**Amazon Inspector=自动化漏洞评估(找已知CVE)静态预防性,扫EC2(OS+软件包CVE+网络暴露)/ECR镜像(镜像CVE)/Lambda(代码依赖包CVE+代码扫描),按CVSS打分汇总Security Hub;⚠️与GuardDuty分工(伟伟答反):Inspector=静态找已知漏洞(体检),GuardDuty=动态找可疑行为(报警,分析Flow Logs/CloudTrail/DNS);互补=Inspector事前补漏洞+GuardDuty事中发现入侵;对照GCP Inspector↔Container Analysis/SCC漏洞扫描,GuardDuty↔SCC Event Threat Detection**。
+
+---
+
+## ⭐ SSM 反向连接强化卡（伟伟标记的知识点，2026-09-06）
+
+**核心一句话**：SSM Agent 从实例「主动出站」连到 SSM 服务，操作命令沿这条已建立的反向通道下发——所以实例完全不需要入站端口、不需要公网 IP。
+
+**连接方向对比**：
+- 传统 SSH（入站）：你(公网)→主动连入→实例:22，⚠️必须开入站22+公网IP/堡垒机（暴露攻击面）。
+- SSM（出站反连）：实例的 SSM Agent →主动出站443→SSM服务(AWS端)；你(操作端)`aws ssm start-session`→SSM服务→(那条已建立出站长连接)→Agent→实例。
+
+**为何反向连接能无入站/无公网**：
+1. 发起方是实例自己（Agent 向外拨号出站443连 SSM 服务），不是外面往实例连。
+2. 防火墙只放出站（SG 出站默认全开），入站一条都不用开，外部无路径主动连进。
+3. 不需公网IP：实例在私有子网，能出站到达 SSM 端点即可；可配 VPC Interface Endpoint(PrivateLink) 让出站也走私网彻底不碰公网。
+4. 命令走反向通道：操作端命令→SSM服务→沿实例早建好的出站长连接"逆流"下发给 Agent 本地执行，全程无新入站连接。
+
+**安全根本**：SSH 攻击面=公网IP+开22=被扫描/爆破/0day；SSM 反向连接=入站零暴露(攻击者找不到门,没开放端口)+IAM鉴权+CloudTrail审计，安全性碾压 SSH。
+
+**类比记忆**：像你不能主动打电话进一台没登记号码的手机，但这台手机能主动拨号出去连总机；你想通话得经总机、沿它拨出去的线接过去。SSM=总机模式，实例只往外拨、外人拨不进、通话经 SSM 服务中转。
+
+**真实印证**：btmart 实例 SSM Agent 没注册→Session Manager 用不了→回退到 EC2 Instance Connect 推临时key+临时开SG。反证"无入站无公网"的便利全靠 Agent 那条出站反连，Agent 连不上 SSM(没注册)反向通道就断。
+
+**对照GCP**：IAP for TCP forwarding 同思路(不给公网IP/不开入站,经IAP隧道+IAM鉴权连入)；共同哲学=用"受控中转+IAM鉴权"取代"开公网入站端口"。
