@@ -593,3 +593,53 @@
 **④ AWS↔GCP对照**:多账号组织=Organizations(Management+OU+成员账号)↔GCP Resource Hierarchy(Org→Folder→Project,AWS账号≈GCP Project都是最强隔离边界);组织护栏=SCP↔Org Policy;集中日志=Log Archive账号(CloudTrail→S3)↔组织级aggregated log sink→日志项目;一键搭=Control Tower(Landing Zone)↔GCP无等价单品靠组织策略+蓝图/Terraform。
 
 **⑤ 评分：5/10**。Organizations/OU挂策略/日志集中账号方向对;扣分=漏完整蓝图(管理/安全/日志账号)+没答"为何多账号=安全隔离"。记忆点:**Organizations多账号:Management account(管OU/SCP/账单,⚠️不跑业务)+OU按环境分组挂不同SCP护栏+Log Archive账号(集中CloudTrail/Config/Flow Logs到S3只读+Object Lock)+Security/Audit账号(集中GuardDuty/Security Hub)+业务账号;为何多账号=安全隔离:账号是AWS最强边界(资源/IAM/网络/配额/账单默认全隔离)→爆炸半径隔离+权限边界清晰(跨账号须显式AssumeRole)+配额成本隔离+SCP分层红线+合规隔离=硬隔离胜过单账号IAM软隔离;落地用Control Tower;对照GCP Organizations↔Resource Hierarchy(账号≈Project),SCP↔Org Policy,Control Tower↔组织策略+蓝图**。
+
+---
+
+## 批次 15：Q29–Q30（2026-09-06，最后一批,30题完成）
+
+### Q29. 最小权限落地 + Access Analyzer/Access Advisor/Policy Simulator
+**伟伟答**：IAM access analyzer动态跟踪访问权限,分析如S3有没有ACL/public access等可疑行为。
+
+**① 对照**：✅**答对Access Analyzer的external access findings那半**(扫资源策略找S3桶/ACL被公开/外部访问的暴露);🔶漏Access Analyzer另一半unused access findings(找长期没用的角色/权限建议删=直接收敛);❌Access Advisor(last accessed)和Policy Simulator完全没答;🔶漏最小权限方法论。
+
+**② 参考答案(AWS官方核实)**：
+- **最小权限落地**="先宽→看实际用量→收敛→验证→持续复查"循环,靠三工具。
+- **IAM Access Analyzer**:①external access findings(分析S3桶/KMS/Role trust/SQS资源策略,找被账号外部或公开访问的暴露,伟伟答对这半,免费);②unused access findings(按last accessed找长期没用的角色/用户/权限/访问密钥建议删,组织级可跑,直接推动最小权限);③policy generation(基于CloudTrail实际API活动自动生成只含实际用到权限的最小策略,不用手写)。
+- **Access Advisor/Last Accessed**:IAM控制台看某user/role/policy的Access Advisor页,显示每个服务/action最后被访问时间;某身份授权20服务但15个从没访问→放心删=最直接看数据收权限。
+- **IAM Policy Simulator**:测试工具,不真正执行下模拟"某身份对某资源做某action会allow还是deny+哪条策略/SCP/boundary决定的";改完策略先验证"该能的能该拒的拒"避免上线才发现配错。
+- **闭环**:Advisor/Analyzer(unused)找没用权限→砍;Analyzer(policy generation)按真实活动生成最小策略;Policy Simulator验证;Analyzer(external)持续监控暴露;周期复查。
+
+**③ 概念**:三工具分工=Access Analyzer(自动化引擎:external找暴露+unused找没用权限+policy generation生成最小策略)/Access Advisor(看last accessed手动砍权限)/Policy Simulator(模拟测试验证策略正确性)。伟伟答对external半,补unused+policy generation+Advisor+Simulator。
+
+**④ AWS↔GCP对照**:未使用权限收敛=Access Analyzer(unused)+Advisor↔GCP IAM Recommender;外部暴露分析=Access Analyzer(external)↔Policy Analyzer/SCC公开访问检测;策略模拟=Policy Simulator↔Policy Troubleshooter/Simulator。哲学一致=按实际使用推荐收敛+暴露分析+权限模拟三件套。
+
+**⑤ 评分：5/10**。Access Analyzer external答对,漏unused/policy generation+Advisor+Simulator+方法论。记忆点:**最小权限=先宽→看用量→收敛→验证→复查;三工具:①Access Analyzer(external找S3/KMS/Role被外部公开访问的暴露+unused按last accessed找没用角色权限建议删+policy generation按CloudTrail真实活动生成最小策略)②Access Advisor(看每个服务/action最后访问时间,没用过砍掉)③Policy Simulator(模拟某请求allow/deny+哪条策略决定,验证策略);对照GCP IAM Recommender/Policy Analyzer/Policy Troubleshooter**。
+
+### Q30(压轴). 纵深防御AWS安全架构六层 + 串前29题 + 对照GCP
+**伟伟答**：身份IAM/cognito;网络NACL;数据guardduty;检测inspector;治理SCP/config。
+
+**① 对照**：✅**分层框架完全正确(身份/网络/数据/检测/主机/治理),身份(IAM/Cognito)+治理(SCP/Config)归类准**——压轴题最重要的"体系感"伟伟有;❌归类错两个:"数据=guardduty"错(GuardDuty是检测层威胁检测,数据层应是KMS/S3加密/Secrets Manager);"检测=inspector"不准(Inspector偏主机层漏洞,检测层核心是GuardDuty/Security Hub/CloudTrail/Config);🔶每层不够全+主机层(IMDSv2/SSM/Nitro)漏答。
+
+**② 参考答案(把前29题串成体系)**：纵深防御=多层防护任一层被破还有下层兜底,六层:
+- **①身份层(Identity)谁能做什么**:IAM(Q1)+Role/STS临时凭证不用长期key(Q2/Q6)+Permissions Boundary(Q3)+跨账号AssumeRole+ExternalId(Q7)+Identity Center(内)/Cognito(外)(Q8)+IRSA/Pod Identity(Q9)+最小权限Access Analyzer(Q29)。
+- **②网络层(Network)谁能连到哪**:SG(实例级有状态)+NACL(子网级无状态)(Q10)+公有/私有子网+NAT只出不进(Q11)+VPC Endpoint/PrivateLink不走公网(Q12)+WAF(L7)+Shield(DDoS)(Q13)。
+- **③数据层(Data)数据本身保护(⚠️伟伟归错)**:KMS信封加密(Q14)+key policy/IAM双重把关/Grants(Q15)+S3加密SSE-S3/KMS/C+Bucket Key(Q16)+EBS/RDS/快照加密(Q17)+Secrets Manager/Parameter Store+轮换(Q18)。
+- **④检测审计层(Detection)出事能发现追溯**:CloudTrail(Q19)+Config(Q20)+GuardDuty威胁检测(Q21)+Security Hub聚合合规(Q22)+VPC Flow Logs+Athena(Q23)。
+- **⑤主机/工作负载层(Host)单机加固(⚠️伟伟漏)**:强制IMDSv2防SSRF(Q24)+SSM Session Manager免公网免密钥(Q25)+Inspector漏洞扫(Q26)+Nitro Enclaves/Secure Boot/NitroTPM(Q27)。
+- **⑥治理边界层(Governance)组织级护栏隔离**:Organizations多账号硬隔离+OU+SCP护栏(Q4/Q28)+集中日志账号+安全账号(Q19/Q28)+Control Tower。
+- **心智模型**:攻击者要层层突破——过网络层(SG/NACL/WAF)→主机层(IMDSv2挡偷凭证)→拿到身份也受最小权限限(身份层)→碰到数据也是加密的(数据层)→全程被CloudTrail/GuardDuty记录告警(检测层)→爆炸半径被多账号隔离(治理层)。任一层失守有其他层兜底=纵深防御。
+
+**③ 概念**:纵深防御=不把宝押单层,每层假设上层可能被破(IMDSv2防网络被SSRF突破后别丢凭证/加密防数据被拿也读不了/多账号防一账号沦陷别扩散)。伟伟两处纠正:GuardDuty=检测层非数据;数据层核心=KMS/加密/Secrets Manager;Inspector偏主机层漏洞。六层口诀:身份(谁能做)→网络(能连哪)→主机(单机加固)→数据(加密)→检测(发现追溯)→治理(组织隔离)。
+
+**④ AWS↔GCP对照(六层)**:身份=IAM/STS/Identity Center/Cognito↔Cloud IAM/SA impersonation/Workforce Identity/Firebase Auth;网络=SG/NACL/VPC Endpoint/WAF/Shield↔VPC Firewall/PSC/Private Google Access/Cloud Armor;数据=KMS/S3加密/Secrets Manager↔Cloud KMS/CMEK/Secret Manager;检测=CloudTrail/Config/GuardDuty/Security Hub↔Cloud Audit Logs/Asset Inventory/SCC;主机=IMDSv2/SSM/Inspector/Nitro/Shielded↔Metadata-Flavor/IAP+OS Login/Container Analysis/Confidential VM/Shielded VM;治理=Organizations/SCP/Control Tower↔Resource Hierarchy/Org Policy。
+
+**⑤ 评分：6/10**。分层框架正确+身份/治理归类准(有体系感);扣分=GuardDuty归错层(应检测非数据)+数据层没答加密/KMS+主机层漏(IMDSv2/SSM/Nitro)+每层不够全。记忆点:**纵深防御六层层层设防:①身份(IAM/STS临时凭证/boundary/Identity Center内Cognito外/IRSA/最小权限)②网络(SG+NACL/私有子网+NAT只出不进/VPC Endpoint/WAF+Shield)③数据(KMS信封加密/key policy+IAM双控/S3-EBS-RDS加密/Secrets Manager,⚠️GuardDuty不在这层)④检测(CloudTrail/Config/GuardDuty/Security Hub/Flow Logs+Athena)⑤主机(强制IMDSv2/SSM免公网/Inspector/Nitro Enclaves+Secure Boot+NitroTPM)⑥治理(Organizations多账号硬隔离+SCP+集中日志/安全账号+Control Tower);⚠️GuardDuty=检测层非数据,数据层核心=加密/KMS,Inspector偏主机层;对照GCP每层都有等价物**。
+
+---
+
+## 🎓 全部30题完成（2026-09-06）
+7大模块Q1~Q30全部批改完毕。各题得分：Q1=5/Q2=5/Q3(讲解)/Q4=4/Q5=4/Q6=5/Q7=4/Q8=3/Q9=6/Q10=6/Q11=4/Q12=6/Q13=6/Q14=4/Q15=5/Q16=5/Q17=6/Q18=0(未答)/Q19=5/Q20=0(未答)/Q21=6/Q22=0(未答)/Q23=5/Q24=1/Q25=6/Q26=5/Q27=8/Q28=5/Q29=5/Q30=6。
+**知识盲区强化卡**：IMDSv2、SSM反向连接(见上方⭐卡)。
+**普遍薄弱**：检测审计层(Config/Security Hub多次0分)、数据层加密细节、主机层(IMDSv2/Nitro)。
+**优势**：身份IAM基本概念、SSM/Session Manager、Nitro机密计算方向感好。
