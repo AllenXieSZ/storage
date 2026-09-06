@@ -440,3 +440,42 @@
 **④ AWS↔GCP对照**:态势管理+findings聚合+合规=Security Hub↔GCP SCC(SCC约等于GuardDuty威胁检测+Inspector漏洞(Security Health Analytics)+Security Hub聚合合规合体);合规标准CIS/PCI/FSBP↔SCC合规仪表盘(CIS GCP Benchmark/PCI)。
 
 **⑤ 评分：0/10(未作答)**。记忆点:**Security Hub=安全态势管理+findings聚合中心:①聚合GuardDuty/Inspector/Macie/Config的findings用统一ASFF格式集中一个面板去重排序;②内置FSBP(AWS基础最佳实践)/CIS/PCI DSS标准持续打分;⚠️不自己做底层检测,是中央指挥台把各"检测源"汇总+跑合规基准;EventBridge联动处置+Organizations多账号聚合到安全管理账号;对照GCP SCC(≈GuardDuty+Inspector+Security Hub合体)**。
+
+---
+
+## 批次 12：Q23–Q24（2026-09-06）
+
+### Q23. VPC Flow Logs/CloudWatch Logs/Athena在安全分析角色 + 排查可疑访问
+**伟伟答**：vpc flow logs记录ip/端口/报文可扫网络安全;cloudwatch logs记录各服务Metrics性能超配;Athena分析结构化日志用SQL,类似duckdb。
+
+**① 对照**：✅VPC Flow Logs方向对(但"报文"要改=只记流量元数据不含内容);❌**把CloudWatch Logs和Metrics混了**(Logs存日志文本/Metrics存数值指标+Alarm阈值告警,伟伟说的"性能Metrics超配告警"是Metrics+Alarm不是Logs);✅**Athena答得好**(serverless SQL查S3日志,类比duckdb准,底层Trino按扫描量付费);🔶漏三者配合排查链路。
+
+**② 参考答案(AWS官方核实)**：
+- **VPC Flow Logs**=网络流元数据(源/目的IP+源/目的端口、协议、字节数、包数、ACCEPT/REJECT、时间),⚠️只记元数据不记报文内容(要内容用Traffic Mirroring),投S3或CloudWatch Logs。
+- **CloudWatch Logs**=集中存日志文本(EC2/Lambda/系统日志,也可接Flow Logs),支持Logs Insights查询。⚠️别和CloudWatch Metrics(数值指标)+Alarm(阈值告警)混。
+- **Athena**=serverless用标准SQL直接查S3里的日志(Flow Logs/CloudTrail/ALB日志),按扫描量付费不用搬数据,适合大规模历史日志深度分析。
+- **排查链路**:例A"某IP扫端口"=Flow Logs存S3→Athena SQL按srcaddr/dstport/action聚合,某IP短时连大量不同端口且多REJECT=端口扫描;例B"实例数据外泄"=Athena按ENI srcaddr聚合出站bytes按目的IP分组,持续往陌生外部IP传大量字节=疑似外泄→再叠CloudTrail(谁调什么API)+GuardDuty(自动告警)交叉印证。
+
+**③ 概念**:Flow Logs=网络层通话记录(元数据非抓包);CloudWatch Logs≠Metrics(Logs存日志文本可Logs Insights查/Metrics存数值+Alarm告警);Athena=S3上serverless SQL(类比DuckDB)。完整取证链=Flow Logs+CloudTrail+GuardDuty交叉。
+
+**④ AWS↔GCP对照**:VPC Flow Logs↔GCP VPC Flow Logs;CloudWatch Logs↔Cloud Logging;CloudWatch Metrics+Alarm↔Cloud Monitoring+Alerting;Athena↔BigQuery;Traffic Mirroring↔Packet Mirroring。
+
+**⑤ 评分：5/10**。Flow Logs方向对(报文→元数据)、Athena好;扣分=CloudWatch Logs/Metrics混了+漏配合链路。记忆点:**VPC Flow Logs=网络流元数据(5元组+字节/包数+ACCEPT/REJECT,不记报文内容,要内容用Traffic Mirroring);CloudWatch Logs=存日志文本(Logs Insights查)≠CloudWatch Metrics(数值指标+Alarm告警);Athena=serverless SQL查S3日志(类比DuckDB);排查=Flow Logs存S3→Athena SQL(连大量端口多REJECT=扫描/往陌生IP传大量字节=外泄)→叠CloudTrail+GuardDuty;对照GCP Flow Logs/Cloud Logging/Cloud Monitoring/BigQuery**。
+
+### Q24. IMDS + IMDSv1 vs v2(防SSRF) + 为何强制IMDSv2 + 对照GCP Metadata-Flavor
+**伟伟答**：IMDSv2不知道,但会影响ssh登陆。
+
+**① 对照**：🔶"影响ssh登陆"不对——IMDS与SSH登录无直接关系,IMDS是给实例内部程序取元数据/临时凭证用的。此题云安全高频考点,完整讲。
+
+**② 参考答案(AWS官方核实)**：
+- **IMDS**=每台EC2本地的元数据服务,固定地址`http://169.254.169.254`(link-local只实例内可访问),提供实例元数据(instance-id/region/AZ/私有IP等)+⚠️**挂IAM Role时提供该Role临时凭证(AccessKey/Secret/SessionToken)**,SDK/CLI从这取凭证调AWS API(呼应Q2)。
+- **IMDSv1(旧不安全)**=请求/响应式,实例内任何程序**直接一个GET** 169.254.169.254/.../iam/security-credentials/就拿到IAM临时凭证,无额外验证。
+- **IMDSv2(新安全)**=会话式两步:①先PUT拿session token(带X-aws-ec2-metadata-token-ttl-seconds指定TTL)②之后每个GET必须带token(X-aws-ec2-metadata-token头)。
+- **防SSRF原理**:SSRF=攻击者诱骗你服务器Web应用代他发请求;经典链=Web应用有SSRF漏洞→传入169.254.169.254/.../security-credentials→IMDSv1下一个GET把凭证抓回给攻击者→账号沦陷(4个HTTP请求从Web bug打到云账号)。IMDSv2堵法=要求先PUT拿token再带token GET,而**绝大多数SSRF只能发简单GET,改不了PUT、加不了自定义header**→发不出PUT、带不上token→拿不到凭证。额外:PUT响应默认**hop limit=1**(token请求不能转发多跳,防经反向代理/容器多跳利用,EKS有时需设2)+token响应不允许带X-Forwarded-For。
+- **为何强制IMDSv2**:配HttpTokens=required强制IMDSv2,彻底关掉IMDSv1"一个GET偷凭证"的路,即使应用有SSRF也偷不到凭证=纵深防御;AWS新实例默认倾向强制。⚠️与SSH登录无关(只影响程序怎么访问169.254.169.254,老SDK/脚本/容器用v1方式取凭证时强制后可能取不到需升级SDK或调hop limit)。
+
+**③ 概念**:IMDS=实例内部拿元数据+IAM临时凭证的本地服务(169.254.169.254),凭证是安全焦点;v1=一个GET直取凭证(SSRF灾难)/v2=先PUT拿token再带token GET+hop limit=1(让只能发简单GET的SSRF失效);强制IMDSv2=纵深防御应用有SSRF也偷不到凭证,与SSH无关(伟伟这点要纠正)。
+
+**④ AWS↔GCP对照**:元数据地址=AWS IMDS 169.254.169.254↔GCP metadata server也是169.254.169.254(及metadata.google.internal);防SSRF=AWS IMDSv2用PUT+session token↔GCP要求请求带`Metadata-Flavor: Google`自定义header(只响应带此header的请求);原理相通=SSRF只能发简单GET加不上自定义header,所以带不上Metadata-Flavor(GCP)或IMDSv2 token(AWS)被挡;取到凭证=AWS IAM Role临时凭证↔GCP附加SA的OAuth token。
+
+**⑤ 评分：1/10**。基本没答对+"影响SSH登录"要纠正。记忆点:**IMDS=EC2本地元数据服务(169.254.169.254)提供元数据+⚠️IAM Role临时凭证;IMDSv1=一个GET直取凭证(SSRF灾难);IMDSv2=先PUT拿session token(带TTL)→GET必须带token,SSRF只能发简单GET发不出PUT/加不上header→偷不到凭证,额外hop limit=1(容器可能需2);强制IMDSv2(HttpTokens=required)=纵深防御,与SSH登录无关;对照GCP metadata server同169.254.169.254,靠要求带Metadata-Flavor: Google header防SSRF(同原理)**。
