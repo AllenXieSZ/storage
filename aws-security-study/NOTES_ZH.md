@@ -497,3 +497,39 @@
 **GCP 对照**：metadata server 也是 169.254.169.254(及 metadata.google.internal)；GCP 防 SSRF 靠要求带 `Metadata-Flavor: Google` 自定义 header 否则不响应；原理与 IMDSv2 一模一样=要求带一个 SSRF 加不上的东西。
 
 **一句话总背**：IMDS(169.254.169.254)吐 IAM 临时凭证是攻击焦点；v1 一个 GET 直取凭证=SSRF 灾难(Capital One)；v2=先 PUT 拿 token 再带 token GET，SSRF 发不出 PUT/加不上 header 就偷不到，加 hop limit=1(容器可能设2)；强制 HttpTokens=required=纵深防御，与 SSH 无关；GCP 同理靠 Metadata-Flavor: Google header 防 SSRF。
+
+---
+
+## 批次 13：Q25–Q26（2026-09-06）
+
+### Q25. SSM Session Manager vs 开放22 SSH安全优势 + 为何推荐无公网IP/无入站SG/IAM鉴权
+**伟伟答**：无公网/无SG/IAM鉴权,但需装awscli,session易断,有的OS默认没装,跟agent最方便。
+
+**① 对照**：✅**三大优势全答对(无公网/无SG/IAM鉴权)**;✅"跟agent最方便"方向对(靠SSM Agent);❌**依赖搞反:实例侧要的是SSM Agent不是awscli;awscli(+Session Manager plugin)是操作端本地装的**;✅半对"有的OS默认没装"(主流AMI如AL2/AL2023/Ubuntu/Windows Server预装SSM Agent,自定义/老镜像可能要手动装);🔶漏核心原理(为何无入站还能连=Agent出站反连)、审计/免密钥优势。
+
+**② 参考答案(AWS官方核实)**：
+- **Session Manager**=不用SSH/不开端口/不用堡垒机就连实例的交互shell。依赖:实例跑SSM Agent(主流AMI预装)+挂SSM权限IAM Role(如AmazonSSMManagedInstanceCore);操作端装AWS CLI+Session Manager plugin或控制台点连。
+- **无公网/无入站原理(核心)**:SSM Agent主动出站HTTPS(443)长连接到Systems Manager端点;你连实例时命令走"你→SSM服务→(经那条已建立出站连接)→Agent→实例"。所以不需任何入站SG(没人从外连进,是实例连出去)、不需公网IP(私有子网能出站到SSM端点即可,甚至用VPC Interface Endpoint让出站走私网)、不需22端口(不用SSH协议)。
+- **安全优势**:消除入站端口(零入站攻击面,SSH爆破/0day无从下手)+无需公网IP/堡垒机+无需管理SSH密钥(不分发/轮换/保管pem)+IAM统一鉴权(谁连哪台做什么全IAM控)+完整审计(会话开始/结束记CloudTrail,命令/输出可记S3/CloudWatch Logs)+可加MFA/超时/命令限制。
+- **为何推荐无公网IP+无入站SG+IAM鉴权**=最小暴露+纵深防御:无公网IP(不暴露互联网扫不到)+无入站SG(攻击面趋零)+IAM鉴权(可审计/精细/MFA,而非谁有私钥谁进);三者=实例只出不进(呼应Q11)访问受控可审计,AWS推荐的实例访问最佳实践替代SSH+堡垒机。
+
+**③ 概念**:依赖别搞反=实例装SSM Agent+IAM Role,操作端装AWS CLI+plugin。"无入站"原理=Agent出站反连(实例主动出站443连SSM,命令沿反向通道下发)。本质=用IAM+出站反连取代"公网IP+入站22+SSH密钥"高暴露方式。
+
+**④ AWS↔GCP对照**:免公网/免密钥实例访问=Session Manager(SSM Agent+IAM)↔GCP IAP for TCP forwarding(IAP隧道连,不需公网IP+IAM鉴权)+OS Login(IAM管SSH账号/密钥);原理相通=IAM鉴权+不暴露公网入站取代公网IP+开22+分发密钥;审计=Session Manager会话记CloudTrail/S3↔IAP/OS Login记Cloud Audit Logs。
+
+**⑤ 评分：6/10**。三大优势对+靠agent对;扣分=依赖搞反(实例装SSM Agent非awscli)+没答无入站核心原理(Agent出站反连)。记忆点:**Session Manager=不用SSH/不开端口/不用堡垒机连实例;实例装SSM Agent(主流AMI预装)+SSM权限IAM Role,操作端装AWS CLI+plugin(不是实例装awscli);核心原理=SSM Agent主动出站443连SSM服务,命令走反向通道→无需入站SG/无需公网IP/不用22;优势=消除入站攻击面+免SSH密钥+IAM鉴权+CloudTrail/S3审计+可MFA;无公网IP+无入站SG+IAM鉴权=最小暴露+纵深防御;对照GCP IAP for TCP forwarding+OS Login**。
+
+### Q26. Amazon Inspector + 扫什么(EC2/ECR/Lambda) + 与GuardDuty分工
+**伟伟答**：inspector扫OS的CVE如EC2/ECR,为什么能扫Lambda扫SDK版本吗;guardduty是扫描文件静态的。
+
+**① 对照**：✅**Inspector核心答准**(漏洞评估,扫EC2 OS/软件包CVE、ECR镜像CVE);✅Lambda扫描问得好方向对(扫函数代码依赖包+运行时CVE,不单是SDK版本);❌**GuardDuty定性反了:GuardDuty是动态行为威胁检测(分析Flow Logs/CloudTrail/DNS找可疑行为),不是"静态扫文件";反过来"静态扫已知漏洞/CVE"的才是Inspector**——两者定性弄反了。
+
+**② 参考答案(AWS官方核实)**：
+- **Inspector**=自动化漏洞管理/评估,持续扫发现已知漏洞(CVE)+网络暴露。三类目标:①**EC2**(OS+已安装软件包CVE+网络可达性,靠SSM Agent收软件清单);②**ECR镜像**(推镜像时/持续扫,查镜像里OS包+应用依赖CVE,防带漏洞镜像上线);③**Lambda**(扫函数代码依赖包第三方库的CVE+运行时+可选代码扫描,不单是SDK版本)。特点=持续自动(不用手动发起)+按CVSS风险打分+结果汇总Security Hub。
+- **Inspector vs GuardDuty(核心,伟伟答反)**:Inspector=漏洞评估(找已知弱点)/**静态**(扫软件包/镜像/代码比对CVE库)/答"有没有已知漏洞可被攻击"/事前预防(补漏洞)/例=EC2的openssl有CVE、镜像依赖过时;GuardDuty=威胁检测(找正在发生的可疑行为)/**动态**(分析Flow Logs/CloudTrail/DNS看行为异常)/答"有没有正在发生的攻击"/事中检测(发现入侵)/例=凭证异常地区调API、连挖矿域名、端口扫描。Inspector="体检"(查有没有病=漏洞);GuardDuty="监控摄像头/报警器"(盯有没有坏人行动)。⚠️GuardDuty不是"静态扫文件"(虽有Malware Protection扫EBS/备份,但主业是行为威胁检测)。
+
+**③ 概念**:Inspector=找弱点(已知CVE漏洞)静态预防性,扫EC2 OS包/ECR镜像/Lambda依赖代码;GuardDuty=找坏事(可疑行为/威胁)动态检测性,分析Flow Logs/CloudTrail/DNS。互补:Inspector事前补漏洞,GuardDuty事中发现攻击,结果都汇总Security Hub。伟伟答对Inspector扫CVE和Lambda方向,唯一纠正=GuardDuty定性(动态行为检测非静态扫文件)。
+
+**④ AWS↔GCP对照**:漏洞评估/CVE扫描=Inspector↔GCP Container Analysis/Artifact Registry漏洞扫描(镜像CVE)+SCC Security Health Analytics/VM Manager OS漏洞扫描;威胁检测=GuardDuty↔SCC Event Threat Detection;分工哲学一致=漏洞评估(找弱点静态)vs威胁检测(找坏事动态)。
+
+**⑤ 评分：5/10**。Inspector扫CVE(EC2/ECR)对+Lambda方向对;GuardDuty定性答反(动态行为检测非静态扫文件)必须纠正。记忆点:**Amazon Inspector=自动化漏洞评估(找已知CVE)静态预防性,扫EC2(OS+软件包CVE+网络暴露)/ECR镜像(镜像CVE)/Lambda(代码依赖包CVE+代码扫描),按CVSS打分汇总Security Hub;⚠️与GuardDuty分工(伟伟答反):Inspector=静态找已知漏洞(体检),GuardDuty=动态找可疑行为(报警,分析Flow Logs/CloudTrail/DNS);互补=Inspector事前补漏洞+GuardDuty事中发现入侵;对照GCP Inspector↔Container Analysis/SCC漏洞扫描,GuardDuty↔SCC Event Threat Detection**。
