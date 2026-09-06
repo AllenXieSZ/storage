@@ -73,10 +73,10 @@
 
 ## 8. 资源清理
 
-**资源已全部清理，无残留计费。**
-- 删除 volume `fsvol-091cfb4e19b2fa550` → SVM `svm-0b7126dba6e881839` → FSxN `fs-049b7a5387930eeed`
-- 删除专用 SG `sg-08af4a5ca5cce5afa`（确认无 ENI 依赖后）
-- 跳板机 `i-0dffb881b2a90daa2` 共用未删；仅清理本实验 NFS 挂载 `umount -f -l /mnt/fsx384` 及测试文件
+**资源已全部清理，无残留计费。**（已 API 复查确认全部 NotFound）
+- 删除 volume `fsvol-091cfb4e19b2fa550`（VolumeNotFound）→ SVM `svm-0b7126dba6e881839`（NotFound）→ FSxN `fs-049b7a5387930eeed`（FileSystemNotFound）
+- 删除专用 SG `sg-08af4a5ca5cce5afa`（确认无 ENI 依赖后，InvalidGroup.NotFound）
+- 跳板机 `i-0dffb881b2a90daa2` 共用未删（仍 running）；仅清理本实验 NFS 挂载 `umount -f -l /mnt/fsx384` 及测试文件/脚本
 
 ---
 
