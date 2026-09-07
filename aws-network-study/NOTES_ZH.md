@@ -55,3 +55,18 @@
 ## 穿插答疑补充（09-07，续）
 - **ENA Express 客户端要不要改/走不走TCP** → 完全透明,普通IP+TCP/UDP socket零改动;应用看到的还是TCP,Nitro网卡底层用SRD搬运(多路径+硬件重排序)到对端还原成TCP。要改/用专门库(libfabric/MPI/NCCL)的是**EFA**(OS-bypass),别和ENA Express混。启用只需实例侧开EnaSrdEnabled(双方都开,同AZ),UDP要额外开EnaSrdUdpEnabled。
 - **MTU/巨型帧对性能提升多大** → 不是银弹,分场景:①高吞吐大块+CPU因海量小包吃紧(存储/备份/25G+跑满)→有帮助,主要**降CPU+略提有效吞吐**,量级个位数~十几%,**非翻倍**;②延迟型/小包/小事务/NFS小文件/出公网→几乎无用。原理=省per-packet开销(传1GB:1500需70万包,9001只需11.6万包,少6倍)+提有效载荷比(头部占比3-4%→0.5%)。**现代ENA的GRO/TSO/LRO卸载已吃掉巨型帧大部分CPU优势**,差距比十年前小。⚠️全路径一致才有效,出VPC回落1500。5-15%是估计非实测,能测就测(实测高于推理)。
+
+## 批改进度补充（Q25-Q30，09-07 完成，全题库收官）
+| 题 | 分数 | 关键点/纠错 |
+|---|---|---|
+| Q25 | 2.5/5 | Flow Logs记IP/端口/连接对;**"不记录什么"没答**(流元数据非抓包,看内容用Traffic Mirroring;不记Amazon DNS/IMDS/DHCP等);层级漏子网/VPC;目的地漏CloudWatch Logs/Firehose;字段漏**ACCEPT/REJECT**;排查=5-tuple过滤+看REJECT+配CloudTrail(谁改规则)+GuardDuty(拿Flow Logs当数据源) |
+| Q26 | 2/5 | 带宽范围不准(小实例<10G);不懂单流5Gbps原理(ECMP多路径+同流走单路径保序);**把ENA Express和EFA搞混**(突破单流是ENA Express/SRD,EFA是HPC OS-bypass);EFA非TCP;CPG单流10G对;up to=突发对 |
+| Q27 | 3/5 | ENI多网卡对;**ENI/ENA非同类升级**(逻辑接口 vs 底层适配器两维度);ENA=SR-IOV增强联网;ENA Express=ENA+SRD透明;EFA=含ENA(有IP)+OS-bypass通道(libfabric给MPI/NCCL);"EFA可无IP"不准;漏OS-bypass灵魂;漏ENI故障转移(可迁移网卡) |
+| Q28 | 3/5 | MTU定义/1500/9001/分片对;**VPC内9001 vs 出IGW 1500边界没答**(同region peering 9001/TGW 8500/出IGW·跨region·VPN回落1500);巨型帧好处(省per-packet开销)没展开;**黑洞机制**=大包带DF位撞小MTU被丢+PMTUD的ICMP(Type3Code4)被NACL拦→发送方收不到通知→大包反复丢→能ping不能传大文件;修复=NACL放行ICMP或MSS clamping |
+| Q30 | 3.5/5 | 主入口链(Route53 geo→WAF+CloudFront→LB多AZ+TG)+Web/DB隔离+S3 Gateway Endpoint省钱+DX主VPN备接TGW 答得好;漏出网NAT GW/其他API Interface Endpoint/NACL兜底/Route53 Resolver双向DNS/可观测(Flow Logs+GuardDuty);"Web VPC/DB VPC"应为private-app/private-data子网 |
+| Q29 | 讲解(未答) | IPv6**无NAT**(地址天生全球唯一可路由);VPC双栈,子网/64;**EIGW=专为IPv6而生**=去掉地址翻译的NAT GW,有状态只出不进;IGW=IPv6双向;实现只出不进=路由::/0→EIGW。EIGW为IPv6而生根因:IPv6干掉NAT,而NAT顺便承担的"只出不进"没人管了,故抽出其挡入站能力(去翻译)做EIGW |
+
+**✅ AWS网络题库 Q1-Q30 全部收官(09-07)。**
+
+## 穿插答疑补充（09-07,尾）
+- **EIGW为什么为IPv6而生** → IPv4"只出不进"由NAT Gateway顺便实现(翻译+挡入站打包);IPv6无NAT(地址天生可路由),挂IGW是双向不安全,"只出不进"空缺→AWS把NAT的"有状态出站+挡入站"抽出、去掉地址翻译,做成EIGW专给IPv6。IPv4有NAT兜底不需要EIGW。本质:NAT=翻译+挡入站(IPv4);EIGW=只挡入站不翻译(IPv6)。
