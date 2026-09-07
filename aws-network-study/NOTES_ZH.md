@@ -29,3 +29,18 @@
 - EC2跨VPC访问EFS走不走PrivateLink → **不走**。EFS靠每AZ一个Mount Target(带私有IP的ENI)，跨VPC用Peering/TGW打通连私有IP(NFS 2049)。PrivateLink用于服务API(SSM/ECR/KMS)或NLB后自建/SaaS
 - VPC Peering路由target = `pcx-xxxx`(peering连接ID)，Destination=对端CIDR，双向各加一条
 - on-prem经DX不同VIF到不同目的地 → 靠每VIF跑BGP通告各自可达网段，on-prem路由器按目的IP最长前缀自动选VIF
+
+| Q17 | 3/5 | VGW单VPC/TGW多VPC对；漏route propagation=BGP学到路由自动填路由表；BGP双向自动交换 |
+| Q18 | 3.5/5 | 4种路由策略对；Alias vs CNAME→Alias能zone apex裸域/免查询费/自动跟随IP,CNAME不能apex |
+| Q19 | 2.5/5 | VPC内置DNS(.2)+Private Hosted Zone没答；inbound/outbound方向说反(inbound=on-prem查AWS,outbound=AWS查on-prem) |
+| Q20 | 3.5/5 | ALB L7/NLB L4/GWLB对；漏NLB三卖点(保留源IP+静态IP+PrivateLink)+GWLB=GENEVE串安全设备 |
+| Q21 | 2.5/5 | ALB跨AZ对；cross-zone没答(ALB默认开且免费,NLB默认关开了收跨AZ费) |
+| Q22 | 3/5 | TG三类型点到；IP类型是容器/on-prem/跨VPC的IP非另个ALB；粘性靠cookie(AWSALB)非instance id |
+| Q23 | 3/5 | CDN本质/Origin/OAC替代OAI对；Cache Policy空白；缓存键漏header/cookie；"动态不能加速"错(不能缓存≠不能加速,边缘TLS+骨干回源仍加速);OAC锁源站非防盗链(防盗链=Signed URL/Cookie) |
+| Q24 | 3.5/5 | GA加速网络非内容/L4/游戏场景对；CloudFront半没展开；漏GA 2个静态anycast IP；漏跨region秒级故障切换(无DNS延迟) |
+
+**下次从 Q25 继续**（VPC Flow Logs；然后 Q26 EC2 网络带宽/单流5Gbps）。
+
+## 穿插答疑补充（09-07）
+- 为什么GA是2个IP → 来自2个独立network zone,互为**网络入口层冗余备份**;单IP=入口单点故障;2个IP不是负载均衡是互备;客户端两个都配才拿满冗余。与"跨region故障切换"是两层不同高可用(入口层 vs 后端region层)。
+- GCP LB为何单IP而GA要2个 → GCP全局anycast IP锚定"Google全球网络整体"(所有POP统一通告),冗余**内建对用户透明**,网内reroute;AWS GA把"network zone故障隔离单元"**显式暴露**给你=2个IP。融合产品(GCP LB+CDN+骨干一体) vs 拆分服务(AWS ELB/CloudFront/GA各管一块)。GA主打固定IP写白名单,故必须2个避免固定IP成单点。
