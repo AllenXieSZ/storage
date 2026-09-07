@@ -58,4 +58,4 @@ requirements.txt        boto3 + matplotlib
 - DynamoDB: `storage-bench-tasks` (us-east-2) — 空表按需计费 ~$0
 - 默认: VPC vpc-0c28d2a9082ef222e / subnet-0c551a33e366d52d4(2c) / AMI ami-06475e8f54266e38e / ohio key
 - 报告 bucket: s3lambdatest2/storage-bench-reports/
-- Account: 386094880462 / region us-east-2
+- Account: <ACCOUNT_ID> / region us-east-2

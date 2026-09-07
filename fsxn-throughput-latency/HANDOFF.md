@@ -14,7 +14,7 @@
 - 关注指标：**clat/lat 的均值 + p99**（sync/direct/iodepth=1 下 latency 才是真实单请求延迟）。
 
 ## AWS 环境
-- Region: **us-east-2**，账号 386094880462（user admin）
+- Region: **us-east-2**，账号 <ACCOUNT_ID>（user admin）
 - 跳板/挂载机 = **MySQL-Master EC2 `i-0dffb881b2a90daa2`**（SSM Online，Amazon Linux）
   - AZ **us-east-2c**，subnet **subnet-0c551a33e366d52d4**，vpc **vpc-0c28d2a9082ef222e**
   - 已装 sshpass/expect；通过 `aws ssm start-session` 或 `aws ssm send-command` 驱动
