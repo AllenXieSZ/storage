@@ -6,3 +6,9 @@
 
 ## 批改进度
 （待开始，从 Q1-Q2）
+
+## 批改进度
+| 题 | 分数 | 关键点/纠错 |
+|---|---|---|
+| Q1 | 3.5/5 | RDS托管关系型/DB2答对(加分)/自管SQL+schema对;漏MariaDB+SQLServer+Aurora(共7引擎);"自动升级"不准(小版本可自动,大版本手动);"优化参数"误解(RDS不自动调优,只给参数组+Performance Insights);"自动高可用"不准(要主动开Multi-AZ)。取舍=弃OS控制权换免运维。GCP=Cloud SQL(仅MySQL/PG/SQLServer,无Oracle/Db2);云原生=AlloyDB;全球强一致=Spanner |
+| Q2 | 2/5 | failover靠DNS CNAME重指向(答得好)+客户端重连对;**同步答成异步**(核心错,Multi-AZ同步/零丢失RPO≈0);**HA答成读扩展**(核心错,备库不可读纯热备);与RR关系反了。Multi-AZ=保命(HA同步),RR=扩读(异步/可读/可跨区),两不同目的常一起用;failover 60-120s。新Multi-AZ DB Cluster模式备库可读(较新特性)。GCP Cloud SQL HA靠Regional Persistent Disk磁盘层跨zone同步,备库同样不可读 |
