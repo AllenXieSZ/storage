@@ -1,6 +1,6 @@
 # RUN3：FSxN 升吞吐对 IO Latency 影响 —— 第三次实测报告
 
-**日期**: 2026-09-06 | **区域**: AWS us-east-2 (Ohio) | **账号**: 386094880462
+**日期**: 2026-09-06 | **区域**: AWS us-east-2 (Ohio) | **账号**: <ACCOUNT_ID>
 
 ## 规格（与 RUN1/RUN2 完全一致）
 - FSxN Gen2 SINGLE_AZ_2，1 HA pair，存储 1024 GiB SSD，起始吞吐 **1536 MBps**

@@ -320,7 +320,7 @@
 ### 批次5 追问：SSE-C demo 实测（撞到企业级安全策略,重要）
 
 写了 ssec_demo.py(workspace)实测SSE-C上传到S3,结果:
-- **本账号(allenxie@amazon.com,386094880462)在启用SCP的Org(o-wadx9m1bah)下,SCP全局禁用SSE-C上传**。对s3lambdatest2和全新bucket都报 AccessDenied "this bucket has blocked SSE-C uploads, specify a different SSE type"。
+- **本账号(<EMAIL>,<ACCOUNT_ID>)在启用SCP的Org(<ORG_ID>)下,SCP全局禁用SSE-C上传**。对s3lambdatest2和全新bucket都报 AccessDenied "this bucket has blocked SSE-C uploads, specify a different SSE type"。
 - 根因:SSE-C密钥完全客户自管、AWS侧无审计痕迹,企业安全合规常用SCP强制禁用,要求改SSE-KMS(有CloudTrail审计)。SCP账号/OU级强制,IAM admin也覆盖不了,不可绕过。
 - 未改SCP(组织级安全管控,敏感,不擅动)。
 - **面试金句**:SSE-C(对标GCS CSEK)在受SCP管控的企业环境常被禁用(客户自管密钥无审计),合规环境强制SSE-KMS(对标CMEK)替代。

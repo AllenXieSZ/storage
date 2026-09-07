@@ -3,7 +3,7 @@ config.py — storage-bench-agent 默认配置 (us-east-2)
 可被 params 覆盖. 集中放默认值, 便于扩展/换环境.
 """
 REGION = "us-east-2"
-ACCOUNT = "386094880462"
+ACCOUNT = "<ACCOUNT_ID>"
 
 # EC2 默认 (default VPC, 公有子网 2c — 与现有实验同子网)
 VPC_ID = "vpc-0c28d2a9082ef222e"

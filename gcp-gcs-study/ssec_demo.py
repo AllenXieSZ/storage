@@ -10,8 +10,8 @@ SSE-C (Server-Side Encryption with Customer-provided keys) demo on AWS S3.
 Bucket: s3lambdatest2 (us-east-2)
 
 ============================================================================
-⚠️ 实测结论（2026-09-02，本账号 386094880462 / allenxie@amazon.com）：
-本账号在一个启用了 SCP 的 AWS Organization (o-wadx9m1bah) 下，
+⚠️ 实测结论（2026-09-02，本账号 <ACCOUNT_ID> / <EMAIL>）：
+本账号在一个启用了 SCP 的 AWS Organization (<ORG_ID>) 下，
 **组织级 SCP 全局禁用了 SSE-C 上传**。无论对 s3lambdatest2 还是全新建的
 bucket，PutObject 带 SSE-C 都返回：
   AccessDenied ... "this bucket has blocked upload requests that specify

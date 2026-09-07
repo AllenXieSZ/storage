@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| Region / 账号 | us-east-2 / 386094880462 |
+| Region / 账号 | us-east-2 / <ACCOUNT_ID> |
 | FSxN | Gen2 **SINGLE_AZ_2**，**单 HA pair (HAPairs=1)** |
 | 文件系统 | `fs-049b7a5387930eeed`（实验后已删除） |
 | 存储容量 | 1024 GiB SSD |
