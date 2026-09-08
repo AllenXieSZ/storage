@@ -21,3 +21,11 @@
 - "block-level storage replication"仅出现在**Db2官方博客**,不是通用Multi-AZ的User Guide措辞。之前我(助手)说成User Guide写的=不严谨,已纠正。
 - **严谨答法**:Multi-AZ官方只拍板"同步+不可读";机制SQL Server=DBM/AG,其他引擎=含糊的"Amazon failover technology"未明说块or引擎复制。业界普遍理解非SQLServer经典Multi-AZ偏存储/块级同步(故备库不可读)但非官方原话。
 - **对比**:Read Replica=引擎原生复制(异步/可读,官方明确);Multi-AZ=同步/不可读(官方明确),复制机制黑盒(SQLServer例外=DBM/AG)。
+| Q5 | 3.5/5 | MySQL/PG兼容✓/6副本✓/**写4/6 quorum答对**✓/log is database概念✓/容量自动增长✓;**"像RAC/share-everything"不准**(Aurora=共享存储的**单写多读**,非RAC多写+缓存融合);**"没data file/查询慢"错**(有数据页,只是页由**存储节点用redo log回放物化**,读照样快)。存储6副本/3AZ,写4/6读3/6 quorum,容忍挂1AZ还能写。GCP=AlloyDB(存储计算分离+log下推存储层,理念几乎一致);全球强一致=Spanner(TrueTime,另一物种) |
+| Q6 | 4/5 | 共享存储✓/failover不copy存储✓(答到根本)/副本可升写库✓;**副本数16错→是15**;漏"复制延迟为何小"(共享存储读同一份+只广播log更新缓存→毫秒级)。Aurora读副本=共享分布式卷(区别RDS RR异步binlog各自拷贝)→延迟毫秒级+failover快~30s(reader直接提升writer,按promotion tier 0-15选)+集群内自动failover(强于RDS RR手动promote);一套副本同时扩读+保命。GCP AlloyDB read pool理念一致 |
+
+## 穿插答疑(09-08) "log is the database"出处考据(重要,标来源层级)
+- **官方User Guide明确的**(Aurora.Overview.StorageReliability.html):共享分布式cluster volume/6副本跨3AZ/**加副本不拷数据**("Aurora doesn't make a new copy of the table data")/存储独立于计算/自动伸缩/IO-Optimized vs Standard计费。
+- **官方博客明确**:写4/6读3/6 quorum("under the hood: quorum"博客)。
+- ⚠️**"log is the database"+数据页物化外包给存储节点** → **公开User Guide未展开**;权威出处=**AWS SIGMOD 2017论文《Amazon Aurora: Design Considerations...》**(有一节标题就叫"THE LOG IS THE DATABASE")+官方博客/re:Invent。
+- **面试严谨答法**:共享存储/存储计算分离/加副本不拷数据=User Guide明确;log is database+存储节点回放物化数据页=SIGMOD 2017论文,非User Guide。伟伟认可论文作为出处。
