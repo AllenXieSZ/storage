@@ -37,3 +37,13 @@
 | Q12 | 3/5 | private子网✓/SG来自app✓/KMS加密✓/Secrets存密码✓;**漏传输加密SSL/TLS**(只答at-rest);**漏未加密实例不能原地开加密**(核心陷阱:必须快照→加密复制快照→从加密快照恢复新实例;也不能给未加密库建加密副本;创建时就开加密);漏IAM数据库认证(临时token无密码)。GCP Cloud SQL**默认全加密**(无未加密转加密陷阱),也支持IAM认证/CMEK/Private IP |
 | Q13 | 3.5/5 | NoSQL/KV✓/serverless全托管✓/分区键打散✓/**放弃schema+强事务换低延迟高吞吐(本质好)**✓;"查询某几个分区"不准(高效查询必须给分区键**精确定位单分区**,跨分区=Scan低效);复合主键=**恰好分区键+排序键2个**(非"多个");排序键作用(同分区排序+range查询)没展开;个位数ms为何没答(hash打散+自动加分区+无JOIN直接定位)。DynamoDB也支持文档(嵌套属性)+有限ACID事务(TransactWriteItems)。GCP=Firestore(文档强一致)+Bigtable(海量宽列) |
 | Q14 | 2.5/5 | 预置vs按需区分✓/按需按用量✓/热分区概念✓/打散重设计key✓;**RCU/WCU说成CPU内存(核心错)**→是**读写吞吐单位**(1RCU=每秒4KB强一致读/8KB最终一致读;1WCU=每秒1KB写);计量没答;预置/按需场景没展开;避免热分区手段(加盐write sharding/adaptive capacity/单分区上限~3000RCU/1000WCU)没展开。热分区=流量集中少数键→局部限流(总容量没满也报错)。GCP Bigtable同样怕热row key(时间戳/顺序key反模式),按节点配吞吐无RCU/WCU |
+| Q15 | 1.5/5 | 知道有GSI/LSI;**global/local理解成"唯一性"错**(是**能否跨分区**);**"global只能建表时指定"记反**(是**LSI只能建表时创建**,**GSI可随时创建/删除**);漏一致性(GSI只最终一致/LSI可强一致)+独立容量(GSI有独立RCU/WCU,LSI共享主表)。GSI=可用不同分区键/跨全表/可后加删/独立容量/最终一致;LSI=必须同分区键换排序键/建表时创建/共享容量/可强一致/单分区键≤10GB。类比Oracle:GSI≈global index/LSI≈local index(理念像,实现不同:GSI是异步复制的最终一致索引)。GSI用得多 |
+| Q16 | 2/5 | DAX=缓存✓/Streams做CDC✓;**最终一致读vs强一致读(核心)没答**(默认最终一致,1RCU=2次最终一致/1次强一致,便宜一半,GSI/DAX/跨区不支持强一致);**Global Tables是多活多写没答出**(区别Aurora单写!最终一致+last-writer-wins冲突解决);Streams/DAX只点名没展开。Streams=变更流(24h)→触发Lambda/CDC/Global Tables底层;DAX=微秒级读缓存(API兼容/写穿透/只加速读/最终一致)。全球强一致多写要GCP Spanner |
+
+## 穿插答疑(09-08) DynamoDB vs Redis(ElastiCache)对比
+- 伟伟判断:①DynamoDB是持久存储✓对(SSD+多AZ持久);②latency比Redis高一个数量级✓基本对(DynamoDB个位数ms,Redis亚毫秒μs;DynamoDB+DAX可补到μs)。
+- **本质**:DynamoDB=持久化NoSQL数据库(数据的家,SSD,near-infinite,ms级,system of record);Redis=内存缓存/内存数据结构(加速层,RAM,受内存限,μs级,丰富数据结构string/hash/list/set/zset/stream)。
+- **为何Redis快一个数量级**=RAM(ns~μs) vs SSD+网络+多副本一致(μs~ms),存储介质+架构层次的物理差异。
+- **通常配合用非二选一**:应用→Redis(μs挡热读)--miss-->DynamoDB/Aurora(ms持久权威),即OpenCart架构。
+- 想要Redis速度+持久→**MemoryDB for Redis**(多AZ事务日志持久化+强一致,可当主库,非只缓存);DynamoDB想μs读→+DAX。
+- GCP:DynamoDB→Firestore/Bigtable;ElastiCache→Memorystore;MemoryDB→GCP无完全对等(Memorystore偏缓存)。
