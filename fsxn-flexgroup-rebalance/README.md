@@ -242,8 +242,27 @@ aws datasync describe-task-execution --region us-east-2 \
 | ⚠️ 直接 1HA(384)→2HA | **不可行** | FSx 要求扩 HA 时保持原 throughput,但 2HA 只支持 ≥1536 → 矛盾 |
 | 吞吐升级 384→1536(1HA 内在线) | **~44 min** | 前置步骤,必须先升到 1536 才能扩 HA |
 | HA 扩展 1→2(storage 须同时 2048→4096) | **~26 min** | 完成后新增 aggr2(空) |
-| FlexVol → FlexGroup 就地转换 | **被阻塞(见 7.3)** | DataSync 残留 SnapMirror-Cloud 关系挡住 |
+| FlexVol → FlexGroup 就地转换（**只转,不做数据 rebalance/expand**） | **⚡ 秒级（<1min,Job succeeded）** | **只改卷 style 元数据、不移动任何数据块,与数据量无关**。本次 srcvol 因 DataSync 残留 SM-Cloud 关系被阻塞(见 7.3);干净卷实测秒级成功(见第 9/10 节,如 500GB/812GB 卷均 <1min)。命令见下方 ⬇️ |
 | `volume move` srcvol aggr1→aggr2(~1TB) | **1h54m49s** | 但前 22min 被 fio 活跃 I/O 严重限速(仅到 4%);停 fio 后剩余 ~96% 用 ~1h32m |
+
+> **⚡ FlexVol→FlexGroup「只转不平衡」耗时结论（2026-09-08 复测再次确认）**：只做 style 转换、不做数据 rebalance，是 **秒级**（与卷内数据量无关，503GB / 812GB 卷实测均 <1min，Job succeeded）。因为转换只把卷元数据从 flexvol 改为 flexgroup、生成**单 constituent 留在原 aggr**，**不移动任何数据块**。若之后要让数据均分到 aggr2，才需额外 `volume expand`（加 constituent）+ `volume rebalance` / `volume move`（真搬数据），那才是耗时部分。
+>
+> **完整 CLI（ONTAP CLI，diag 级，经跳板机 SSM → sshpass 登录 fsxadmin@\<MGMT_IP\>）：**
+> ```bash
+> # 1) 进 diag 级
+> set -privilege diagnostic -confirmations off
+> # 2)（可选）先禁 storage efficiency,避免 warning（FSx 上只警告不拦）
+> volume efficiency off -vserver <SVM> -volume <VOL>
+> # 3) 转换前查 style（应为 flexvol）
+> volume show -vserver <SVM> -volume <VOL> -fields volume-style-extended,aggr-list
+> # 4)（可选）check-only 先验证只有 warning、无 error
+> volume conversion start -vserver <SVM> -volume <VOL> -check-only true
+> # 5) 正式转换（只转,不 expand/不 rebalance）—— 秒级返回 Job succeeded
+> volume conversion start -vserver <SVM> -volume <VOL> -foreground true
+> # 6) 转换后确认已变 flexgroup（单 constituent <VOL>__0001,仍在原 aggr,数据零搬迁）
+> volume show -vserver <SVM> -volume <VOL> -fields volume-style-extended,aggr-list
+> volume show -vserver <SVM> -volume <VOL>* -fields aggregate,used -is-constituent true
+> ```
 
 **关键坑 1 — 384MB/s 的 1HA 无法直接扩到 2HA:**
 ```
