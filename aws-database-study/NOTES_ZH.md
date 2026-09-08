@@ -29,3 +29,5 @@
 - **官方博客明确**:写4/6读3/6 quorum("under the hood: quorum"博客)。
 - ⚠️**"log is the database"+数据页物化外包给存储节点** → **公开User Guide未展开**;权威出处=**AWS SIGMOD 2017论文《Amazon Aurora: Design Considerations...》**(有一节标题就叫"THE LOG IS THE DATABASE")+官方博客/re:Invent。
 - **面试严谨答法**:共享存储/存储计算分离/加副本不拷数据=User Guide明确;log is database+存储节点回放物化数据页=SIGMOD 2017论文,非User Guide。伟伟认可论文作为出处。
+| Q7 | 3/5 | 不预置/自动伸缩✓/固定内存CPU比例✓/v1冷启动✓/v2更快✓/间歇负载✓;"每次伸缩一个ACU"不准(v2=0.5ACU平滑增量,非跳一个);v1冷启动时机没答(auto-pause到0后**第一个请求**唤醒,几十秒);v2为何快没答(**原地加资源** vs v1找scaling point换更大实例迁移)。ACU=容量单位,**1ACU≈2GiB内存**+配套CPU;v1粗粒度跳档+暂停到0被诟病;v2重写架构平滑秒级+支持完整reader/GlobalDB+现支持scale-to-0(较新);稳定满载用预置更划算。GCP关系库无完全对等,真serverless明星=BigQuery(OLAP) |
+| Q8 | 4/5 | 另一region复制✓/**RPO=1s准**✓/合规容灾✓/Spanner RPO=0多写强一致✓/主动问写延迟差异(好直觉);漏与跨区RR区别(**存储层专用复制**非引擎binlog,延迟低不拖主库);漏RTO(托管failover分钟级)。GlobalDB=1主region(可写)+最多5从region(只读),存储层异步复制RPO~1s;vs Spanner:Spanner全球多写+强一致+RPO≈0靠**TrueTime**,代价**跨区同步写延迟更高**;Aurora单区写**写延迟低**但全球最终一致=**强一致vs低写延迟本质取舍**;AWS无Spanner对等物 |
