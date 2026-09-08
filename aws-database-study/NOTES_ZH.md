@@ -47,3 +47,10 @@
 - **通常配合用非二选一**:应用→Redis(μs挡热读)--miss-->DynamoDB/Aurora(ms持久权威),即OpenCart架构。
 - 想要Redis速度+持久→**MemoryDB for Redis**(多AZ事务日志持久化+强一致,可当主库,非只缓存);DynamoDB想μs读→+DAX。
 - GCP:DynamoDB→Firestore/Bigtable;ElastiCache→Memorystore;MemoryDB→GCP无完全对等(Memorystore偏缓存)。
+| Q17 | 3/5 | Redis数据结构多✓/可持久✓;Memcached简单✓/不持久✓/无HA✓;**线程模型完全说反**(Redis命令执行**单线程**,Memcached**多线程**;伟伟答成Redis多线程/Memcached单线程)。记忆法:Redis单线程重功能(无锁原子,多核靠分片)/Memcached多线程轻功能(吃满多核纯KV)。Redis 6+有多线程I/O但命令仍单线程。绝大多数选Redis。GCP=Memorystore(同Redis+Memcached) |
+| Q18 | 3/5 | cluster mode分片多节点✓/**MemoryDB可当主数据(本质对)**✓/需持久✓;cluster enabled(多分片横向扩,key按hash slot)vs disabled(单分片,加只读副本扩读/换大节点)没展开;副本+自动故障切换没答(每分片1主+最多5副本+MultiAZ,ElastiCache异步复制切换**可能丢**);**MemoryDB本质没答**(写**同步到多AZ事务日志**→强一致+宕机不丢,这才是能当主库的原因);"内存要求高"不是关键(关键是持久化代价:写延迟略高+更贵)。ElastiCache=缓存(权威在别处可丢);MemoryDB=持久主库(数据即权威不能丢,省缓存+后端两层)。GCP Memorystore无MemoryDB对等物 |
+
+## 穿插答疑(09-08) MemoryDB内部实现
+- **是Redis改还是全新开源?** → 官方明确:兼容Redis/Valkey API,**非独立开源项目**(AWS托管商业产品);**我的推断(非官方)**:大概率基于Redis/Valkey引擎+AWS自研持久化层,非从零重写;是否fork Redis源码AWS未公开。
+- **是不是把Redis改成写落盘?** → 方向对但不精确。Redis本就有AOF/RDB落盘,单机落盘≠不丢(节点/AZ挂了还是丢)。MemoryDB关键=每次写**同步复制到跨多AZ的分布式事务日志**+多数派确认才返回→分布式持久+强一致+不丢(写延迟比纯内存Redis高、更贵)。不是简单本地落盘。
+- **像Oracle TimesTen吗?** → 神似(都是内存库+事务日志持久化+可当主库),但**TimesTen是SQL关系型,MemoryDB是Redis KV**,数据模型/接口不同;MemoryDB是云原生多AZ持久化,TimesTen传统单机checkpoint+log。类比成立在"内存库+持久化+权威源"层面,不能划等号。
