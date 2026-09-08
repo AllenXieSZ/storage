@@ -13,7 +13,23 @@
 | **② FlexVol → FlexGroup 就地转换（只转不平衡）** | **≈ 数秒（实测 11s 含登录/查询，转换 Job 本身近乎瞬时）** | `[Job 62] Job succeeded` 与 "queued" 几乎同一时刻返回；500GB 数据零搬迁 |
 
 **核心结论**：
-- **FlexVol→FlexGroup 只转不做 rebalance/expand，确实极快（秒级）**。因为"只转"仅是把卷的 style 元数据从 flexvol 改为 flexgroph（产生单 constituent FlexGroup），**不移动任何数据块**——503GB 数据全程留在原 aggr1，不搬迁，所以与数据量无关，秒级完成。
+- **FlexVol→FlexGroup 只转不做 rebalance/expand，确实极快（秒级）**。因为"只转"仅是把卷的 style 元数据从 flexvol 改为 flexgroup（产生单 constituent FlexGroup），**不移动任何数据块**——503GB 数据全程留在原 aggr1，不搬迁，所以与数据量无关，秒级完成。
+
+---
+
+## 📋 操作 → CLI 命令 → 耗时（完整补全）
+
+| # | 操作 | 完整 CLI / ONTAP 命令 | 耗时 |
+|---|---|---|---|
+| 1 | 建 Gen2 单 HA（高吞吐起点，可直接扩 2HA） | `aws fsx create-file-system --file-system-type ONTAP --storage-capacity 1024 --subnet-ids subnet-0c551a33e366d52d4 --security-group-ids sg-00ca35d004d81089b --ontap-configuration '{"DeploymentType":"SINGLE_AZ_2","ThroughputCapacityPerHAPair":1536,"HAPairs":1,"PreferredSubnetId":"subnet-0c551a33e366d52d4","FsxAdminPassword":"<REDACTED>"}' --region us-east-2` | ~13min（AVAILABLE） |
+| 2 | 关自动备份（避免隐藏 copy-to-cloud 阻塞转换） | `aws fsx update-file-system --file-system-id <fsid> --ontap-configuration '{"AutomaticBackupRetentionDays":0}' --region us-east-2` | 秒级 |
+| 3 | 建 SVM | `aws fsx create-storage-virtual-machine --file-system-id <fsid> --name fgsvm --region us-east-2` | ~1min |
+| 4 | 建 FlexVol（关 storage efficiency） | `aws fsx create-volume --volume-type ONTAP --name fgvol --ontap-configuration '{"StorageVirtualMachineId":"<svm>","SizeInMegabytes":665600,"JunctionPath":"/fgvol","SecurityStyle":"UNIX","StorageEfficiencyEnabled":false}' --region us-east-2` | ~1min |
+| 5 | 挂载 + 写 500GB（5×100GB 大文件） | `mount -t nfs -o nfsvers=3 172.31.37.39:/fgvol /mnt/fgvol` ；`for i in 1 2 3 4 5; do dd if=/dev/zero of=/mnt/fgvol/big_$i.dat bs=1M count=102400 oflag=direct; done` | ~15.8min（~540MB/s） |
+| **6** | **⏱️① 单 HA → 2 HA pair 扩展**（StorageCapacity 必须同时翻倍 + 显式保留 per-HA 吞吐） | `aws fsx update-file-system --file-system-id <fsid> --storage-capacity 2048 --ontap-configuration '{"HAPairs":2,"ThroughputCapacityPerHAPair":1536}' --region us-east-2` | **≈ 11.7 分钟** |
+| **7** | **⏱️② FlexVol → FlexGroup 就地转换（只转，不 rebalance / 不 expand）** | ONTAP CLI（diag 级）：`set -privilege diagnostic -confirmations off` ；`volume conversion start -vserver fgsvm -volume fgvol -foreground true` | **≈ 秒级（Job 62 succeeded，数据零搬迁）** |
+
+> **重点说明（本次新增结论）**：**第 7 步「只做 style 转换、不做数据 rebalance」耗时是秒级**，与卷内数据量（本次 503GB）无关——转换只改元数据、生成单 constituent（`fgvol__0001` 仍在原 aggr1），**不移动任何数据块**。若之后想让数据均分到 aggr2，才需额外执行 `volume expand`（加 constituent）+ `volume rebalance`（搬数据），那才是耗时的部分（本次未做）。
 - **扩 2 HA pair 本次约 11.7min**（比历史 8-28 的 ~26min 快很多，可能与本次 storage 较小/后台调度差异有关）。
 - **以 1536 MBps 单 HA 起点建**（而非 384）成功避开"扩 2HA 吞吐冲突死锁"；扩 HA 时 API 强制 `StorageCapacity 1024→2048` 且 `ThroughputCapacityPerHAPair` 保持 1536（总吞吐变 3072）。
 
@@ -106,21 +122,20 @@ big_1.dat ... big_5.dat  各 107374182400 bytes (100GiB)
 
 ---
 
-## 资源 ID（保留，未销毁 —— 伟伟习惯）
+## 资源 ID（已于 2026-09-08 全部删除清理）
 
-| 资源 | ID / 值 |
-|---|---|
-| FSxN 文件系统 | **fs-065cd1eb595443c6d**（Gen2 SINGLE_AZ_2, 2HA, 2048GB, 2×1536=3072MBps 总吞吐） |
-| FS Management IP | 172.31.45.137 |
-| SVM | **svm-077ec3ac8c23f276c**（fgsvm） |
-| SVM NFS IP | 172.31.37.39 |
-| Volume | **fsvol-0e3bc4652e5c0f8e4**（fgvol，现为 FlexGroup，单 constituent fgvol__0001 @ aggr1） |
-| Aggregates | aggr1 (node-01), aggr2 (node-03) |
-| VPC / Subnet | vpc-0c28d2a9082ef222e / subnet-0c551a33e366d52d4 (us-east-2c) |
-| Security Group | sg-00ca35d004d81089b (vpc-internal, 允许 172.31.0.0/16 全通) |
-| 跳板机 | i-0dffb881b2a90daa2 (SSM Online, /mnt/fgvol 已挂载) |
+> ⚠️ 本批测试资源已按 Volume → SVM → FS 顺序删除，无残留计费。以下 ID 仅作记录。
 
-**清理顺序（如需）**：umount /mnt/fgvol → 删 volume fsvol-0e3bc4652e5c0f8e4 → 删 SVM svm-077ec3ac8c23f276c → 删 FS fs-065cd1eb595443c6d。
+| 资源 | ID / 值 | 状态 |
+|---|---|---|
+| FSxN 文件系统 | fs-065cd1eb595443c6d（Gen2 SINGLE_AZ_2, 2HA, 2048GB, 3072MBps 总吞吐） | 已删除 |
+| SVM | svm-077ec3ac8c23f276c（fgsvm） | 已删除 |
+| Volume | fsvol-0e3bc4652e5c0f8e4（fgvol / FlexGroup 单 constituent fgvol__0001 @ aggr1） | 已删除 |
+| VPC / Subnet | vpc-0c28d2a9082ef222e / subnet-0c551a33e366d52d4 (us-east-2c) | 保留（共用） |
+| Security Group | sg-00ca35d004d81089b | 保留（共用） |
+| 跳板机 | i-0dffb881b2a90daa2 (SSM Online) | 保留（共用，已 umount /mnt/fgvol） |
+
+**清理顺序（已执行）**：umount /mnt/fgvol → 删 volume → 删 SVM → 删 FS。
 
 ---
 
