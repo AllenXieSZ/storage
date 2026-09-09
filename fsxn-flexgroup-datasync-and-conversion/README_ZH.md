@@ -307,8 +307,11 @@ set -privilege diagnostic -confirmations off      # ⚠️ conversion 在 admin 
 volume conversion start -vserver mfsvm -volume mfvol -check-only true   # 先 check
 volume conversion start -vserver mfsvm -volume mfvol                    # 正式转 → Job succeeded
 
-# 加 constituent 跨 aggr（每 aggr +4）
-volume expand -vserver mfsvm -volume mfvol -aggr-list aggr1,aggr2 -aggr-list-multiplier 4
+# 加 constituent（最佳实践：每个 aggr 8 个 constituent，共 16，两 aggr 对称均衡）
+# 转换后原始单 constituent 落在 aggr1，故 aggr1 再加 7 个凑够 8：
+volume expand -vserver mfsvm -volume mfvol -aggr-list aggr1 -aggr-list-multiplier 7
+# aggr2 加 8 个：
+volume expand -vserver mfsvm -volume mfvol -aggr-list aggr2 -aggr-list-multiplier 8
 ```
 
 ### 5.7 查分布
