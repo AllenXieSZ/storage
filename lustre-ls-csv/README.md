@@ -1,30 +1,26 @@
-# Lustre MDT-ls → CSV
+# Lustre 文件列举测试（lfs find + 并行）
 
-用 `lfs find <dir> -maxdepth 1`（直接查 MDT，不走内核 VFS 逐项 stat）逐目录列举 Lustre
-文件，把 **文件名 / 大小 / 时间先缓存在内存，最后一次性批量写入 CSV**。参数/日志风格参照
-`fsx-lustre-warmup/lustre_warmup_v2.0`。
+用 `lfs find <dir> -maxdepth 1`（lfs 层，直接 MDT 查询，可加过滤器）逐目录列举文件，
+获取 名字/大小/时间，**64 并发**扫描后批量写入 CSV。
 
-## 环境（2026-09-10 实测）
-- FSx for Lustre 最小规格：**SCRATCH_2, 1200 GiB**（`fs-014e2e0f35faa9047`, MountName `ibhrrb4v`），us-east-2，与跳板机同子网 `subnet-0c551a33e366d52d4`。
-- 客户端：跳板机 `i-0dffb881b2a90daa2`（Amazon Linux 2，**lfs 2.12.8**），SSM 驱动。
-- 挂载：`mount -t lustre -o relatime,flock <dns>@tcp:/ibhrrb4v /mnt/lustre`
+## 环境
+- FSx for Lustre 2.15，SCRATCH_2 / 1200 GiB，us-east-2。
+- 客户端：EC2 c5.2xlarge（AL2023，lfs 2.15.6）。
+- 脚本：`lustre_ls_csv_parallel.py`（多进程并发，`-j` 指定并发数）。
 
-## 目录树（make_tree.sh）
-每目录 5 子目录 + 10 文件（1M~10M 随机），共 **4 层深度**：
-- ROOT(1) + L1(5) + L2(25) + L3(125) = **156 目录**，每目录 10 文件 = **1560 文件**。
+## 测试结果（并发 64）
 
-## CSV 脚本（lustre_ls_csv.py）
+| 规模 | 目录数 | 并发 | 耗时 | 速率 |
+|---|---|---|---|---|
+| 10 万文件 | 781 | 64 | **16 s** | ~6400 files/s |
+| 100 万文件 | 9,331 | 64 | **182 s（约 3 分钟）** | ~5700 files/s |
+
+## 用法
 ```
-python3 lustre_ls_csv.py -d /mnt/lustre/tree -o lustre_ls.csv
+python3 lustre_ls_csv_parallel.py -d /mnt/lustre/many1m -o out.csv -j 64
 ```
-- `-d` 根目录（必填）、`-o` 输出 CSV、`-b` 进度报告批量。
-- 流程：`os.walk` 收集全部目录 → 逐目录 `lfs find <dir> -maxdepth 1 -type f -printf '%p\t%s\t%A@'`
-  （lfs 2.12 不支持 `-printf` 时自动回退到 `lfs find` + `os.stat`）→ 结果**先全部放内存 list**
-  → 最后 `csv.writer` **一次性批量写盘**。
-- CSV 列：`name,dir,path,size_bytes,size_human,mtime_epoch,mtime_iso`
+CSV 列：`name,dir,path,size_bytes,size_human,mtime_epoch,mtime_iso`
 
-## 实测结果
-- 1560 文件 / 156 目录，扫描 **1.68s（~930 files/s）**，内存暂存后批量写 CSV（1561 行含表头）。
-
-## 清理
-Lustre 文件系统 `fs-014e2e0f35faa9047` + SG `sg-0b292e3df21c627d0`（测完删）；跳板机保留（仅卸载 /mnt/lustre）。
+## 文件
+- `lustre_ls_csv_parallel.py` — 并行列举脚本
+- `lustre_ls_100k_par.csv` / `lustre_ls_1m_par.csv.gz` — 实测输出
