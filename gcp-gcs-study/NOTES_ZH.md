@@ -10,7 +10,7 @@
 
 ### Q1. GCS storage class 定位 / 最低存储时长 / 场景
 
-**伟伟答**：standard 频繁 / nearline 温每月一次 / cold 每季度 / archive 合规存档；最低时长不知道；所有都是毫秒级取回。
+**小帅答**：standard 频繁 / nearline 温每月一次 / cold 每季度 / archive 合规存档；最低时长不知道；所有都是毫秒级取回。
 
 **对照**：
 - ✅ 四种主力 class 定位全对。⚠️2026-09-02官方核实补充:GCS现在实际有**5种**——除Standard/Nearline/Coldline/Archive外,新增**Rapid storage(RAPID)**:高性能类,无最低时长/无retrieval费,>99.95% in zones,仅用于Rapid Bucket(zonal桶)。
@@ -49,7 +49,7 @@
 
 ### Q2. storage class 设在哪级 / 如何自动降级 / 与 AWS 不同
 
-**伟伟答**：storage class 是 object 级别？可以用生命周期移动。
+**小帅答**：storage class 是 object 级别？可以用生命周期移动。
 
 **对照**：
 - ✅ object 级——对。
@@ -87,7 +87,7 @@
 
 ### Q3. location type：region / dual-region / multi-region
 
-**伟伟答**：region 成本低/可用性低/延迟低；dual & multi 成本高，multi 最高。
+**小帅答**：region 成本低/可用性低/延迟低；dual & multi 成本高，multi 最高。
 
 **① 对照**：
 - ✅ region 成本低、延迟低 —— 对。
@@ -123,7 +123,7 @@
 
 ### Q4. Turbo Replication
 
-**伟伟答**：用于 multi-region live replication，RPO 15 分钟 99.9%。
+**小帅答**：用于 multi-region live replication，RPO 15 分钟 99.9%。
 
 **① 对照**：
 - ✅ 跨区持续复制方向对。
@@ -154,7 +154,7 @@
 
 **批次 2 小结**：均分 5。补强 → ①region=zone冗余(可用性不低,只是不抗区域灾难)②dual=你指定两region+驻留可控③Turbo 只用于 dual-region、15min RPO、对标 RTC(RTC官方=99.9%/15min,非99.99%;Turbo百分比待核)。
 
-### 批次2 追问补充（伟伟提问）
+### 批次2 追问补充（小帅提问）
 
 **Q: multi-region 贵是因为跨region复制流量费吗？**
 → 不是。主因是**存储单价本身更高**（维护多地副本）。GCS 内部跨region复制流量**对用户免费**(含在存储单价里)，不单独计费。唯一例外=Turbo Replication 按复制数据量额外收费。**对照 AWS：CRR 的跨区复制流量是能看到一笔明确 inter-region Data Transfer 费的；GCS 把这成本打包进存储单价。**
@@ -176,7 +176,7 @@
 
 ### Q5. 一致性模型
 
-**伟伟答**：GCS 强一致(写后读一样)；以前最终一致、传播到其他region才一致；S3也强一致。
+**小帅答**：GCS 强一致(写后读一样)；以前最终一致、传播到其他region才一致；S3也强一致。
 
 **① 对照**：✅ GCS强一致、写后读一致、S3也强一致对；🔶 "以前最终一致"错安到GCS头上(那是S3的历史,2020-12才转强一致；GCS对象操作一直强一致)；❌ 没区分哪些强/哪些最终一致。
 
@@ -192,7 +192,7 @@
 
 ### Q6. 扁平命名空间 vs 目录结构
 
-**伟伟答**：有architectural架构,对list有提升,bucket级开启,S3没有。
+**小帅答**：有architectural架构,对list有提升,bucket级开启,S3没有。
 
 **① 对照**：🔶 答的是HNS(Hierarchical Namespace)新功能,跑题了——题目问GCS**默认**命名空间(答案=扁平)+文件夹怎么模拟。HNS描述本身基本对(bucket级开启、提升list)但没答主干；❌"S3没有"不准(S3有Express directory bucket)；❌没讲扁平下rename慢的原理。
 
@@ -228,7 +228,7 @@
 
 ### Q7. 访问控制 IAM / ACL / UBLA
 
-**伟伟答**：IAM是用户,ACL是每个对象object,bucket-level access是不是S3 bucket policy。
+**小帅答**：IAM是用户,ACL是每个对象object,bucket-level access是不是S3 bucket policy。
 
 **① 对照**：✅ IAM用户/项目级、ACL对象级 两个定位对；❌ UBLA类比错(不是bucket policy,是"禁用ACL统一用IAM"的开关,对标S3 Bucket owner enforced);❌ 漏 IAM∪ACL 并集优先级;❌ 漏为何推荐UBLA。
 
@@ -246,7 +246,7 @@
 
 ### Q8. Signed URL
 
-**伟伟答**：临时签名,拿URL指定时间内可访问,给不能登录认证/动态变化的客户端,如匿名浏览。
+**小帅答**：临时签名,拿URL指定时间内可访问,给不能登录认证/动态变化的客户端,如匿名浏览。
 
 **① 对照**：✅ 临时签名、限时、给无身份客户端 对;🔶 "匿名浏览"易与"公开对象"混(Signed URL是限时定向授权,非永久公开);❌ 漏与IAM区别;❌ 漏能授权上传(PUT)+最长7天+绑定HTTP方法。
 
@@ -272,7 +272,7 @@
 
 ### Q9. 静态加密 默认/CMEK/CSEK
 
-**伟伟答**：数据存硬盘的加密,客户可自己管理密钥,可自己带密钥。
+**小帅答**：数据存硬盘的加密,客户可自己管理密钥,可自己带密钥。
 
 **① 对照**：✅ 落盘加密、能自管密钥、能自带密钥 三个方向对;❌ 没答默认=Google托管(强制零运维);🔶 没点名CMEK(Cloud KMS)/CSEK术语,没讲清密钥存哪谁托管;❌ 没做SSE对照。
 
@@ -295,7 +295,7 @@
 
 ### Q10. 防误删/恶意删除机制
 
-**伟伟答**：versioning多版本;soft delete保存7天;retention policy=删除后继续保存多少天;lock=不能删除。
+**小帅答**：versioning多版本;soft delete保存7天;retention policy=删除后继续保存多少天;lock=不能删除。
 
 **① 对照**：✅ versioning多版本对;🔶 soft delete默认7天对但可配0-90天;❌ **retention policy语义讲反**(不是删除后保存,是"删除前必须存够最短时长才允许删");🔶 lock不完整(是锁死retention使其不可缩短/移除,不可逆);❌ 漏Object Hold。
 
@@ -336,7 +336,7 @@
 
 ### Q11. Object Lifecycle Management
 
-**伟伟答**：多少天后转下一层或删除;管理保存多少个旧version。
+**小帅答**：多少天后转下一层或删除;管理保存多少个旧version。
 
 **① 对照**：✅ 转类/删除/numNewerVersions(保留N个版本)三个核心对(版本数是加分点);🔶 action漏AbortIncompleteMultipartUpload;❌ condition只提age漏一堆;❌ 漏"SetStorageClass只能变冷""age从创建算起"两坑。
 
@@ -353,7 +353,7 @@
 
 ### Q12. 费用构成 + 冷存储取回贵 + early deletion
 
-**伟伟答**：存储费、读取费、出网费、检索费。
+**小帅答**：存储费、读取费、出网费、检索费。
 
 **① 对照**：✅ 四类费用全列对;❌ 没答题目核心"为何冷存储便宜但取回贵";❌ 没答early deletion;🔶 没提操作费分Class A/B(list是贵的A类)。
 
@@ -401,7 +401,7 @@
 
 ### Q13. Requester Pays
 
-**伟伟答**：适合公开数据集,请求者付request费+出网费,requester必须GCP能识别。
+**小帅答**：适合公开数据集,请求者付request费+出网费,requester必须GCP能识别。
 
 **① 对照**：✅ 公开数据集场景、请求者付操作+出网费、请求者必须可识别 三个关键点对(答得好);🔶 没明说"存储费仍归所有者";❌ 漏落地机制userProject;❌ 漏取回费也归请求者。
 
@@ -423,7 +423,7 @@
 
 ### Q14. 上传方式 simple/multipart/resumable
 
-**伟伟答**：simple小对象,multipart大对象提并发,resumable网络差,S3没有。
+**小帅答**：simple小对象,multipart大对象提并发,resumable网络差,S3没有。
 
 **① 对照**：✅ simple小对象、multipart大对象提并发、resumable网络差 场景方向对;❌ **"S3没有"错**(S3用Multipart Upload实现断点续传);🔶 resumable核心价值没点透"从断点续传不从头重传"。
 
@@ -463,7 +463,7 @@
 
 ### Q15. 提升吞吐 + 前缀速率
 
-**伟伟答**：设计好前缀,GCS自动扩展分区,跟S3类似。
+**小帅答**：设计好前缀,GCS自动扩展分区,跟S3类似。
 
 **① 对照**：✅ 随机前缀+自动扩展+跟S3类似 核心方向对判断准;❌ 漏parallel composite upload(单文件并发提速GCS特有);❌ 漏gcloud storage并行;🔶 没点透GCS无S3那种per-prefix明确数字。
 
@@ -486,7 +486,7 @@
 
 ### Q16. PB级迁移方案
 
-**伟伟答**：STS有网络;想更快用appliance;没网络用gcloud storage。
+**小帅答**：STS有网络;想更快用appliance;没网络用gcloud storage。
 
 **① 对照**：✅ STS走网络对、appliance用于大数据量方向有;🔶 appliance定位偏(不是"想更快",是数据量太大/带宽不足);❌ **gcloud storage和"没网络"匹配反了**(gcloud storage需要网络;没网络/带宽不足才用appliance离线寄盘)。
 
@@ -517,7 +517,7 @@
 
 ### Q17. Pub/Sub notifications
 
-**伟伟答**：对象上传消息,可做合规检查/安全扫描/同步复制,和S3 event notification类似。
+**小帅答**：对象上传消息,可做合规检查/安全扫描/同步复制,和S3 event notification类似。
 
 **① 对照**：✅ 通知机制、三用途(合规/扫描/同步)、类比S3 event 都对(用例好);🔶 没点明"事件发到Pub/Sub topic"(题目核心载体);❌ 漏事件类型;❌ 没讲Pub/Sub解耦/扇出价值。
 
@@ -538,7 +538,7 @@
 
 ### Q18. Autoclass
 
-**伟伟答**：自动30、90沉降冷数据,适合数据热度未知。
+**小帅答**：自动30、90沉降冷数据,适合数据热度未知。
 
 **① 对照**：✅ 自动沉降冷数据、30/90节点、适合热度未知 核心场景准;🔶 只说"沉降"漏了**双向(能升回热)**这个与Lifecycle本质区别;❌ 漏vs Lifecycle优劣(题目主问);❌ 漏Autoclass不收retrieval/early deletion费+收管理费。
 
@@ -568,7 +568,7 @@
 
 ---
 
-## 批次 10：Q19–Q20（2026-09-02，伟伟不熟→直接教学讲解）
+## 批次 10：Q19–Q20（2026-09-02，小帅不熟→直接教学讲解）
 
 ### Q19. gsutil vs gcloud storage
 
@@ -596,7 +596,7 @@
 | 禁ACL统一策略 | Bucket owner enforced | UBLA |
 👉 PAP≈S3 Block Public Access;开UBLA只能bucket级IAM(allUsers)公开不能对象ACL。
 
-**批次 10**：教学题(伟伟不熟,未评分)。记忆点:gcloud storage新一代默认并行(≈aws s3 cp);静态站=bucket+CDN+LB加HTTPS(≈S3+CloudFront),PAP≈Block Public Access,UBLA下只能bucket级IAM公开。
+**批次 10**：教学题(小帅不熟,未评分)。记忆点:gcloud storage新一代默认并行(≈aws s3 cp);静态站=bucket+CDN+LB加HTTPS(≈S3+CloudFront),PAP≈Block Public Access,UBLA下只能bucket级IAM公开。
 
 ---
 

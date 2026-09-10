@@ -1,5 +1,5 @@
 # ⚠️ 2026-08-30 已清理（DELETED）
-> 伟伟确认后已删除本实验全部 EC2 + FSx ONTAP（含卷/SVM/DataSync task+location）。以下清单仅存档。
+> 小帅确认后已删除本实验全部 EC2 + FSx ONTAP（含卷/SVM/DataSync task+location）。以下清单仅存档。
 
 # Resources — datasync-snapmirror-rootcause (us-east-2)
 
@@ -13,4 +13,4 @@
 
 fsxadmin password: <REDACTED>
 
-All tagged project=storage-bench-agent taskId=datasync-snapmirror-rootcause. **Resources retained per ROLE.md; ask 伟伟 before deleting.**
+All tagged project=storage-bench-agent taskId=datasync-snapmirror-rootcause. **Resources retained per ROLE.md; ask 小帅 before deleting.**

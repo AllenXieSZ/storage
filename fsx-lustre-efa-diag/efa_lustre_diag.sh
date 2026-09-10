@@ -12,7 +12,7 @@
 #
 # 需要: root (读 dmesg/内核参数); 可选 aws cli (第4层 AWS 检查)
 #
-# 作者: openclaw 助手，基于伟伟 FSx Lustre EFA 实测经验沉淀
+# 作者: openclaw 助手，基于小帅 FSx Lustre EFA 实测经验沉淀
 # 心法: 一次只改一个变量; OST 状态看 ost_server_uuid 不看 lnetctl peer state
 #
 set -uo pipefail
@@ -257,7 +257,7 @@ hdr "诊断结论"
 # =====================================================================
 echo "  ${GRN}OK=$PASS${RST}  ${YEL}WARN=$WARN${RST}  ${RED}FAIL=$FAIL${RST}"
 echo
-echo "  排障心法 (伟伟实测沉淀):"
+echo "  排障心法 (小帅实测沉淀):"
 echo "   1. 一次只改一个变量 (机型/AZ/软件栈)"
 echo "   2. OST 通不通看 'lctl get_param osc.*.ost_server_uuid' (FULL/IDLE=通), 别看 lnetctl peer state:NA"
 echo "   3. CREATE_AH err-22 → 99% 跨 AZ; EFA 客户端必须与 FSx 同 AZ + 同 /16"

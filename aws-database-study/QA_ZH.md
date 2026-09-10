@@ -2,7 +2,7 @@
 
 > 生成日期：2026-09-07
 > 范围：RDS 引擎与架构、Aurora、只读副本/多可用区、参数组/备份/快照、DynamoDB、ElastiCache、DocumentDB、Neptune（图）、Timestream（时序）、Keyspaces、MemoryDB、Redshift、QLDB、DMS/SCT、选型与一致性、与 GCP 对照
-> 用法：伟伟每次过 **2 道**，我逐题完整批改/讲解（①逐点对照 ②参考答案+原理 ③概念详解 ④AWS↔GCP对照 ⑤评分+记忆点）。
+> 用法：小帅每次过 **2 道**，我逐题完整批改/讲解（①逐点对照 ②参考答案+原理 ③概念详解 ④AWS↔GCP对照 ⑤评分+记忆点）。
 > 铁律：批改必须完整展开五板块；答完即停，不预告不催。每批改完立即写入 storage/aws-database-study/NOTES_ZH.md 并推 GitHub（不丢批改正文）。
 > 回答任何点必须先查 AWS/GCP 官方文档核实，不确定标注；"旧缺点"须查最新文档验证是否仍成立。
 

@@ -13,7 +13,7 @@
 ## 批次 1：Q1–Q2（2026-09-03）
 
 ### Q1. GCE 机型系列（machine family）分类 + 典型系列/场景
-**伟伟答**：类型有通用、内存、网络、存储优化、高性能;有没有mac实例(AWS有)?
+**小帅答**：类型有通用、内存、网络、存储优化、高性能;有没有mac实例(AWS有)?
 
 **① 对照**：✅ 通用、内存优化 对;❌ **GCE没有"网络优化""存储优化"独立机型系列**(多答了);🔶 "高性能"应叫**计算优化(compute-optimized)**;❌ 漏了第四大类**加速优化(accelerator-optimized)**;🔥 好问题:**GCE没有Mac实例**(AWS有EC2 Mac,GCP没有,见下)。
 
@@ -25,8 +25,8 @@
 | **内存优化 Memory-optimized** | 超高内存:vCPU比 | **M1/M2/M3、X4** | SAP HANA、大型内存数据库、内存分析 |
 | **加速优化 Accelerator-optimized** | 挂GPU/TPU | **A2(A100)、A3(H100)、G2(L4)** | AI训练/推理、ML、大规模并行 |
 - ⚠️注意:GCP用**machine family(家族)→machine series(系列,如N2)→machine type(具体规格,如n2-standard-4)** 三级划分。
-- **没有独立的"网络优化""存储优化"family**(这是伟伟记混了AWS的分类,AWS也没有纯"网络优化"family,有的是网络增强/存储优化如I系/D系)。GCE高网络/高存储通过具体系列+加Local SSD/更高带宽档实现,不单列family。
-- 🍎 **Mac实例**:**GCE不提供macOS/Apple硬件实例**。**AWS有EC2 Mac(mac1 Intel / mac2 Apple M系列,dedicated host形式,专给iOS/macOS开发编译)**。要在云上跑macOS,AWS(EC2 Mac)是主流选择,GCP没有对应产品。伟伟这个"AWS有Mac"记得准,GCP确实没有。
+- **没有独立的"网络优化""存储优化"family**(这是小帅记混了AWS的分类,AWS也没有纯"网络优化"family,有的是网络增强/存储优化如I系/D系)。GCE高网络/高存储通过具体系列+加Local SSD/更高带宽档实现,不单列family。
+- 🍎 **Mac实例**:**GCE不提供macOS/Apple硬件实例**。**AWS有EC2 Mac(mac1 Intel / mac2 Apple M系列,dedicated host形式,专给iOS/macOS开发编译)**。要在云上跑macOS,AWS(EC2 Mac)是主流选择,GCP没有对应产品。小帅这个"AWS有Mac"记得准,GCP确实没有。
 
 **③ 概念**:GCE按"资源配比+处理器"分family;通用是默认;compute-optimized给单核性能;memory-optimized给内存密集(HANA);accelerator给AI。选型先定family(看瓶颈:均衡/算力/内存/GPU),再选series(看代际/处理器:Intel/AMD/Arm),再定type(具体vCPU/内存)。
 
@@ -43,14 +43,14 @@
 **⑤ 评分：5/10**。⚠️扣在"网络/存储优化"误列 + 漏加速优化 + "高性能"用词。记忆点:**GCE只有4大family=通用(E2/N)/计算优化(C2/C3)/内存优化(M系,HANA)/加速优化(A/G,GPU)**;三级=family→series→type;**GCE无Mac实例,AWS有EC2 Mac**;对标AWS M/T→C→R/X→P/G。
 
 ### Q2. predefined vs custom machine type + 限制
-**伟伟答**：预定义是内存和vCPU配比固定、不断增加规格;自定义是内存和vCPU自己定义,限制应该有比例上限下限。
+**小帅答**：预定义是内存和vCPU配比固定、不断增加规格;自定义是内存和vCPU自己定义,限制应该有比例上限下限。
 
 **① 对照**：✅✅ 预定义=固定配比、按档递增✓;✅ 自定义=自选vCPU/内存✓;✅✅ "有比例上下限"✓——判断准确(确实有per-vCPU内存的上下限);🔶 可补具体数值(每vCPU内存范围、vCPU须偶数、扩展内存extended memory突破上限)。
 
 **② 参考答案(GCP官方,已核实)**：
 - **预定义机型(predefined)**:GCP预设好的固定 vCPU+内存 组合,按档定价。分标准/高CPU(highcpu)/高内存(highmem)/大内存(megamem)等子档:
-  - `n2-standard-4`(4vCPU/16GB,约4GB/vCPU)、`n2-highcpu-4`(4vCPU/4GB,省内存)、`n2-highmem-4`(4vCPU/32GB,多内存)。伟伟"配比固定、递增规格"对。
-- **自定义机型(custom)**:自己指定vCPU数和内存,不用迁就预设档,精确匹配负载省钱。**限制(伟伟"有上下限"对)**:
+  - `n2-standard-4`(4vCPU/16GB,约4GB/vCPU)、`n2-highcpu-4`(4vCPU/4GB,省内存)、`n2-highmem-4`(4vCPU/32GB,多内存)。小帅"配比固定、递增规格"对。
+- **自定义机型(custom)**:自己指定vCPU数和内存,不用迁就预设档,精确匹配负载省钱。**限制(小帅"有上下限"对)**:
   1. **vCPU数**:通常必须是**1 或偶数**(>1时偶数);有系列上限。
   2. **每vCPU内存范围(核心限制)**:有**下限和上限**,按系列不同。经典N系列约**0.9–6.5 GB/vCPU**;较新如N4D为**0.5–8 GB/vCPU**;内存必须是**256MB的整数倍**。
   3. **扩展内存(extended memory)**:若要**超过"每vCPU内存上限"**(如每vCPU>6.5GB),可启用extended memory突破比例上限,但**超出部分单独更高价计费**。
@@ -77,7 +77,7 @@
 ## 批次 2：Q3–Q4（2026-09-03）
 
 ### Q3. E2 vs N 系列 + 共享核心
-**伟伟答**：共享核心是不是超卖了,会不会性能不好? AWS也有vCPU对应几个物理核的概念。
+**小帅答**：共享核心是不是超卖了,会不会性能不好? AWS也有vCPU对应几个物理核的概念。
 
 **① 对照**：✅✅ "共享核心是超卖"——**直觉基本正确**(shared-core是分数vCPU+突发,底层超卖共享物理核);✅ "AWS也有vCPU对物理核的概念"✓(见Q4);🔶 没正面答E2 vs N的定位区别和E2为何便宜。下面补全。
 
@@ -88,7 +88,7 @@
 - **共享核心(shared-core: e2-micro/small/medium)**:
   - 这些是**分数vCPU(fractional vCPU)**:e2-micro=0.25 vCPU、e2-small=0.5、e2-medium=1(官方0.25–1 vCPU区间)。
   - **机制=突发型(burstable)**:给一个**baseline保证算力**,空闲时攒credit,忙时可**短时突发**到更高(甚至接近整核),但**持续高负载会被限回baseline**。
-  - **是"超卖/共享"没错**:多个共享核心VM复用同一物理核,平时够用、成本极低;**但不适合持续高CPU负载**(会被限速)——伟伟"会不会性能不好"问得对:**低负载/间歇性负载(小网站、代理、轻量后台、dev)性能没问题且超便宜;持续满载会掉到baseline,不适合**。
+  - **是"超卖/共享"没错**:多个共享核心VM复用同一物理核,平时够用、成本极低;**但不适合持续高CPU负载**(会被限速)——小帅"会不会性能不好"问得对:**低负载/间歇性负载(小网站、代理、轻量后台、dev)性能没问题且超便宜;持续满载会掉到baseline,不适合**。
   - 场景:e2-micro还是GCP**免费层(free tier)**机型。
 
 **③ 概念**:E2 = 用"灵活调度+超卖"换低价,牺牲一点性能确定性;N系 = 稳定可预测性能。共享核心 = 突发模型(baseline+burst credit),把碎片算力卖给低负载场景,极致省钱但满载受限。选型:成本敏感/常规负载→E2;要稳定性能/生产DB→N2;超轻量/间歇→共享核心e2-micro/small。
@@ -104,15 +104,15 @@
 **⑤ 评分：7/10**(答的是提问但方向准)。记忆点:**E2=成本优化(灵活调度+超卖换低价,不绑CPU平台,不支持GPU/Local SSD);N系=稳定可预测通用(N2 Intel/N2D AMD)**;**共享核心e2-micro/small/medium=分数vCPU(0.25/0.5/1)突发模型(baseline+credit),确实超卖共享,低负载超省钱、满载被限,对标AWS T系突发实例**。
 
 ### Q4. vCPU / 物理核 / 超线程 / 关SMT的影响
-**伟伟答**：(问)关闭超线程对性能有什么影响?
+**小帅答**：(问)关闭超线程对性能有什么影响?
 
-**① 对照**：🔶 伟伟以提问为主,没作答vCPU定义。下面给完整参考答案 + 正面回答"关超线程的影响"。
+**① 对照**：🔶 小帅以提问为主,没作答vCPU定义。下面给完整参考答案 + 正面回答"关超线程的影响"。
 
 **② 参考答案(GCP官方,已核实)**：
 - **vCPU定义**:GCE里**每个vCPU = 一个硬件线程(hardware multithread)**,**默认2个vCPU共享1个物理核(physical core)**——即启用了**同步多线程SMT(Intel叫超线程Hyper-Threading)**。所以"4 vCPU"通常=**2个物理核×2线程**。
 - **超线程(SMT/HT)**:一个物理核跑2个硬件线程,靠填充核内空闲执行单元提升吞吐——但两线程**共享同一核的执行资源/缓存**,并非等于2个独立核。
 - **为什么支持关超线程(threads-per-core=1)**:设为1 → **每个vCPU独占一个完整物理核**(不再2线程共享),vCPU数减半但每个更"纯"。
-- **关超线程的性能影响(正面回答伟伟)**:
+- **关超线程的性能影响(正面回答小帅)**:
   - **利**:①消除同核两线程的资源争抢 → 对**计算密集/HPC/浮点/科学计算**这类"吃满执行单元"的负载,单线程性能更稳更高、抖动更小;②**按物理核授权的商业软件(如某些数据库License按core计费)**可省license;③安全上减少跨线程侧信道风险。
   - **弊**:**总逻辑CPU数减半 → 高并发/多线程可并行的吞吐型负载(如Web并发、批处理)总吞吐可能下降**(少了一半可调度线程)。
   - 结论:**计算密集/延迟敏感/按核授权 → 关SMT有利;高并发吞吐型 → 保留SMT更好**。不改计费(仍按vCPU数×... 具体看机型,关SMT后vCPU数变化影响配置但Google按分配的vCPU计)。
@@ -125,9 +125,9 @@
 |--|--|--|
 | vCPU=线程 | 是(2vCPU/核默认) | **完全相同**(1 vCPU=1线程,2vCPU/核) |
 | 关超线程 | threads-per-core=1 | **CPU Options: `--threads-per-core 1`**(几乎同名) |
-👉 **两家概念完全一致**(伟伟"AWS也有vCPU对物理核的概念"对):vCPU都=硬件线程、默认2线程/核、都能关超线程(GCP threads-per-core / AWS CPU Options threads-per-core)。用途也一样(HPC/按核License/隔离)。
+👉 **两家概念完全一致**(小帅"AWS也有vCPU对物理核的概念"对):vCPU都=硬件线程、默认2线程/核、都能关超线程(GCP threads-per-core / AWS CPU Options threads-per-core)。用途也一样(HPC/按核License/隔离)。
 
-**⑤ 评分：待伟伟补答(本题以提问为主)**。记忆点:**vCPU=1个硬件线程,默认2vCPU共享1物理核(SMT/超线程)**;关SMT(threads-per-core=1)→每vCPU独占整核:**计算密集/单线程/按核License受益,高并发吞吐型可能降(逻辑CPU减半)**;AWS概念完全相同(CPU Options threads-per-core)。
+**⑤ 评分：待小帅补答(本题以提问为主)**。记忆点:**vCPU=1个硬件线程,默认2vCPU共享1物理核(SMT/超线程)**;关SMT(threads-per-core=1)→每vCPU独占整核:**计算密集/单线程/按核License受益,高并发吞吐型可能降(逻辑CPU减半)**;AWS概念完全相同(CPU Options threads-per-core)。
 
 ---
 
@@ -138,7 +138,7 @@
 ## 批次 3：Q5–Q6（2026-09-03）
 
 ### Q5. 生命周期状态 + stop/suspend/reset/delete
-**伟伟答**：provisioning、running、terminated;stop了硬盘/根系统/网络ip还要付费;suspend是保留内存状态可resume,stop内存清理了。
+**小帅答**：provisioning、running、terminated;stop了硬盘/根系统/网络ip还要付费;suspend是保留内存状态可resume,stop内存清理了。
 
 **① 对照**：✅ provisioning/running/terminated 对(是核心几个);✅✅ stop后硬盘+静态IP仍付费✓、suspend保留内存可resume✓、stop清内存✓——关键计费/数据判断都对;🔶 状态列全一点更好(还有STAGING/STOPPING(PENDING_STOP)/SUSPENDING/REPAIRING);⚠️**一个易错点:GCP把"停止"后的状态叫 TERMINATED(不是"stopped"!),但TERMINATED≠删除**(见下,这是GCP独特命名坑);🔶 suspend的内存"保留在哪+要不要收费"没说(要收费)。
 
@@ -152,7 +152,7 @@
   | **suspend(挂起)** | 保存内存到磁盘后暂停 | SUSPENDED | **不收vCPU**,但**收保存内存的存储费** | **内存状态保存(存到PD standard)**,resume恢复现场 |
   | **reset(重置)** | 硬重启 | 保持RUNNING | 照常收 | 类似断电重启,**内存丢失**(非优雅);盘/IP不变 |
   | **delete(删除)** | 删实例 | (消失) | 停收 | 实例没了;启动盘按auto-delete决定删/留 |
-- **计费通则(官方原话)**:**vCPU+内存**只在 RUNNING/PENDING_STOP/SUSPENDING/SUSPENDED 收(注意suspend期间内存仍算);**挂载的盘、外部IP等资源只要存在就一直收,与实例状态无关**。→ 所以stop了盘和静态IP照付(伟伟对)。
+- **计费通则(官方原话)**:**vCPU+内存**只在 RUNNING/PENDING_STOP/SUSPENDING/SUSPENDED 收(注意suspend期间内存仍算);**挂载的盘、外部IP等资源只要存在就一直收,与实例状态无关**。→ 所以stop了盘和静态IP照付(小帅对)。
 
 **③ 概念**:stop=关机省vCPU/内存钱但盘/静态IP照付(适合"暂时不用但要留着");suspend=把内存快照存盘、快速resume恢复现场(适合"想快速恢复工作状态",代价是内存存储费);reset=硬重启(卡死时用);delete=彻底删。**TERMINATED在GCP=已停止非删除**,是最大命名坑。
 
@@ -168,9 +168,9 @@
 **⑤ 评分：7.5/10**。记忆点:状态PROVISIONING→STAGING→RUNNING→(STOPPING→**TERMINATED**)/(SUSPENDING→SUSPENDED);**⚠️GCP TERMINATED=已停止非删除(AWS terminated才是删除)**;stop不收vCPU/内存但盘+静态IP照付、内存清空、临时IP释放;suspend存内存到PD可resume但收内存存储费;reset硬重启;delete才是真删。
 
 ### Q6. stop 计费明细 + suspend vs stop
-**伟伟答**：(见Q5)stop硬盘/根/网络IP付费;suspend保留内存可resume,stop清内存。
+**小帅答**：(见Q5)stop硬盘/根/网络IP付费;suspend保留内存可resume,stop清内存。
 
-**① 对照**：✅✅ 全对:stop后付盘+IP、不付算力;suspend留内存、stop清内存。🔶 补三点:①stop不付的是vCPU+内存;②静态IP"未挂在运行实例上"才单独收(闲置静态IP收费);③**suspend要额外付"内存保存到PD"的存储费**(伟伟没提这点)。
+**① 对照**：✅✅ 全对:stop后付盘+IP、不付算力;suspend留内存、stop清内存。🔶 补三点:①stop不付的是vCPU+内存;②静态IP"未挂在运行实例上"才单独收(闲置静态IP收费);③**suspend要额外付"内存保存到PD"的存储费**(小帅没提这点)。
 
 **② 参考答案(GCP官方)**：
 - **stop(TERMINATED)后**:
@@ -208,14 +208,14 @@
 ## 批次 4：Q7–Q8（2026-09-03）
 
 ### Q7. public image / custom image / machine image 区别
-**伟伟答**：公共=大家都能用来启动;自定义=自己装了driver做了配置;machine image是跟机型有关,看这个镜像支持什么机型。
+**小帅答**：公共=大家都能用来启动;自定义=自己装了driver做了配置;machine image是跟机型有关,看这个镜像支持什么机型。
 
 **① 对照**：✅✅ 公共镜像=Google/社区维护的可直接启动OS镜像✓;✅✅ 自定义镜像=在启动盘上装了driver/做了配置后打包✓;❌ **machine image理解错了:它跟"机型/支持什么机型"无关**,而是"**整台VM的完整快照(含多块盘+配置+元数据+权限)**"(见下,重点纠正)。
 
 **② 参考答案(GCP官方,已核实)**：
 - **公共镜像(public image)**:Google、开源社区、第三方厂商提供并维护的**OS启动盘镜像**(如 Debian/Ubuntu/RHEL/Windows Server)。用来做启动盘、直接开VM。
-- **自定义镜像(custom image)**:你在一个VM的**启动盘(单块boot disk)**上装好软件/驱动/配置后,打包成的**启动盘镜像**。本质=**一块启动盘的模板**,用于批量开"预装好环境"的VM(golden image)。伟伟"装driver做配置"对。
-- **机器镜像(machine image)——纠正伟伟**:它**不是"跟机型/支持什么机型"**!官方定义:machine image = **存储一台VM实例的"全部配置 + 元数据 + 权限 + 多块磁盘(启动盘+所有数据盘)的数据"**,即**整台VM的完整快照**。
+- **自定义镜像(custom image)**:你在一个VM的**启动盘(单块boot disk)**上装好软件/驱动/配置后,打包成的**启动盘镜像**。本质=**一块启动盘的模板**,用于批量开"预装好环境"的VM(golden image)。小帅"装driver做配置"对。
+- **机器镜像(machine image)——纠正小帅**:它**不是"跟机型/支持什么机型"**!官方定义:machine image = **存储一台VM实例的"全部配置 + 元数据 + 权限 + 多块磁盘(启动盘+所有数据盘)的数据"**,即**整台VM的完整快照**。
   - 用途:**备份/克隆/迁移整台VM**(尤其多盘VM),或复制一个完整实例到别处。
   - 和custom image关键区别:**custom image只存一块启动盘;machine image存整台VM(多盘+配置)**。
   - ⚠️和机型的关系:machine image会**记录源VM当时的machine type作为配置的一部分**,但**它不"绑定/限制"机型**——从machine image创建新VM时**可以改机型/其他配置**。所以"看支持什么机型"是误解:它不挑机型,只是把源VM配置(含机型)一起存了,可覆盖。
@@ -235,14 +235,14 @@
 **⑤ 评分：6/10**。⚠️扣在machine image理解错(以为跟机型相关)。记忆点:**public=Google/社区OS镜像;custom image=单块启动盘模板(装好环境批量开机);machine image=整台VM完整快照(多盘+配置+元数据+权限,备份/搬迁整机),与机型无关(可覆盖机型);范围:snapshot<custom image<machine image;对标AWS AMI**。
 
 ### Q8. instance template + 与MIG关系 + 能否修改
-**伟伟答**：instance template=启动image和机型规格,用MIG自动扩展;(问)模板启动时候可以修改吗?
+**小帅答**：instance template=启动image和机型规格,用MIG自动扩展;(问)模板启动时候可以修改吗?
 
 **① 对照**：✅✅ 模板=保存启动镜像+机型规格(等配置)✓、给MIG自动扩展用✓——核心对;🔥 好问题"能否修改":**不能——instance template是不可变(immutable)的**(见下,面试常考点)。
 
 **② 参考答案(GCP官方,已核实)**：
 - **instance template(实例模板)**:保存一份VM配置的资源,包含 **机型(machine type)、启动盘镜像、磁盘、网络、标签labels、启动脚本、服务账号、元数据** 等——一次定义,反复用它开出**配置一致**的VM。
 - **和MIG的关系**:**MIG必须基于instance template创建**。MIG按模板批量开出相同实例,并做自动伸缩/自动修复/滚动更新。模板是MIG的"实例蓝图"。也可以直接用模板单独开单个VM。
-- **能否修改(正面回答伟伟)**:**❌ 不能修改!instance template创建后是不可变(immutable)的**。要改配置只能:**新建一个模板**(或基于旧模板复制后改),然后:
+- **能否修改(正面回答小帅)**:**❌ 不能修改!instance template创建后是不可变(immutable)的**。要改配置只能:**新建一个模板**(或基于旧模板复制后改),然后:
   - 对MIG执行**滚动更新(rolling update)**,把MIG指向新模板 → MIG按新模板逐步替换实例。
   - 这种不可变设计是故意的:保证"同一模板开出的实例完全一致、可预测、可回滚"。
 - 补充:有 **global(全局)** 和 **regional(区域)** 两种模板;deterministic template(确定性模板)会把"latest镜像"等解析成固定版本,保证长期可复现。
@@ -268,7 +268,7 @@
 ## 批次 5：Q9–Q10（2026-09-03）
 
 ### Q9. 启动脚本 / 关机脚本 / cloud-init / OS Login
-**伟伟答**：启动脚本=image启动运行的定制化脚本;关机脚本=关机前运行?放在user data?cloud-init是driver启动加载。
+**小帅答**：启动脚本=image启动运行的定制化脚本;关机脚本=关机前运行?放在user data?cloud-init是driver启动加载。
 
 **① 对照**：✅ 启动脚本=开机运行的定制脚本✓;✅ 关机脚本=关机前运行✓(基本对);❌ **"user data"是AWS术语**——GCP叫**实例元数据(metadata)的特定key**(`startup-script`/`shutdown-script`);❌ **cloud-init不是"driver启动加载"**(是跨云VM初始化框架,理解错了,见下);🔶 漏了OS Login。
 
@@ -276,7 +276,7 @@
 - **启动脚本(startup script)**:VM**每次启动时**(不只首次!首次+每次reboot都跑)自动以root执行的脚本,用于装包/配置/拉代码/注册服务。**放在实例元数据**里,key = **`startup-script`**(直接塞脚本内容)或 **`startup-script-url`**(指向Cloud Storage的脚本)。
 - **关机脚本(shutdown script)**:VM**在停止/删除/reset前**尽力(best-effort)执行的脚本,用于优雅关闭(排空连接、保存状态、上传日志)。key = **`shutdown-script`** / **`shutdown-script-url`**。⚠️**有时间限制**(正常关机约90秒、抢占约30秒),超时会被强杀;**不保证一定执行完**(如宿主机崩溃)。
 - **⚠️不叫user data**:AWS EC2叫"user data";**GCP叫"instance metadata"**,启动/关机脚本是其中的**保留元数据key**。这是术语纠正。
-- **cloud-init(纠正伟伟)**:**不是"driver启动加载"**!cloud-init是**业界通用的跨云VM首次启动初始化框架**(设主机名/建用户/写文件/装包/跑命令)。GCP部分镜像(如Container-Optimized OS、某些Ubuntu)支持用cloud-init配置;但GCE**原生机制是startup-script(通过guest agent执行)**,cloud-init是可选的另一套。两者都做"开机初始化",但startup-script是GCP原生、cloud-init是跨云标准。
+- **cloud-init(纠正小帅)**:**不是"driver启动加载"**!cloud-init是**业界通用的跨云VM首次启动初始化框架**(设主机名/建用户/写文件/装包/跑命令)。GCP部分镜像(如Container-Optimized OS、某些Ubuntu)支持用cloud-init配置;但GCE**原生机制是startup-script(通过guest agent执行)**,cloud-init是可选的另一套。两者都做"开机初始化",但startup-script是GCP原生、cloud-init是跨云标准。
 - **OS Login**:GCP管理SSH登录的机制——**用IAM角色+Google账号身份来授权SSH到VM**(而非手工管authorized_keys)。开启后SSH权限由IAM统一控制(如`roles/compute.osLogin`),便于集中管理/审计/撤销。与启动脚本无直接耦合,是登录鉴权层。
 
 **③ 概念**:startup/shutdown script=通过metadata下发、guest agent执行的"开机/关机自动化",实现无人值守配置;放metadata(GCP)而非user data(AWS)。cloud-init是可选的跨云init标准;OS Login是IAM驱动的SSH鉴权。理解:GCP用"元数据key下发脚本",AWS用"user data下发脚本",概念对应但名字不同。
@@ -293,13 +293,13 @@
 **⑤ 评分：5.5/10**。⚠️扣在"user data"(GCP叫metadata)+"cloud-init是driver加载"(错,是跨云init框架)。记忆点:**启动/关机脚本放实例metadata的key(startup-script/shutdown-script,或-url指GCS),不叫user data(那是AWS)**;startup-script每次开机都跑(AWS user data默认仅首次);shutdown-script尽力执行有超时;cloud-init=跨云VM初始化框架(非driver);OS Login=IAM管SSH登录。
 
 ### Q10. 实例元数据 + metadata server 访问 + 常用项
-**伟伟答**：元数据包括机型、ip、硬盘,通过metadata server下载。
+**小帅答**：元数据包括机型、ip、硬盘,通过metadata server下载。
 
 **① 对照**：✅✅ 元数据含机型/IP/磁盘等实例信息✓、通过metadata server获取✓——核心对;🔶 漏了**访问必须带 `Metadata-Flavor: Google` 头**(关键,防SSRF);🔶 漏了最重要的用途之一:**取服务账号access token**(免密调GCP API);🔶 可补自定义元数据+域名/IP。
 
 **② 参考答案(GCP官方,已核实)**：
 - **实例元数据(instance metadata)**:每个VM可查询的键值信息,分两类:①**默认/项目/实例元数据**(Google提供的VM信息:机型、主机名、内外网IP、zone、project ID、磁盘、网络、维护事件等);②**自定义元数据**(你自己塞的key-value,含startup-script等)。
-- **metadata server 访问方式(关键,伟伟漏了头)**:VM内访问 **`http://metadata.google.internal/computeMetadata/v1/...`**(或IP **169.254.169.254**),**必须带请求头 `Metadata-Flavor: Google`**,否则拒绝。例:
+- **metadata server 访问方式(关键,小帅漏了头)**:VM内访问 **`http://metadata.google.internal/computeMetadata/v1/...`**(或IP **169.254.169.254**),**必须带请求头 `Metadata-Flavor: Google`**,否则拒绝。例:
   ```
   curl "http://metadata.google.internal/computeMetadata/v1/instance/machine-type" -H "Metadata-Flavor: Google"
   ```
@@ -328,10 +328,10 @@
 
 **批次 5 小结**：Q9=5.5、Q10=7,均分6.25。重点纠错→**①启动/关机脚本放"实例metadata的key(startup-script/shutdown-script)",GCP不叫user data(那是AWS);startup-script每次开机都跑(AWS user data默认仅首次) ②cloud-init是跨云VM初始化框架,不是"driver加载";OS Login=IAM管SSH ③metadata server访问必须带`Metadata-Flavor: Google`头(防SSRF),最关键项=SA token(免密调API);对标AWS IMDSv2+IAM role凭证**。
 
-> 💡伟伟追问:cloud-init是不是脚本?哪个路径查?怎么保证只运行一次(标志位/标志文件)? 答(官方核实):
+> 💡小帅追问:cloud-init是不是脚本?哪个路径查?怎么保证只运行一次(标志位/标志文件)? 答(官方核实):
 > - **不是单脚本**,是Python写的初始化框架/守护(几个systemd服务分阶段拉起);你写的是**cloud-config(YAML)**,框架执行内置模块(建用户/写文件/装包/runcmd)。
 > - **路径 `/var/lib/cloud/`**:`instance/`(软链→当前实例)、`instances/<instance-id>/`、`instance/user-data.txt`(用户数据);日志`/var/log/cloud-init.log`+`cloud-init-output.log`;配置`/etc/cloud/cloud.cfg(.d)`。
-> - **只运行一次靠"semaphore信号量标志文件"(伟伟猜对了)**:每模块有frequency——**per-once**(永远一次,标志在`/var/lib/cloud/sem/`,不绑instance-id)/**per-instance**(每个instance-id一次,标志在`/var/lib/cloud/instances/<id>/sem/config_<模块>.<freq>`)/**per-always**(每次跑)。模块跑成功写semaphore文件标记;开机对比**instance-id**(记在`/var/lib/cloud/data/instance-id`):相同→per-instance跳过;不同(克隆出新VM)→重跑。`cloud-init clean`清标志强制重跑。
+> - **只运行一次靠"semaphore信号量标志文件"(小帅猜对了)**:每模块有frequency——**per-once**(永远一次,标志在`/var/lib/cloud/sem/`,不绑instance-id)/**per-instance**(每个instance-id一次,标志在`/var/lib/cloud/instances/<id>/sem/config_<模块>.<freq>`)/**per-always**(每次跑)。模块跑成功写semaphore文件标记;开机对比**instance-id**(记在`/var/lib/cloud/data/instance-id`):相同→per-instance跳过;不同(克隆出新VM)→重跑。`cloud-init clean`清标志强制重跑。
 > - 对比:**GCE startup-script每次boot都跑(无semaphore,幂等要自己保证);cloud-init靠semaphore+instance-id天然per-instance只跑一次**。AWS也用同一个cloud-init(机制完全一样),user data默认仅首次正是per-instance语义。
 
 ---
@@ -339,14 +339,14 @@
 ## 批次 6：Q11–Q12（2026-09-03）
 
 ### Q11. MIG vs 非托管IG + MIG能力
-**伟伟答**：MIG是同样模版、不同az,可以按压力资源扩展/收缩,能滚动升级。
+**小帅答**：MIG是同样模版、不同az,可以按压力资源扩展/收缩,能滚动升级。
 
 **① 对照**：✅✅ 同一模板✓、跨az✓(regional MIG)、按压力伸缩✓、滚动升级✓——核心能力抓准;🔶 漏了**自动修复(autohealing)**;🔶 没正面答"vs非托管IG"的区别。补全:
 
 **② 参考答案(GCP官方,已核实)**：
 - **MIG(托管实例组)**:一组**基于同一instance template创建的相同(identical)VM**,作为单一实体管理。四大能力:
   1. **自动伸缩(autoscaling)**:按负载增/减实例(min/max)。
-  2. **自动修复(autohealing)**:靠health check探测,不健康实例**自动重建**(伟伟漏了)。
+  2. **自动修复(autohealing)**:靠health check探测,不健康实例**自动重建**(小帅漏了)。
   3. **滚动更新/金丝雀(rolling update/canary)**:换模板逐步替换实例。
   4. **高可用分布**:regional MIG把实例**跨同region多个zone**分布,单zone故障仍存活。
   5. (有状态可选)stateful MIG保留每实例的盘/IP/元数据。
@@ -367,16 +367,16 @@
 **⑤ 评分：7.5/10**。记忆点:MIG=同模板相同VM+四大能力(**自动伸缩/自动修复autohealing/滚动更新canary/regional跨zone**);unmanaged IG=手工异构VM集合仅供LB后端(无自动化);MIG↔AWS ASG,unmanaged IG≈直接挂Target Group。
 
 ### Q12. MIG自动伸缩指标 + 对照ASG
-**伟伟答**：可以按CPU、schedule、请求数、内存,和ASG类似。
+**小帅答**：可以按CPU、schedule、请求数、内存,和ASG类似。
 
 **① 对照**：✅ CPU✓、schedule✓、请求数(=负载均衡serving capacity)✓、和ASG类似✓;⚠️ **"内存"——GCP autoscaler不原生支持内存指标!**(要靠自定义指标间接实现,见下,重点纠正)。
 
 **② 参考答案(GCP官方,已核实)**：MIG autoscaler**原生支持4类伸缩信号**:
 1. **CPU利用率(CPU utilization)**:最常用,设目标平均CPU%。
-2. **负载均衡服务容量(load balancing serving capacity)**:按LB后端的利用率/每实例RPS(请求数)伸缩——伟伟"请求数"对应这个。
+2. **负载均衡服务容量(load balancing serving capacity)**:按LB后端的利用率/每实例RPS(请求数)伸缩——小帅"请求数"对应这个。
 3. **Cloud Monitoring 指标(含自定义custom metric)**:按任意Monitoring指标伸缩(队列长度、Pub/Sub积压等)。
 4. **计划(schedules)**:按时间表预置容量(如工作日9点预扩)。
-- **⚠️内存不是原生指标(纠正伟伟)**:GCP autoscaler**没有"内存利用率"这个内置伸缩信号**。要按内存伸缩,得先用**Ops Agent把内存用量作为Cloud Monitoring自定义指标上报**,再用"Cloud Monitoring指标"方式对该自定义指标伸缩(第3类)。所以内存是"间接支持",不是原生开关。
+- **⚠️内存不是原生指标(纠正小帅)**:GCP autoscaler**没有"内存利用率"这个内置伸缩信号**。要按内存伸缩,得先用**Ops Agent把内存用量作为Cloud Monitoring自定义指标上报**,再用"Cloud Monitoring指标"方式对该自定义指标伸缩(第3类)。所以内存是"间接支持",不是原生开关。
 - 可组合多信号(取最激进的扩容需求);有scale-in控制(冷却/稳定窗口防抖)。
 
 **③ 概念**:GCP原生伸缩信号=CPU/LB容量/Monitoring指标/schedule四类;内存/业务指标走"自定义指标"路子。这与AWS一样:CPU是内置最常用,内存也不是CloudWatch的EC2默认指标(要装CloudWatch agent才有MemoryUtilization)——**两家都"CPU原生、内存需agent上报"**,这是常考对照点。
@@ -402,7 +402,7 @@
 ## 批次 7：Q13–Q14（2026-09-03）
 
 ### Q13. MIG autohealing 判断不健康的机制 + 与LB健康检查的区别
-**伟伟答**：怎么判断实例不健康,是不是通过ping、CPU负载?
+**小帅答**：怎么判断实例不健康,是不是通过ping、CPU负载?
 
 **① 对照**：❌ **不是ping/CPU负载!**(重点纠正)——autohealing用的是**应用级健康检查(application-based health check)**,探测你的应用本身(HTTP/HTTPS/TCP/SSL);ping通、CPU不高但应用挂了照样算不健康。下面给完整机制。
 
@@ -411,7 +411,7 @@
   - **HTTP/HTTPS**:请求某路径(如`/healthz`),要求返回**200**(可校验响应体);
   - **TCP/SSL**:能否建连到某端口。
   - 连续失败达阈值(unhealthy threshold)→判定不健康 → **MIG重建(recreate)该实例**(不是重启,是按模板重新造一台)。
-  - ⚠️**ping(ICMP)/CPU负载都不是判据**:ping只说明网络通、机器活着,证明不了"应用能正常服务";CPU高低更不代表健康(高CPU可能正忙、低CPU可能进程已死)。**autohealing要的是"应用层面能正确响应"**——所以用HTTP/TCP探测,不用ping/CPU。这是伟伟的主要误区。
+  - ⚠️**ping(ICMP)/CPU负载都不是判据**:ping只说明网络通、机器活着,证明不了"应用能正常服务";CPU高低更不代表健康(高CPU可能正忙、低CPU可能进程已死)。**autohealing要的是"应用层面能正确响应"**——所以用HTTP/TCP探测,不用ping/CPU。这是小帅的主要误区。
   - **initial delay(初始延迟)**:autohealing有启动宽限期,给应用足够时间boot起来再开始探测,避免刚启动就被误判重建。
 - **和负载均衡(LB)健康检查是不是同一个?——不是同一用途(重点)**:
   | | autohealing health check | LB health check |
@@ -434,7 +434,7 @@
 **⑤ 评分：4/10**。⚠️主要扣在"ping/CPU判断健康"这个误区(实际是应用级HTTP/TCP health check)。记忆点:**autohealing靠应用级health check(HTTP返200 / TCP连通),不是ping/CPU!失败→重建VM(recreate);有initial delay防误判**;**与LB health check不同用途(LB=摘流量不重建;autoheal=重建),建议autoheal用更保守的单独检查防雪崩**;对标AWS ASG(ELB health check应用级→替换实例)。
 
 ### Q14. zonal MIG vs regional MIG + 默认分布 + AWS对照
-**伟伟答**：zonal实例在同一个az,regional跨az;AWS没有这么区分。
+**小帅答**：zonal实例在同一个az,regional跨az;AWS没有这么区分。
 
 **① 对照**：✅✅ zonal MIG单zone、regional MIG跨zone✓——核心对;🔶 没说regional默认"均匀跨zone分布(evenly)"和推荐用途;⚠️ **"AWS没有这么区分"不完全准**:AWS ASG默认就跨多AZ(相当于GCP的regional行为),只是命名上AWS不分"zonal/regional两种ASG",而是靠"给ASG配几个子网(AZ)"决定——见下纠正。
 
@@ -445,7 +445,7 @@
 - **AWS对照纠正**:**AWS ASG本身就设计为跨多AZ**——你在创建ASG时指定多个子网(每个子网属一个AZ),ASG默认**跨这些AZ均衡分布实例(AZ balancing)**,单AZ挂了在其他AZ补。所以:
   - **AWS没有"zonal ASG / regional ASG"这种显式两分命名**,但**功能上ASG默认≈GCP regional MIG(跨AZ均衡HA)**;
   - 想要"单zone"就给ASG只配一个AZ的子网(≈GCP zonal MIG)。
-  - 所以伟伟"AWS没有这么区分"**部分对**:AWS确实没有这个命名区分,但**能力上AWS ASG跨AZ均衡=GCP regional MIG的默认行为**,并非AWS缺这个能力。
+  - 所以小帅"AWS没有这么区分"**部分对**:AWS确实没有这个命名区分,但**能力上AWS ASG跨AZ均衡=GCP regional MIG的默认行为**,并非AWS缺这个能力。
 
 **③ 概念**:regional MIG跨zone分布是GCP做计算层HA的核心手段(单zone故障容忍),默认均匀分布(EVEN);zonal MIG局限单zone。GCP把这做成"两种MIG类型"显式选择;AWS则把它内建进ASG(配几个AZ子网就跨几个AZ),不单列类型。终点一样:跨AZ/zone分散实例扛单点故障。
 
@@ -455,15 +455,15 @@
 | 单zone组 | **zonal MIG** | ASG只配1个AZ子网 |
 | 跨zone组(HA) | **regional MIG**(默认EVEN跨zone) | **ASG配多AZ子网**(默认AZ均衡) |
 | 是否显式两分 | 是(zonal/regional两种) | 否(靠子网数决定,内建跨AZ) |
-👉 能力对等(都能跨AZ均衡做HA);差异仅命名/配置方式:**GCP显式分zonal/regional MIG,AWS靠ASG配几个AZ子网(默认跨AZ均衡)**。伟伟"AWS不这么区分"指命名对,但别理解成"AWS没有跨AZ HA能力"。
+👉 能力对等(都能跨AZ均衡做HA);差异仅命名/配置方式:**GCP显式分zonal/regional MIG,AWS靠ASG配几个AZ子网(默认跨AZ均衡)**。小帅"AWS不这么区分"指命名对,但别理解成"AWS没有跨AZ HA能力"。
 
-**⑤ 评分：7/10**。记忆点:**zonal MIG=单zone;regional MIG=跨同region多zone(默认3个)均匀分布(EVEN),单zone故障仍可用,生产推荐**;分布形态EVEN/BALANCED/ANY;**AWS对照:无"zonal/regional"命名两分,但ASG默认跨多AZ均衡(配几个AZ子网决定)=功能等价GCP regional MIG**(伟伟"AWS不区分"仅指命名,非缺能力)。
+**⑤ 评分：7/10**。记忆点:**zonal MIG=单zone;regional MIG=跨同region多zone(默认3个)均匀分布(EVEN),单zone故障仍可用,生产推荐**;分布形态EVEN/BALANCED/ANY;**AWS对照:无"zonal/regional"命名两分,但ASG默认跨多AZ均衡(配几个AZ子网决定)=功能等价GCP regional MIG**(小帅"AWS不区分"仅指命名,非缺能力)。
 
 ---
 
-**批次 7 小结**：Q13=4、Q14=7,均分5.5。重点纠错→**①⚠️autohealing靠应用级health check(HTTP返200/TCP连通)判不健康,不是ping/CPU!失败→重建VM;与LB health check不同(LB摘流量不重建),autoheal建议用更保守的单独检查防雪崩;对标AWS ASG ELB health check ②zonal MIG单zone/regional MIG跨zone(默认EVEN均匀,生产推荐);AWS无zonal/regional命名两分但ASG默认跨多AZ均衡=功能等价(伟伟"不区分"仅指命名)**。
+**批次 7 小结**：Q13=4、Q14=7,均分5.5。重点纠错→**①⚠️autohealing靠应用级health check(HTTP返200/TCP连通)判不健康,不是ping/CPU!失败→重建VM;与LB health check不同(LB摘流量不重建),autoheal建议用更保守的单独检查防雪崩;对标AWS ASG ELB health check ②zonal MIG单zone/regional MIG跨zone(默认EVEN均匀,生产推荐);AWS无zonal/regional命名两分但ASG默认跨多AZ均衡=功能等价(小帅"不区分"仅指命名)**。
 
-> 💡伟伟类比:GCE health check是不是像K8s的health check、探一个路径URL? 答:**完全正确,同一套设计**。
+> 💡小帅类比:GCE health check是不是像K8s的health check、探一个路径URL? 答:**完全正确,同一套设计**。
 > - 探测:GCE HTTP/TCP/SSL ↔ K8s httpGet/tcpSocket/exec/gRPC;都探路径URL,HTTP返2xx算活。
 > - 参数对应:check-interval↔periodSeconds、healthy/unhealthy-threshold↔success/failureThreshold、**initial delay↔initialDelaySeconds/startupProbe**。
 > - **两种检查的对应(重要)**:**autohealing HC ↔ liveness probe**(不活→重建VM / 重启容器);**LB HC ↔ readiness probe**(没就绪→只摘流量不重建)。上批"两个HC用途不同"就是K8s的liveness vs readiness。
@@ -475,7 +475,7 @@
 ## 批次 8：Q15–Q16（2026-09-03）
 
 ### Q15. MIG滚动更新/金丝雀 + maxSurge/maxUnavailable
-**伟伟答**：滚动更新跟kubernetes类似,升级一个下线一个;金丝雀是发布几个没问题再继续;maxSurge...
+**小帅答**：滚动更新跟kubernetes类似,升级一个下线一个;金丝雀是发布几个没问题再继续;maxSurge...
 
 **① 对照**：✅✅ 滚动更新类比K8s✓、金丝雀=先发少量验证再全量✓——理解准确;🔶 maxSurge/maxUnavailable只提了名字没展开,补全。
 
@@ -487,7 +487,7 @@
   - `maxSurge>0, maxUnavailable=0` → **先加后删**(全程容量不低于目标,零容量损失,但要额外配额/成本);
   - `maxSurge=0, maxUnavailable>0` → **先删后加**(不超配额,但升级时容量临时下降);
   - 两者都>0 → 混合,更快。
-- **金丝雀(canary)**:滚动更新的一种模式——用**两个版本共存**,给新模板设一个**较小的目标数量(如`--canary-version ... template=NEW,target-size=2`)**,只让**一小部分实例跑新版**,观察无问题后再把**全部**滚到新版。伟伟"发布几个没问题再继续"完全对。
+- **金丝雀(canary)**:滚动更新的一种模式——用**两个版本共存**,给新模板设一个**较小的目标数量(如`--canary-version ... template=NEW,target-size=2`)**,只让**一小部分实例跑新版**,观察无问题后再把**全部**滚到新版。小帅"发布几个没问题再继续"完全对。
 - 更新可选**PROACTIVE(主动立即滚)**或**OPPORTUNISTIC(机会式,仅在扩容/重建时才用新模板,不主动替换)**。
 
 **③ 概念**:滚动更新=分批换模板不停机;maxSurge(先加)与maxUnavailable(允许少几台)是"容量 vs 配额/成本"的权衡旋钮;canary=先小流量验证再全量,降低发布风险。与K8s Deployment的rollingUpdate(maxSurge/maxUnavailable同名同义)几乎一模一样。
@@ -503,8 +503,8 @@
 
 **⑤ 评分：8/10**。记忆点:滚动更新=分批换模板不停机;**maxSurge=可临时多开几台(先加后减,保容量);maxUnavailable=允许同时少几台(先减后加,省配额)**;canary=新模板设小目标数先验证再全量;PROACTIVE vs OPPORTUNISTIC;与K8s Deployment同名同义,AWS对应Instance Refresh。
 
-### Q16. Spot VM vs Preemptible VM + 回收/最长运行时间(伟伟让查最新)
-**伟伟答**：spot便宜但会被回收,退出有grace time;preemptible不会回收自己终止;spot取消了最长时间限制(让查最新文档)。
+### Q16. Spot VM vs Preemptible VM + 回收/最长运行时间(小帅让查最新)
+**小帅答**：spot便宜但会被回收,退出有grace time;preemptible不会回收自己终止;spot取消了最长时间限制(让查最新文档)。
 
 **① 对照**：✅ spot便宜、会被回收、退出有grace(preemption notice)✓;✅✅ **"spot没有最长时间限制"✓(查证成立)**;❌ **"preemptible不会回收、自己终止"说反了**——preemptible**既会被回收,又额外有24小时硬上限自动终止**(见下,重点纠正)。
 
@@ -512,9 +512,9 @@
 - **两者共同点**:都是用**Google空闲容量**跑的**深度折扣(约60–91% off)**VM;**容量紧张时都会被抢占(preempted=停止/终止)**;抢占前都给**preemption notice(抢占通知)**+ ACPI关机信号,让你优雅处理(checkpoint、保存、摘流量)。
 - **Preemptible VM(旧,legacy)**:
   - **有24小时硬性最长运行上限**:官方原话"preemptible VMs can only run for **up to 24 hours** at a time"——**即使没被容量抢占,满24小时也会被Compute Engine自动终止**。
-  - **会被回收**(容量需要时随时抢占)。→ 伟伟"不会回收、自己终止"**错**:它**又会被回收、又有24h自动终止**,两个都有。
+  - **会被回收**(容量需要时随时抢占)。→ 小帅"不会回收、自己终止"**错**:它**又会被回收、又有24h自动终止**,两个都有。
 - **Spot VM(新,推荐)**:
-  - **没有最长运行时间限制**(官方原话"Spot VMs **don't have a maximum runtime** unless you limit the runtime")——可跑数天/数周,直到Google需要容量才抢占。**伟伟"取消了最长时间限制"方向对**(准确说:Spot本就没有24h上限,是比Preemptible更新的模型;Preemptible才有24h)。
+  - **没有最长运行时间限制**(官方原话"Spot VMs **don't have a maximum runtime** unless you limit the runtime")——可跑数天/数周,直到Google需要容量才抢占。**小帅"取消了最长时间限制"方向对**(准确说:Spot本就没有24h上限,是比Preemptible更新的模型;Preemptible才有24h)。
   - 同样会被抢占,同样有通知。**Google推荐新工作负载一律用Spot**(Preemptible仅为向后兼容保留)。
 - **抢占通知(grace/notice)时长**:默认 **30秒**;可设 **120秒(Preview)**——给需要更长时间收尾的工作负载。通知通过metadata(`instance/preempted`=TRUE)+系统关机信号下发,配合shutdown-script做优雅退出。
 - **核心区别小结**:
@@ -526,7 +526,7 @@
   | 通知 | 30秒 | 30秒(可120秒Preview) |
   | 定位 | legacy | 现役推荐 |
 
-**③ 概念**:Spot是Preemptible的升级替代——去掉了24h硬上限、机制更灵活,同样便宜同样可被抢占。都适合**容错/无状态/可checkpoint/可重试**的工作(批处理、渲染、CI、Spot GKE节点池)。设计要点:checkpoint+重试+跨zone分散+留少量on-demand baseline。伟伟"preemptible不会回收"是最大误区:它照样被回收,还多个24h自杀。
+**③ 概念**:Spot是Preemptible的升级替代——去掉了24h硬上限、机制更灵活,同样便宜同样可被抢占。都适合**容错/无状态/可checkpoint/可重试**的工作(批处理、渲染、CI、Spot GKE节点池)。设计要点:checkpoint+重试+跨zone分散+留少量on-demand baseline。小帅"preemptible不会回收"是最大误区:它照样被回收,还多个24h自杀。
 
 **④ AWS对照**:
 | | GCP | AWS |
@@ -540,16 +540,16 @@
 
 ---
 
-**批次 8 小结**：Q15=8、Q16=6,均分7。重点纠错→**①滚动更新分批换模板不停机;maxSurge=可临时多开(先加后减保容量)/maxUnavailable=允许同时少几台(先减后加省配额);canary=新模板小目标数先验证;与K8s Deployment同名同义,AWS↔Instance Refresh ②⚠️Preemptible(旧)既会被抢占回收、又有24h硬上限自动终止(伟伟"不回收"说反了);Spot(新推荐)无最长运行限制;都~60-91%折扣+抢占通知(默认30秒/可120秒);对标AWS EC2 Spot(AWS通知2分钟)**。
+**批次 8 小结**：Q15=8、Q16=6,均分7。重点纠错→**①滚动更新分批换模板不停机;maxSurge=可临时多开(先加后减保容量)/maxUnavailable=允许同时少几台(先减后加省配额);canary=新模板小目标数先验证;与K8s Deployment同名同义,AWS↔Instance Refresh ②⚠️Preemptible(旧)既会被抢占回收、又有24h硬上限自动终止(小帅"不回收"说反了);Spot(新推荐)无最长运行限制;都~60-91%折扣+抢占通知(默认30秒/可120秒);对标AWS EC2 Spot(AWS通知2分钟)**。
 
-> 💡伟伟追问:preemptible不是"独占"的意思吗? 答:**不是,正好相反**。preempt=抢占(主动夺),**-ible=可被…的**(被动),所以**preemptible="可被抢占的"→这台VM随时可能被Google抢走回收**,是最不独占的(用别人闲置容量)。"独占"是另一回事:独占物理机=**Sole-tenant node**(AWS Dedicated Host/Instance);独占容量=**Reservation**(AWS Capacity Reservation)。记忆:preemptible=可被抢占(便宜/被动/随时回收)≠独占;AWS对应EC2 Spot(同为"可被中断回收"非独占)。
+> 💡小帅追问:preemptible不是"独占"的意思吗? 答:**不是,正好相反**。preempt=抢占(主动夺),**-ible=可被…的**(被动),所以**preemptible="可被抢占的"→这台VM随时可能被Google抢走回收**,是最不独占的(用别人闲置容量)。"独占"是另一回事:独占物理机=**Sole-tenant node**(AWS Dedicated Host/Instance);独占容量=**Reservation**(AWS Capacity Reservation)。记忆:preemptible=可被抢占(便宜/被动/随时回收)≠独占;AWS对应EC2 Spot(同为"可被中断回收"非独占)。
 
 ---
 
 ## 批次 9：Q17–Q18（2026-09-03）
 
 ### Q17. 抢占通知 + 优雅关机 + 实例内监听checkpoint
-**伟伟答**：preemption notice,30s;监听是不是有callback? checkpoint是不是写文件?
+**小帅答**：preemption notice,30s;监听是不是有callback? checkpoint是不是写文件?
 
 **① 对照**：✅ preemption notice、30秒✓;🔶 "callback"——**没有推送式回调,是"关机信号+metadata标志"两种监听途径**(见下);✅✅ **checkpoint=写文件(存状态到盘/GCS)✓**。
 
@@ -578,18 +578,18 @@
 **⑤ 评分：7/10**。记忆点:抢占通知=**ACPI关机信号+metadata `instance/preempted`=TRUE**,窗口**30秒(可120秒)**;监听靠**shutdown-script(被动)或metadata长轮询(wait_for_change)**,**无云端HTTP回调**;checkpoint=写PD/GCS(你说的写文件对);对标AWS Spot(2分钟窗口,有EventBridge真事件推送)。
 
 ### Q18. SUD vs CUD + 对照AWS SP/RI
-**伟伟答**：SUD按年购买;CUD按容量购买。
+**小帅答**：SUD按年购买;CUD按容量购买。
 
 **① 对照**：❌ **SUD不是"按年购买"——SUD是自动、无需购买、无承诺的月度折扣**(说反了,重点纠正);🔶 **CUD"按容量购买"只对了一半**(resource-based CUD是按容量,还有spend-based按花费),且漏了"1年/3年承诺"这个核心。
 
 **② 参考答案(GCP官方,已核实)**：
 - **SUD(持续使用折扣, Sustained Use Discount)**:
   - **自动生效、无需购买、无任何承诺**。当**某类资源(GCE预定义/自定义机型、sole-tenant node)在一个计费月里运行时间占比越高,GCP自动给的折扣越高**,最高约 **20%~30%**(视资源类型)。
-  - 你啥都不用做——月底跑得久,GCP自动打折。**不是"按年购买"**(伟伟错在这)。
+  - 你啥都不用做——月底跑得久,GCP自动打折。**不是"按年购买"**(小帅错在这)。
   - ⚠️注意:E2、A2等部分系列**不享受SUD**(它们已经是低价/或走CUD);SUD主要针对N1等。
 - **CUD(承诺使用折扣, Committed Use Discount)**:
   - **你承诺用满 1年 或 3年,换更低价**(承诺期内不管用不用都要付费)。折扣比SUD深(可到~57%甚至更高)。两种:
-    1. **resource-based CUD(基于资源)**:承诺**具体量的vCPU+内存(某region某机型系列)** → 伟伟"按容量购买"对应这个。
+    1. **resource-based CUD(基于资源)**:承诺**具体量的vCPU+内存(某region某机型系列)** → 小帅"按容量购买"对应这个。
     2. **spend-based / Compute Flexible CUD(基于花费)**:承诺**每小时最低消费额($/hr)**,更灵活(跨机型/region适用)。
   - 适合**稳定长期负载**(基线常驻的生产)。
 - **区别总结**:
@@ -622,7 +622,7 @@
 ## 批次 10：Q19–Q20（2026-09-03）
 
 ### Q19. 预留(reservation) + 与CUD关系 + 保证容量 + 对照AWS
-**伟伟答**：on-demand按需启动资源;预留按一年保证容量;不知道对比。
+**小帅答**：on-demand按需启动资源;预留按一年保证容量;不知道对比。
 
 **① 对照**：✅ on-demand=按需启动✓;🔶 "预留按一年"不准——**预留(reservation)本身没有固定期限,不是"一年"**(那是CUD的承诺期);✅ **预留保证容量✓**(核心对);补齐预留vs CUD关系和AWS对照。
 
@@ -634,8 +634,8 @@
   - **预留 = 保容量(不打折);CUD = 打折(不保容量)**——两个正交的东西。
   - **可叠加**:给一个预留**再买CUD**,则该预留容量既保证有货、又享受承诺折扣。**推荐:关键常驻负载 = 预留(保容量) + CUD(降价)组合**。
   - CUD单独买(尤其spend-based/Flexible)**不保证具体容量**,只保证折扣;要容量保证必须配预留。
-- **预留能保证容量吗**:**能**(这是它的唯一目的)——在该zone为你占住硬件。伟伟对。
-- **AWS对照(伟伟"不知道对比",补上)**:
+- **预留能保证容量吗**:**能**(这是它的唯一目的)——在该zone为你占住硬件。小帅对。
+- **AWS对照(小帅"不知道对比",补上)**:
   | GCP | AWS |
   |-----|-----|
   | reservation(保容量,按需价,无固定期) | **On-Demand Capacity Reservation (ODCR)**(保容量,按需价,无固定期) |
@@ -650,20 +650,20 @@
 **⑤ 评分：6.5/10**。记忆点:**reservation=在zone预占容量、保证有货、按on-demand价计费、无固定期限、不打折;CUD=承诺1/3年换折扣但不保容量;二者正交可叠加(关键负载=预留保容量+CUD降价);对标AWS On-Demand Capacity Reservation(ODCR)+Savings Plans/RI**。
 
 ### Q20. 主机维护事件 + live migration + 不能迁移的实例(GPU/Spot) + Local SSD能否迁移
-**伟伟答**：维护事件提前邮件/dashboard通知;live migration是故障或维护时把内存迁到其他物理机,配置/ID/磁盘映射保留;GPU不能live migration;AWS也有(user guide可能没描述,让查);live migration时Local SSD能一起迁移吗?
+**小帅答**：维护事件提前邮件/dashboard通知;live migration是故障或维护时把内存迁到其他物理机,配置/ID/磁盘映射保留;GPU不能live migration;AWS也有(user guide可能没描述,让查);live migration时Local SSD能一起迁移吗?
 
 **① 对照**：✅✅ 提前通知✓、维护/故障时迁到别的物理机✓、配置/ID/磁盘映射保留✓、GPU不能live migrate✓——核心全对且很准;🔥 两个好问题:AWS是否有live migration(见下,**答案:AWS没有GCP式透明live migration**)、Local SSD能否一起迁(**答案:能,见下**)。
 
 **② 参考答案(GCP官方,已核实)**：
 - **主机维护事件(host maintenance event)**:承载VM的物理宿主机需要维护(硬件/网络/电力/主机OS/BIOS/安全补丁)时发生的计划事件。GCE**提前通知**(metadata `instance/maintenance-event` + 可配通知,控制台/日志/可编程获取)。
-- **实时迁移(live migration)**:维护/预测到硬件故障时,GCE**把运行中的VM整体迁移到同zone的另一台宿主机**,**全程不重启、不中断、不改任何属性**。官方明确保留:**IP地址、元数据、块存储数据(block storage data)、应用状态(内存)、网络设置**——伟伟"配置/ID/磁盘映射保留"完全对。
+- **实时迁移(live migration)**:维护/预测到硬件故障时,GCE**把运行中的VM整体迁移到同zone的另一台宿主机**,**全程不重启、不中断、不改任何属性**。官方明确保留:**IP地址、元数据、块存储数据(block storage data)、应用状态(内存)、网络设置**——小帅"配置/ID/磁盘映射保留"完全对。
   - 触发场景:①基础设施维护;②安全更新/配置变更;③**硬件故障(预测到未彻底坏时做预防性迁移)**;彻底坏了才terminate+restart。
 - **哪些不能live migrate**:
-  - **GPU实例**:默认 **onHostMaintenance=TERMINATE**(不能live migrate),维护时停机(可配autorestart重启),伟伟对。
+  - **GPU实例**:默认 **onHostMaintenance=TERMINATE**(不能live migrate),维护时停机(可配autorestart重启),小帅对。
   - **TPU、Bare metal(裸金属)、大部分Confidential VM**(仅N2D/C3D的AMD SEV支持)、**H4D带Local SSD**等也不支持。
   - **Spot/Preemptible**:不适用live migration(它们本就是被抢占停掉,不迁移)。
-- **🔑 Local SSD 能否一起迁移(直接回答伟伟)**:**能!** 官方原文:"Compute Engine **can live migrate instances with Local SSD disks attached**...moves the compute instances **along with their Local SSD data** to a new host server in advance of planned maintenance"。→ **live migration会把Local SSD数据一起搬到新宿主机**(例外:Z3实例挂>18TiB Titanium SSD不支持)。所以**计划维护的live migration中,Local SSD数据保留不丢**(这也呼应批次3:Local SSD在live-migrate维护事件中数据保留)。
-- **🔑 AWS有没有live migration(直接回答伟伟)**:**AWS没有GCP这种"透明实时迁移"**。AWS对宿主机维护的做法是:**提前通知(scheduled event),到期stop/reboot/retire实例**——需要你(或ASG)应对,**实例会中断/重启**,不是无感迁移。AWS内部对部分场景也用过实时迁移技术,但**对用户不承诺、user guide不作为通用能力描述**;用户可感知的官方机制是"计划事件+重启/迁移到新硬件需你处理"。→ **这正是GCP相对AWS的一个标志性差异:GCP默认live migrate(无感),AWS默认给通知然后重启**。伟伟"AWS也有但user guide可能没描述"直觉对:AWS不把它当用户可依赖的通用特性写出来。
+- **🔑 Local SSD 能否一起迁移(直接回答小帅)**:**能!** 官方原文:"Compute Engine **can live migrate instances with Local SSD disks attached**...moves the compute instances **along with their Local SSD data** to a new host server in advance of planned maintenance"。→ **live migration会把Local SSD数据一起搬到新宿主机**(例外:Z3实例挂>18TiB Titanium SSD不支持)。所以**计划维护的live migration中,Local SSD数据保留不丢**(这也呼应批次3:Local SSD在live-migrate维护事件中数据保留)。
+- **🔑 AWS有没有live migration(直接回答小帅)**:**AWS没有GCP这种"透明实时迁移"**。AWS对宿主机维护的做法是:**提前通知(scheduled event),到期stop/reboot/retire实例**——需要你(或ASG)应对,**实例会中断/重启**,不是无感迁移。AWS内部对部分场景也用过实时迁移技术,但**对用户不承诺、user guide不作为通用能力描述**;用户可感知的官方机制是"计划事件+重启/迁移到新硬件需你处理"。→ **这正是GCP相对AWS的一个标志性差异:GCP默认live migrate(无感),AWS默认给通知然后重启**。小帅"AWS也有但user guide可能没描述"直觉对:AWS不把它当用户可依赖的通用特性写出来。
 
 **③ 概念**:live migration=GCP用"预拷贝内存+短暂blackout切换"把VM无感搬到新宿主机,维护/预测故障时保业务不断,连Local SSD数据都一起搬;GPU/TPU/裸金属/机密VM等因硬件绑定不能迁(改为TERMINATE)。与AWS的根本差异:GCP默认无感迁移,AWS默认通知+重启由你兜底。
 
@@ -674,7 +674,7 @@
 | Local SSD维护时 | live migrate**一起搬,数据保留** | Instance Store维护/停机通常**数据丢**(需自行处理) |
 | GPU | 不能迁,TERMINATE | 同样通知后重启/迁到新硬件(Instance Store丢) |
 | 用户是否需应对 | 多数无感,GPU/例外需处理 | 需应对(重启窗口) |
-👉 **标志性差异:GCP默认live migrate(连Local SSD一起搬、无感);AWS默认给计划事件通知后重启/退役实例(需你兜底,本地盘可能丢)**。伟伟两个问题答案:Local SSD**能**一起迁;AWS**没有**GCP式透明live migration(不作为通用能力承诺)。
+👉 **标志性差异:GCP默认live migrate(连Local SSD一起搬、无感);AWS默认给计划事件通知后重启/退役实例(需你兜底,本地盘可能丢)**。小帅两个问题答案:Local SSD**能**一起迁;AWS**没有**GCP式透明live migration(不作为通用能力承诺)。
 
 **⑤ 评分：9/10**。记忆点:**live migration=维护/预测故障时把运行中VM无感迁到同zone另一宿主机,保留IP/ID/元数据/块存储/内存/网络,不重启;Local SSD数据一起迁(Z3>18TiB例外);GPU/TPU/裸金属/多数机密VM不能迁(TERMINATE);Spot不适用**。**AWS无GCP式透明live migration(默认计划事件+重启,本地盘可能丢)——这是两家标志性差异**。
 
@@ -684,10 +684,10 @@
 
 ---
 
-## 批次 11：Q21–Q22（2026-09-04，伟伟表示不会 → 完整讲解）
+## 批次 11：Q21–Q22（2026-09-04，小帅表示不会 → 完整讲解）
 
 ### Q21. onHostMaintenance(MIGRATE/TERMINATE) + automaticRestart 分别控制什么 + GPU默认
-**伟伟答**：不会。
+**小帅答**：不会。
 
 **② 参考答案(GCP官方 setting-vm-host-options 核实)**：VM可用性策略两字段,管"宿主机出事时VM怎么办"。
 - **onHostMaintenance**:①`MIGRATE`(普通VM默认)=维护时live migrate到同zone另一宿主机,不重启不中断;②`TERMINATE`=维护时直接停机(进TERMINATED),之后是否拉起看automaticRestart。
@@ -702,7 +702,7 @@
 **⑤ 评分**:未作答(讲解)。记忆点:**onHostMaintenance=维护时MIGRATE(无感,普通VM默认)/TERMINATE(停机);automaticRestart=非用户原因挂掉后是否自动重启(默认true,不管stop/抢占);GPU强制TERMINATE+默认automaticRestart:true(停机再拉起,有中断);对标AWS(GCP无感迁移是招牌,automaticRestart≈auto-recovery)**。
 
 ### Q22. GCE高可用手段 + 单VM SLA vs 分布式SLA
-**伟伟答**：不会。
+**小帅答**：不会。
 
 **② 参考答案(GCP官方 SLA页+HA文档,已核实)**：
 - **HA手段(故障域递进)**:①单机自愈=automaticRestart+live migration(只扛单宿主机,扛不住zone);②MIG autohealing(应用级HC失败重建实例);③**regional MIG跨zone**(默认EVEN分3zone,扛单zone故障,核心手段);④负载均衡(全局anycast IP,跨zone/region分发+故障摘除);⑤多region部署(扛region灾);⑥数据层(PD快照/machine image/regional PD跨zone同步盘)。典型:Global LB→多region的regional MIG(各跨3zone)+autohealing+autoscaling+跨region数据复制。
@@ -723,14 +723,14 @@
 
 ---
 
-**批次 11 小结**：Q21/Q22 伟伟均不会,已完整讲解。重点→**①onHostMaintenance(MIGRATE无感/TERMINATE停机)+automaticRestart(非用户原因挂掉是否自动重启,默认true);GPU强制TERMINATE+自动重启(有中断);对标AWS无感迁移是GCP招牌/automaticRestart≈auto-recovery ②HA按故障域递进(单机自愈→autohealing→regional MIG跨zone→LB→多region);SLA单VM 99.9%(内存优化99.95%)/跨zone 99.99%/LB 99.99%,要4个9必跨zone;AWS单实例99.5%、跨AZ 99.99%逻辑同**。
+**批次 11 小结**：Q21/Q22 小帅均不会,已完整讲解。重点→**①onHostMaintenance(MIGRATE无感/TERMINATE停机)+automaticRestart(非用户原因挂掉是否自动重启,默认true);GPU强制TERMINATE+自动重启(有中断);对标AWS无感迁移是GCP招牌/automaticRestart≈auto-recovery ②HA按故障域递进(单机自愈→autohealing→regional MIG跨zone→LB→多region);SLA单VM 99.9%(内存优化99.95%)/跨zone 99.99%/LB 99.99%,要4个9必跨zone;AWS单实例99.5%、跨AZ 99.99%逻辑同**。
 
 ---
 
 ## 批次 12：Q23–Q24（2026-09-04）
 
 ### Q23. GCE如何挂GPU + 能否单独成实例 + A2/G2 vs N1附加
-**伟伟答**：gpu通常和CPU vm一起,之间数据走高速HBM。
+**小帅答**：gpu通常和CPU vm一起,之间数据走高速HBM。
 
 **① 对照**：✅ "GPU和CPU VM一起"方向对(GPU必须附加到VM,不能单独成实例);❌ **"CPU-GPU走HBM"概念错**:HBM是**GPU板载显存**(GPU↔自己显存),不是CPU-GPU通道!CPU↔GPU=PCIe/NVLink-C2C;GPU↔GPU=NVLink/NVSwitch;🔶没答A2/G2 vs N1区别。
 
@@ -751,7 +751,7 @@
 **⑤ 评分：4/10**。⚠️扣在"CPU-GPU走HBM"错(HBM是GPU显存非通道)+没答A2/G2 vs N1。记忆点:**GPU不能单独成实例必须附加VM;①加速优化(A2/A3/G2)=GPU预绑定+NVLink(训练)②N1附加=手动挂老型号GPU无NVLink(轻量);HBM=GPU板载显存(非CPU-GPU通道!),CPU↔GPU=PCIe/NVLink-C2C,GPU↔GPU=NVLink/NVSwitch;N1灵活附加是GCP特色,AWS GPU都在固定P/G系**。
 
 ### Q24. Sole-tenant node是什么 + 解决什么 + vs普通共享VM
-**伟伟答**：sole tenant是独占物理,解决合规,物理隔离,license问题。不会被noisy neighbor干扰。
+**小帅答**：sole tenant是独占物理,解决合规,物理隔离,license问题。不会被noisy neighbor干扰。
 
 **① 对照**：✅✅独占物理✓、合规/物理隔离✓、license(BYOL按物理核)✓、无noisy neighbor✓——四点全对,答得很全;🔶补:按node计费+自己多VM仍共享该node+node affinity放置控制。
 
@@ -773,14 +773,14 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 ## 批次 13：Q25–Q26（2026-09-04）
 
 ### Q25. 网络接口/内外部IP/静态vs临时/multi-NIC
-**伟伟答**：可以多个网络接口,是虚拟出来的,内部IP是VPC分配,外部IP是动态路由,静态IP是给一个Elastic IP。
+**小帅答**：可以多个网络接口,是虚拟出来的,内部IP是VPC分配,外部IP是动态路由,静态IP是给一个Elastic IP。
 
 **① 对照**：✅multi-NIC可有✓、虚拟的✓、内部IP由VPC/subnet分配✓;🔶"外部IP是动态路由"用词错(动态路由=Cloud Router/BGP,应说"临时ephemeral外部IP");🔶"静态IP=Elastic IP"概念对但EIP是AWS名(GCP叫static external IP),类比方向对;🔶漏:外部IP是1:1 NAT不在网卡上、multi-NIC每NIC必须不同VPC、静态IP闲置收费。
 
 **② 参考答案(GCP官方核实)**：
 - NIC=虚拟网卡连VPC的一个subnet;至少nic0;**⚠️每个NIC必须连不同VPC(GCP硬规则,用于跨VPC/appliance/DMZ);数量随vCPU(每vCPU 1个,2~8个)**。
 - 内部IP:subnet CIDR分配,VPC内通信,**真实在VM网卡上(ip addr看得到)**,可临时/静态。
-- 外部IP:公网出入口,**⚠️不在VM网卡上,是底层1:1 NAT映射(VM里只见内网IP)**;两种:临时(ephemeral,停机释放/重建可能变=伟伟说的"动态")、静态(reserved,固定=AWS Elastic IP,⚠️绑运行实例免费/闲置收费)。
+- 外部IP:公网出入口,**⚠️不在VM网卡上,是底层1:1 NAT映射(VM里只见内网IP)**;两种:临时(ephemeral,停机释放/重建可能变=小帅说的"动态")、静态(reserved,固定=AWS Elastic IP,⚠️绑运行实例免费/闲置收费)。
 
 **③ 概念**:三层=NIC(连VPC subnet,multi-NIC跨多VPC)/内部IP(网卡上,VPC内)/外部IP(不在网卡上,1:1 NAT,临时会变/静态固定)。常见困惑"VM里只看到内网IP"=外部IP从不配在网卡上是云NAT。
 
@@ -789,7 +789,7 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 **⑤ 评分：6/10**。⚠️扣在"外部IP=动态路由"错+漏1:1 NAT/每NIC不同VPC/静态闲置收费。记忆点:**NIC=虚拟网卡连VPC subnet,multi-NIC每NIC必须不同VPC(每vCPU 1个,2~8);内部IP=subnet分配真实在网卡上;外部IP=不在网卡上是1:1 NAT,临时(停机变)/静态(=AWS Elastic IP,闲置收费);NIC↔ENI(AWS多ENI更灵活)**。
 
 ### Q26. 服务账号SA + 默认vs自定义 + access scopes与IAM关系 + 为何cloud-platform scope
-**伟伟答**：服务账号是吧IAM role?
+**小帅答**：服务账号是吧IAM role?
 
 **① 对照**：🔶"SA是不是IAM role"方向沾边但要分清:**SA=身份(≈AWS EC2的IAM Role,代表VM调API),IAM role=权限集合;关系是SA被授予IAM role,SA本身不是role**;🔶漏默认/自定义SA、access scopes、双层关系、cloud-platform最佳实践(本题核心)。
 
@@ -814,7 +814,7 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 ## 批次 14：Q27–Q28（2026-09-04）
 
 ### Q27. Shielded VM vs Confidential VM 各防护什么
-**伟伟答**：shielded VM防网络攻击(DDoS)?confident VM=加密计算,通过tpm验证内存环境安全,内存加密,隐私计算。
+**小帅答**：shielded VM防网络攻击(DDoS)?confident VM=加密计算,通过tpm验证内存环境安全,内存加密,隐私计算。
 
 **① 对照**：❌**Shielded VM答错方向**:不防网络/DDoS(那是Cloud Armor)!防**启动链/固件被篡改(rootkit/bootkit)**;✅Confidential VM抓住"加密计算/内存加密/隐私计算";🔶**vTPM机制安错了**:vTPM是Shielded VM的(Measured Boot),Confidential VM内存加密靠CPU硬件(SEV/TDX)不是TPM;🔶漏Shielded三大功能。
 
@@ -823,14 +823,14 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 - **Confidential VM=运行时内存加密**(保护data in use,连hypervisor/云管理员都读不到明文),靠**CPU硬件AMD SEV/SEV-SNP、Intel TDX**(密钥CPU管,云厂商拿不到),不是TPM。补齐数据三态at rest/in transit的第三态in use。
 - 两者正交可叠加(Confidential VM通常也是Shielded VM)。
 
-**③ 概念**:数据三态at rest(盘)/in transit(TLS)/in use(内存运行时)→Confidential VM专治in use(CPU硬件加密内存);Shielded VM是另一维度=启动/固件完整性(信任根),非加密非网络。伟伟错在①Shielded当防DDoS②vTPM错安到Confidential(实际靠SEV/TDX)。
+**③ 概念**:数据三态at rest(盘)/in transit(TLS)/in use(内存运行时)→Confidential VM专治in use(CPU硬件加密内存);Shielded VM是另一维度=启动/固件完整性(信任根),非加密非网络。小帅错在①Shielded当防DDoS②vTPM错安到Confidential(实际靠SEV/TDX)。
 
 **④ AWS对照**:Shielded VM↔NitroTPM/UEFI Secure Boot(启动信任根);Confidential VM↔Nitro Enclaves+SEV-SNP/TDX机密计算;⚠️**命名大坑:AWS "Shield"=防DDoS,GCP "Shielded VM"=防固件篡改,完全两回事!**GCP防DDoS是Cloud Armor。
 
 **⑤ 评分：3.5/10**。⚠️Shielded VM答错方向(当防DDoS,实防rootkit/bootkit)+vTPM错安到Confidential。记忆点:**Shielded VM=防启动链/固件篡改(rootkit/bootkit):Secure Boot+vTPM Measured Boot+Integrity Monitoring(后两默认开),不防网络/DDoS(那是Cloud Armor);Confidential VM=运行时内存加密(data in use),靠CPU硬件SEV/SEV-SNP/TDX非TPM;数据三态at rest/in transit/in use(Confidential治in use);AWS对照Shielded↔NitroTPM/Secure Boot、Confidential↔Nitro Enclaves+SEV/TDX;⚠️AWS Shield=防DDoS≠GCP Shielded VM!**
 
 ### Q28. VPC firewall rules如何作用实例 + network tags/SA + 对照SG
-**伟伟答**：加rules到vm应用规则,network tags不知道,firewall rules对应security rules。
+**小帅答**：加rules到vm应用规则,network tags不知道,firewall rules对应security rules。
 
 **① 对照**：🔶"加rules到vm"模型说反了:**GCP规则定义在VPC网络层,靠target匹配实例(不是挂VM上,那是AWS SG模型)**;🔶network tags"不知道"(下面讲);✅firewall rules≈Security Group方向对;🔶漏方向/优先级/显式deny/隐含规则/tags vs SA区别。
 
@@ -854,7 +854,7 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 ## 批次 15（最后一批）：Q29–Q30（2026-09-04）
 
 ### Q29. GCE计费规则(最小单位/按秒/SUD自动) + 成本优化
-**伟伟答**：最小计算按照秒,选择正确机型和磁盘,删除空跑磁盘和stop GCE。
+**小帅答**：最小计算按照秒,选择正确机型和磁盘,删除空跑磁盘和stop GCE。
 
 **① 对照**：🔶"按秒"半对漏关键:**有1分钟最低(头1分钟按1分钟收,之后按秒)**;✅右型(选对机型/盘)、删闲置盘、stop都对;🔶stop补坑:省vCPU/内存但盘+静态IP照付;🔶漏SUD自动规则(本题明确问了)、Spot、CUD、Recommender。
 
@@ -869,7 +869,7 @@ vs普通VM:普通VM与**其他客户**共享物理机、按VM(vCPU+内存)计费
 **⑤ 评分：5/10**。⚠️漏"1分钟最低"+SUD规则没答(本题明确问)+漏Spot/CUD/Recommender。记忆点:**按秒+1分钟最低;SUD=用量>25%自动打折零承诺(~20-30%,E2/A2不享受);优化=右型(Recommender)+Spot+CUD+SUD+删闲置盘/IP+stop(盘+静态IP仍付);SUD是GCP独有,CUD↔RI/SP,Recommender↔Compute Optimizer**。
 
 ### Q30. 综合对照 GCE vs EC2 六大维度(收尾题)
-**伟伟答**：其他异同不知道。
+**小帅答**：其他异同不知道。
 
 **② 参考答案(六维总对照,均前面各批核实)**：
 1. **命名**:GCP family→series→type(如n2-standard-4)+custom machine type/共享核心e2-micro/无Mac;AWS family+代际.尺寸(m7i.large)+存储优化I/D系+EC2 Mac(有)。GCP 4大family(无网络/存储优化family)。

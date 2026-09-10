@@ -25,7 +25,7 @@
 **因此：对"旧 fs-0ab60 被 copy-to-cloud relationship 阻塞"的最终判定 = 真凶是 FSx 原生 Backup（会留隐藏 SnapMirror-to-Cloud 关系 + backup 参考快照），与 DataSync 无关。**
 2026-08-30 早前那次"DataSync 走 NFS 不留 SnapMirror、不阻塞转换"的纠错结论也一并被本实验佐证——DataSync 无辜，Backup 才是元凶。
 
-> ⚠️ 对伟伟"可能只是 warning 不阻塞"这一质疑的回答：**在本次实测里它确实是 Error，且确实阻塞。** 但请注意语义边界——阻塞的不是"留了个 backup 快照"本身，而是"备份底层建立的 copy-to-cloud（SnapMirror-to-Cloud）关系"。留快照 ≠ 阻塞；有 copy-to-cloud 关系 = 阻塞。
+> ⚠️ 对小帅"可能只是 warning 不阻塞"这一质疑的回答：**在本次实测里它确实是 Error，且确实阻塞。** 但请注意语义边界——阻塞的不是"留了个 backup 快照"本身，而是"备份底层建立的 copy-to-cloud（SnapMirror-to-Cloud）关系"。留快照 ≠ 阻塞；有 copy-to-cloud 关系 = 阻塞。
 
 ---
 
@@ -38,7 +38,7 @@
 - 两卷各写 **10 GiB = 100 文件 × 100 MiB**（dd urandom），数据量一致。
 - **对照唯一变量**：只对 bkpvol 做一次 FSx 卷级 Backup，cleanvol 全程不备份。
 
-按伟伟修正意见执行的两点：
+按小帅修正意见执行的两点：
 1. **备份真正跑完并沉淀**：`aws fsx create-backup --volume-id <bkpvol>` 到 AVAILABLE 后，**再等 ~60 分钟**让 backup 参考快照稳定留存，期间 30/60min 复查该快照持续存在，才做转换。
 2. **裁判点改为 Warning vs Error**：对 check-only 与实际 start **逐字记录**，明确区分 `Warning:` / `Error:` 及 Job 是否 succeeded，不预设 H1 成立。
 
@@ -109,7 +109,7 @@ Error: command failed: This snapshot is currently used as a reference snapshot
 | 两卷创建 | <1 min |
 | 灌数据（2×10GiB） | ~1.5 min |
 | **FSx 卷级 Backup 到 AVAILABLE** | **~259s（~4.5 min）** |
-| backup 快照稳定沉淀观察 | 60 min（按伟伟要求） |
+| backup 快照稳定沉淀观察 | 60 min（按小帅要求） |
 | FlexVol→FlexGroup 转换（cleanvol 成功） | <1s（改元数据，Job succeeded） |
 | bkpvol 转换 | 立即 Error 返回，未发生 |
 
@@ -144,7 +144,7 @@ Source: [Managing FSx for ONTAP volumes — Volume styles](https://docs.aws.amaz
 
 ---
 
-## 六、资源清单（全部保留，删除前先问伟伟）
+## 六、资源清单（全部保留，删除前先问小帅）
 
 见同目录 `RESOURCES.md`。关键：FSxN `fs-0184d1e4b81ce12a8`，SVM `svm-0af4df6f58574e440`（bkpfgsvm），bkpvol `fsvol-0b96244abc8fcb7bd`，cleanvol `fsvol-0ff9b92f659a38ed5`，backup `backup-01aaa29249100f88b`，EC2 `i-0e64df080d1d36235`。
 

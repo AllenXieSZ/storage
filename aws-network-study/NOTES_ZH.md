@@ -1,7 +1,7 @@
 # AWS 网络面试题 30 道 — 批改记录（NOTES）
 
 > 题库见 `QA_ZH.md`（10 模块 30 题，每题含标准答案要点 + AWS↔GCP 对照 + 速查表）。
-> 流程：①出题干（不给答案）→ ②伟伟作答 → ③五板块批改（逐点对照/参考答案+原理/概念深入/AWS↔GCP对照/评分+记忆点）。
+> 流程：①出题干（不给答案）→ ②小帅作答 → ③五板块批改（逐点对照/参考答案+原理/概念深入/AWS↔GCP对照/评分+记忆点）。
 
 ## 批改进度（截至 2026-09-06）
 
@@ -45,12 +45,12 @@
 - 为什么GA是2个IP → 来自2个独立network zone,互为**网络入口层冗余备份**;单IP=入口单点故障;2个IP不是负载均衡是互备;客户端两个都配才拿满冗余。与"跨region故障切换"是两层不同高可用(入口层 vs 后端region层)。
 - GCP LB为何单IP而GA要2个 → GCP全局anycast IP锚定"Google全球网络整体"(所有POP统一通告),冗余**内建对用户透明**,网内reroute;AWS GA把"network zone故障隔离单元"**显式暴露**给你=2个IP。融合产品(GCP LB+CDN+骨干一体) vs 拆分服务(AWS ELB/CloudFront/GA各管一块)。GA主打固定IP写白名单,故必须2个避免固定IP成单点。
 
-## ⚠️ 待求证疑点（09-07，伟伟标记，后续找人核实）
+## ⚠️ 待求证疑点（09-07，小帅标记，后续找人核实）
 **单流(per-flow)带宽上限 AWS vs GCP 差异**：
 - AWS官方文档明确：单流5Gbps(非CPG)/10Gbps(同CPG)/25Gbps(ENA Express同AZ)；出IGW多流<32vCPU限5Gbps。来源 docs.aws.amazon.com/AWSEC2/.../ec2-instance-network-bandwidth.html
 - GCP官方文档(docs.cloud.google.com/compute/docs/network-bandwidth)：**出VPC(外部路由)单流硬上限=3Gbps**；VPC内部普通机型无到处引用的单流硬数字(可接近实例总带宽)，高端C4N机型明确标50Gbps单流。
 - ⚠️我(助手)先前口头给的"GCP单流~20Gbps"**无官方依据,已撤回**。
-- **疑点**：GCP普通机型"VPC内部单流"到底有没有统一硬上限?官方未给统一值。需实测或找GCP官方确认具体机型的内部单流上限。伟伟将找人求证。
+- **疑点**：GCP普通机型"VPC内部单流"到底有没有统一硬上限?官方未给统一值。需实测或找GCP官方确认具体机型的内部单流上限。小帅将找人求证。
 
 ## 穿插答疑补充（09-07，续）
 - **ENA Express 客户端要不要改/走不走TCP** → 完全透明,普通IP+TCP/UDP socket零改动;应用看到的还是TCP,Nitro网卡底层用SRD搬运(多路径+硬件重排序)到对端还原成TCP。要改/用专门库(libfabric/MPI/NCCL)的是**EFA**(OS-bypass),别和ENA Express混。启用只需实例侧开EnaSrdEnabled(双方都开,同AZ),UDP要额外开EnaSrdUdpEnabled。

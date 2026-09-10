@@ -1,7 +1,7 @@
 # AWS 数据库面试题批改笔记（Q1-Q30）
 
 > 题库见 QA_ZH.md（10 模块 30 题：RDS/Aurora/DynamoDB/ElastiCache/DocumentDB/Neptune图/Timestream时序/Redshift/DMS/选型）。
-> 流程：①出题干(不给答案)→②伟伟作答→③五板块批改(逐点对照/参考答案+原理/概念深入/AWS↔GCP对照/评分+记忆点)。答完即停,不预告。
+> 流程：①出题干(不给答案)→②小帅作答→③五板块批改(逐点对照/参考答案+原理/概念深入/AWS↔GCP对照/评分+记忆点)。答完即停,不预告。
 > 铁律:每题五板块完整展开发在聊天;NOTES归档是附加动作不能代替聊天展开。
 
 ## 批改进度
@@ -28,7 +28,7 @@
 - **官方User Guide明确的**(Aurora.Overview.StorageReliability.html):共享分布式cluster volume/6副本跨3AZ/**加副本不拷数据**("Aurora doesn't make a new copy of the table data")/存储独立于计算/自动伸缩/IO-Optimized vs Standard计费。
 - **官方博客明确**:写4/6读3/6 quorum("under the hood: quorum"博客)。
 - ⚠️**"log is the database"+数据页物化外包给存储节点** → **公开User Guide未展开**;权威出处=**AWS SIGMOD 2017论文《Amazon Aurora: Design Considerations...》**(有一节标题就叫"THE LOG IS THE DATABASE")+官方博客/re:Invent。
-- **面试严谨答法**:共享存储/存储计算分离/加副本不拷数据=User Guide明确;log is database+存储节点回放物化数据页=SIGMOD 2017论文,非User Guide。伟伟认可论文作为出处。
+- **面试严谨答法**:共享存储/存储计算分离/加副本不拷数据=User Guide明确;log is database+存储节点回放物化数据页=SIGMOD 2017论文,非User Guide。小帅认可论文作为出处。
 | Q7 | 3/5 | 不预置/自动伸缩✓/固定内存CPU比例✓/v1冷启动✓/v2更快✓/间歇负载✓;"每次伸缩一个ACU"不准(v2=0.5ACU平滑增量,非跳一个);v1冷启动时机没答(auto-pause到0后**第一个请求**唤醒,几十秒);v2为何快没答(**原地加资源** vs v1找scaling point换更大实例迁移)。ACU=容量单位,**1ACU≈2GiB内存**+配套CPU;v1粗粒度跳档+暂停到0被诟病;v2重写架构平滑秒级+支持完整reader/GlobalDB+现支持scale-to-0(较新);稳定满载用预置更划算。GCP关系库无完全对等,真serverless明星=BigQuery(OLAP) |
 | Q8 | 4/5 | 另一region复制✓/**RPO=1s准**✓/合规容灾✓/Spanner RPO=0多写强一致✓/主动问写延迟差异(好直觉);漏与跨区RR区别(**存储层专用复制**非引擎binlog,延迟低不拖主库);漏RTO(托管failover分钟级)。GlobalDB=1主region(可写)+最多5从region(只读),存储层异步复制RPO~1s;vs Spanner:Spanner全球多写+强一致+RPO≈0靠**TrueTime**,代价**跨区同步写延迟更高**;Aurora单区写**写延迟低**但全球最终一致=**强一致vs低写延迟本质取舍**;AWS无Spanner对等物 |
 | Q9 | 4/5 | 自动备份连续/≤35天✓/手动快照不含日志·可随时·可超35天✓(答准)/PITR靠日志回放✓/跨区跨账号✓;PITR用词偏窄("redo log"是MySQL视角,通用=**事务日志binlog/WAL**);**漏恢复=新建实例**(不覆盖原库);漏加密快照跨账号共享要**自定义KMS CMK+授权目标账号**。自动备份=每日全量+持续事务日志→支持PITR(恢复到任意秒);手动快照=某刻镜像不含日志·可永久·不支持PITR。GCP Cloud SQL同理(PITR靠binlog/WAL) |
@@ -41,13 +41,13 @@
 | Q16 | 2/5 | DAX=缓存✓/Streams做CDC✓;**最终一致读vs强一致读(核心)没答**(默认最终一致,1RCU=2次最终一致/1次强一致,便宜一半,GSI/DAX/跨区不支持强一致);**Global Tables是多活多写没答出**(区别Aurora单写!最终一致+last-writer-wins冲突解决);Streams/DAX只点名没展开。Streams=变更流(24h)→触发Lambda/CDC/Global Tables底层;DAX=微秒级读缓存(API兼容/写穿透/只加速读/最终一致)。全球强一致多写要GCP Spanner |
 
 ## 穿插答疑(09-08) DynamoDB vs Redis(ElastiCache)对比
-- 伟伟判断:①DynamoDB是持久存储✓对(SSD+多AZ持久);②latency比Redis高一个数量级✓基本对(DynamoDB个位数ms,Redis亚毫秒μs;DynamoDB+DAX可补到μs)。
+- 小帅判断:①DynamoDB是持久存储✓对(SSD+多AZ持久);②latency比Redis高一个数量级✓基本对(DynamoDB个位数ms,Redis亚毫秒μs;DynamoDB+DAX可补到μs)。
 - **本质**:DynamoDB=持久化NoSQL数据库(数据的家,SSD,near-infinite,ms级,system of record);Redis=内存缓存/内存数据结构(加速层,RAM,受内存限,μs级,丰富数据结构string/hash/list/set/zset/stream)。
 - **为何Redis快一个数量级**=RAM(ns~μs) vs SSD+网络+多副本一致(μs~ms),存储介质+架构层次的物理差异。
 - **通常配合用非二选一**:应用→Redis(μs挡热读)--miss-->DynamoDB/Aurora(ms持久权威),即OpenCart架构。
 - 想要Redis速度+持久→**MemoryDB for Redis**(多AZ事务日志持久化+强一致,可当主库,非只缓存);DynamoDB想μs读→+DAX。
 - GCP:DynamoDB→Firestore/Bigtable;ElastiCache→Memorystore;MemoryDB→GCP无完全对等(Memorystore偏缓存)。
-| Q17 | 3/5 | Redis数据结构多✓/可持久✓;Memcached简单✓/不持久✓/无HA✓;**线程模型完全说反**(Redis命令执行**单线程**,Memcached**多线程**;伟伟答成Redis多线程/Memcached单线程)。记忆法:Redis单线程重功能(无锁原子,多核靠分片)/Memcached多线程轻功能(吃满多核纯KV)。Redis 6+有多线程I/O但命令仍单线程。绝大多数选Redis。GCP=Memorystore(同Redis+Memcached) |
+| Q17 | 3/5 | Redis数据结构多✓/可持久✓;Memcached简单✓/不持久✓/无HA✓;**线程模型完全说反**(Redis命令执行**单线程**,Memcached**多线程**;小帅答成Redis多线程/Memcached单线程)。记忆法:Redis单线程重功能(无锁原子,多核靠分片)/Memcached多线程轻功能(吃满多核纯KV)。Redis 6+有多线程I/O但命令仍单线程。绝大多数选Redis。GCP=Memorystore(同Redis+Memcached) |
 | Q18 | 3/5 | cluster mode分片多节点✓/**MemoryDB可当主数据(本质对)**✓/需持久✓;cluster enabled(多分片横向扩,key按hash slot)vs disabled(单分片,加只读副本扩读/换大节点)没展开;副本+自动故障切换没答(每分片1主+最多5副本+MultiAZ,ElastiCache异步复制切换**可能丢**);**MemoryDB本质没答**(写**同步到多AZ事务日志**→强一致+宕机不丢,这才是能当主库的原因);"内存要求高"不是关键(关键是持久化代价:写延迟略高+更贵)。ElastiCache=缓存(权威在别处可丢);MemoryDB=持久主库(数据即权威不能丢,省缓存+后端两层)。GCP Memorystore无MemoryDB对等物 |
 
 ## 穿插答疑(09-08) MemoryDB内部实现
@@ -77,5 +77,5 @@
 - **布隆过滤器防缓存穿透**(penetration非击穿breakdown):概率结构,说不存在100%准/说存在可能假阳性/无假阴性;位数组+k哈希;标准BF不能删(要Counting BF变种);极省内存(100万元素1%假阳性~1.2MB);RedisBloom BF.ADD/BF.EXISTS;架构前置于缓存拦截不存在的key,常配"缓存空值"兜底。穿透(查不存在)/击穿(热点key过期)/雪崩(大量key同时过期或宕机)三者区别。
 
 ## 本轮收尾（09-09 03:02）
-- 伟伟决定本轮面试题库到此收尾（Q29/Q30 DynamoDB深入题因前面已散考过而跳过），总结推 GitHub。
+- 小帅决定本轮面试题库到此收尾（Q29/Q30 DynamoDB深入题因前面已散考过而跳过），总结推 GitHub。
 - 累计已批改：QA原题库 Q1–Q18 + 聊天新出 Q19–Q28（DocumentDB/Keyspaces/Neptune/Timestream/ElastiCache/MemoryDB/Redshift/Athena/DMS/RDS Proxy）。

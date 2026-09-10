@@ -1,9 +1,9 @@
 # HANDOFF: FSxN 单HA→2HA + FlexVol→FlexGroup（只转不平衡）测试
 
 **日期**: 2026-09-08　**区域**: us-east-2　**账号**: 386094880462
-**发起人**: 伟伟　**执行**: 后台子 agent（继承 workspace）
+**发起人**: 小帅　**执行**: 后台子 agent（继承 workspace）
 
-## 测试目标（伟伟原话）
+## 测试目标（小帅原话）
 做一个「单 FSx ONTAP HA pair 转 2 个 HA pair，并且将原来 FlexVol 转 FlexGroup」的测试：
 1. 创建单 AZ、单 HA pair，但**单个吞吐比较高**（是可以直接扩 2HA 的起点，避免死锁）
 2. 放 **500GB** 数据
@@ -15,9 +15,9 @@
 - **加 HA 时不能改吞吐/SSD/IOPS**；新 HA 沿用现有吞吐容量。这是"死锁"根因：单 HA 起点吞吐若太低（如 384），扩 2HA 会冲突。
 - **解法（本次采用）**：**创建时就把单 HA 吞吐设为 1536 MBps**（Gen2 Single-AZ 档位 384/768/1536/3072/6144），直接满足可扩 2HA 起点，跳过"先升吞吐"步骤（省 ~44min）。
 - FSxN Gen2 = `DeploymentType=SINGLE_AZ_2`，ONTAP 9.18.x。
-- **FlexVol→FlexGroup 就地转换** = ONTAP diag 级命令 `volume conversion start -vserver <svm> -volume <vol>`。转换产生**单 constituent FlexGroup**，**不自动 rebalance**——这正是伟伟要的"只转不平衡"，本身就不会搬数据，预期极快（历史实测 <1min，Job succeeded）。
+- **FlexVol→FlexGroup 就地转换** = ONTAP diag 级命令 `volume conversion start -vserver <svm> -volume <vol>`。转换产生**单 constituent FlexGroup**，**不自动 rebalance**——这正是小帅要的"只转不平衡"，本身就不会搬数据，预期极快（历史实测 <1min，Job succeeded）。
 - **转换前置条件**（历史已固化，见 TOOLS.md / workspace/flexvol_conversion_prereqs.md）：卷 online；无 SAN LUN；**先禁用 storage efficiency**（FSx 上实测只警告不拦，但先禁更稳）；不能是 DataSync source（有隐藏 SnapMirror-to-Cloud 会阻塞——**本卷全程不碰 DataSync/Backup**）；无 active SnapMirror；ARP 禁；quota 禁；快照数 OK。
-- **不要 expand、不要 volume rebalance、不要写成百上千文件**——伟伟明确"只转不平衡"。500GB 用少量大文件写即可（写入速度快）。
+- **不要 expand、不要 volume rebalance、不要写成百上千文件**——小帅明确"只转不平衡"。500GB 用少量大文件写即可（写入速度快）。
 
 ## 访问方式（标准）
 - 跳板机 **i-0dffb881b2a90daa2**（SSM Online），已装 sshpass/expect。
@@ -48,8 +48,8 @@
 - 结果写 workspace 文件：`fsxn-1ha-to-2ha-flexgroup/REPORT.md`（含两个耗时、命令输出、卷状态）。
 - 推 GitHub `AllenXieSZ/storage` 路径 `fsxn-1ha-to-2ha-flexgroup/`（SSH deploy key 已配，仓库 storage）。
 - 关键数据脱敏（密码不入库）。
-- **资源保留**（伟伟习惯：实验后保留备复现），除非另有指示。记录所有资源 ID 到 REPORT.md 便于后续清理。
-- 完成后 push 通知伟伟：两个耗时 + 结论（FlexVol→FlexGroup 只转是否很快）。
+- **资源保留**（小帅习惯：实验后保留备复现），除非另有指示。记录所有资源 ID 到 REPORT.md 便于后续清理。
+- 完成后 push 通知小帅：两个耗时 + 结论（FlexVol→FlexGroup 只转是否很快）。
 
 ## 记录本次实测新数据（对比 8-28）
 - 单 HA 直接以 1536 起点建（省升吞吐 44min）→ 扩 2HA 实际耗时 = ?（文档说"几分钟"，8-28 实测 26min）

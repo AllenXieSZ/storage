@@ -11,7 +11,7 @@
 
 **题干**：DocumentDB 是什么？兼容什么数据库、是文档库吗？架构像不像 Aurora？和 DynamoDB 都是 NoSQL 怎么选？什么场景选 DocumentDB？
 
-**伟伟作答**："documentdb 兼容 MongoDB，是文档数据库，架构不知道。如果是简单 kv、没有复杂 filter、需要极致性能就 dynamodb。"
+**小帅作答**："documentdb 兼容 MongoDB，是文档数据库，架构不知道。如果是简单 kv、没有复杂 filter、需要极致性能就 dynamodb。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -58,7 +58,7 @@ DocumentDB 是 AWS 全托管、**兼容 MongoDB API** 的**文档数据库**（�
 
 **题干**：Keyspaces 是什么？兼容什么？是 serverless 吗要不要管节点？和 DynamoDB 都是宽列，数据模型异同？什么场景选它而非 DynamoDB？
 
-**伟伟作答**："keyspaces，不知道，兼容 Cassandra 就是写性能很快宽列数据库。"
+**小帅作答**："keyspaces，不知道，兼容 Cassandra 就是写性能很快宽列数据库。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -108,7 +108,7 @@ Keyspaces 是 AWS 全托管、**兼容 Apache Cassandra** 的**宽列数据库**
 
 **题干**：Neptune 是什么类型？支持哪些图查询语言？架构像不像 Aurora/DocumentDB？什么场景一定用图库而非关系库硬 JOIN？
 
-**伟伟作答**："Neptune 是图数据库，支持查询语言我不知道，架构不知道，用来做社交关系、知识图谱、欺诈检测。对应开源 neo4j。"
+**小帅作答**："Neptune 是图数据库，支持查询语言我不知道，架构不知道，用来做社交关系、知识图谱、欺诈检测。对应开源 neo4j。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -153,7 +153,7 @@ Neptune 是 AWS 全托管**图数据库**，存/查高度关联数据，能存�
 
 **题干**：Timestream 是什么类型？时序数据特点、为什么不用普通关系库？存储分层怎样？什么场景用？
 
-**伟伟作答**："timestream 是时序数据库，数据顺序写入、很少更新、按时间范围查询、存储自动分层，IoT、监控指标。对应开源 influxdb。"
+**小帅作答**："timestream 是时序数据库，数据顺序写入、很少更新、按时间范围查询、存储自动分层，IoT、监控指标。对应开源 influxdb。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -195,7 +195,7 @@ Timestream 是 AWS 全托管、**serverless** 的**时序数据库**，为大规
 
 **题干**：ElastiCache 是什么/干什么？Redis vs Memcached 区别？Cache-Aside 和 Write-Through 怎么工作？你 OpenCart 项目用 ElastiCache Redis 做了什么？
 
-**伟伟作答**："ElastiCache 是内存数据库,减轻后台数据库压力,存里面数据不用持久也不用强事务数据比较简单。Redis 结构丰富、单线程、可以持久。Cache-aside 是存一份临时数据,读 miss 就访问后台数据库;write-through 每次都写后台数据库。购物可以用 Redis,秒杀商品可以用 Redis,高频交易可以用 Redis。"
+**小帅作答**："ElastiCache 是内存数据库,减轻后台数据库压力,存里面数据不用持久也不用强事务数据比较简单。Redis 结构丰富、单线程、可以持久。Cache-aside 是存一份临时数据,读 miss 就访问后台数据库;write-through 每次都写后台数据库。购物可以用 Redis,秒杀商品可以用 Redis,高频交易可以用 Redis。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -246,7 +246,7 @@ ElastiCache 是 AWS 全托管内存缓存服务,省去自运维Redis/Memcached�
 
 **题干**：MemoryDB 是什么？和 ElastiCache Redis 最本质区别？怎么做到持久+高可用？性能差异？什么场景选哪个？
 
-**伟伟作答**："MemoryDB for Redis 是 AWS 自研内存数据库,强事务,读快、写慢,可以做主库,前面放 ElastiCache。"
+**小帅作答**："MemoryDB for Redis 是 AWS 自研内存数据库,强事务,读快、写慢,可以做主库,前面放 ElastiCache。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -293,7 +293,7 @@ MemoryDB 是 AWS **持久化(durable)内存数据库**,兼容 Valkey/Redis OSS�
 
 **题干**：Redshift 是什么类型/干什么？OLTP vs OLAP 区别？为什么查海量数据快？什么场景用 Redshift 什么用 Aurora？
 
-**伟伟作答**："redshift 是数据仓库,用来分析查询。olap 是大量数据查询统计分析,oltp 是少量数据更新写入。redshift 是 mpp 列式存储。分析时候用 redshift,redshift 数据来自 aurora 一手数据。"
+**小帅作答**："redshift 是数据仓库,用来分析查询。olap 是大量数据查询统计分析,oltp 是少量数据更新写入。redshift 是 mpp 列式存储。分析时候用 redshift,redshift 数据来自 aurora 一手数据。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -343,7 +343,7 @@ Redshift 是 AWS 全托管云数据仓库,为OLAP(分析型)设计——海量�
 
 **题干**：Athena 是什么/最大特点？要不要预建集群/加载数据？计费模型？Redshift vs Athena 怎么选？
 
-**伟伟作答**："Athena 是无服务的大数据查询,直接查 S3 上格式化文件(parquet、avro 等),按照扫描数据付费。偶尔临时查询用 Athena。Athena 底层是 Presto 还是 Trino,还是会用 duckdb。"
+**小帅作答**："Athena 是无服务的大数据查询,直接查 S3 上格式化文件(parquet、avro 等),按照扫描数据付费。偶尔临时查询用 Athena。Athena 底层是 Presto 还是 Trino,还是会用 duckdb。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -385,7 +385,7 @@ Athena 是 AWS **serverless 交互式查询服务**——用标准SQL直接查S3
 
 **题干**：DMS 干什么？同构 vs 异构迁移？CDC 是什么为什么重要？典型场景？
 
-**伟伟作答**："dms 是迁移数据库,使用 cdc 模式,可以双向同步,最后实现 cutover。如果异构数据库,还需要先 SCT 做 schema 转化,类似 goldengate。"
+**小帅作答**："dms 是迁移数据库,使用 cdc 模式,可以双向同步,最后实现 cutover。如果异构数据库,还需要先 SCT 做 schema 转化,类似 goldengate。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |
@@ -432,7 +432,7 @@ SCT(Schema Conversion Tool):异构时源库表结构/存储过程/函数/触发�
 
 **题干**：RDS Proxy 是什么/挡在哪两者之间？主要解决什么问题？对故障切换有什么帮助？什么场景强烈建议上？
 
-**伟伟作答**："rds proxy 是应用和数据库之间,实现链接 pool 和读写分离,解决短链接建立链接花费时间,适用短链接、数据库经常打满的。"
+**小帅作答**："rds proxy 是应用和数据库之间,实现链接 pool 和读写分离,解决短链接建立链接花费时间,适用短链接、数据库经常打满的。"
 
 ### ① 逐点对照
 | 考点 | 回答 | 评价 |

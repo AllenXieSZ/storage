@@ -169,6 +169,6 @@ snapmirror show → 仍然全空
 
 ## 八、资源处置
 
-**全部保留**（ROLE.md 铁律 + 伟伟已确认预算保留），删除前需伟伟确认。资源清单见 `RESOURCES.md`。
+**全部保留**（ROLE.md 铁律 + 小帅已确认预算保留），删除前需小帅确认。资源清单见 `RESOURCES.md`。
 
 预估成本：2 个最小 FSxN（源扩到 2HA/4096）+ 1 台 c6i.large + 10G DataSync，跑约 1 小时，约 $3–6 量级。

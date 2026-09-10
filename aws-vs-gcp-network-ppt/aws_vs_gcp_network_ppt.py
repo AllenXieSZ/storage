@@ -3,7 +3,7 @@
 """
 AWS vs GCP 网络产品深度对比 PPT
 数据来源：AWS/GCP 官方文档核实（每页脚注标来源），2026-08-05。
-风格：伟伟认可的 NetApp 风模板（16:9），AWS 橙 / GCP 蓝双列对照。
+风格：小帅认可的 NetApp 风模板（16:9），AWS 橙 / GCP 蓝双列对照。
 """
 from pptx import Presentation
 from pptx.util import Inches, Pt
