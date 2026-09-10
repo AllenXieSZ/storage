@@ -1,20 +1,35 @@
 #!/usr/bin/env python3
 # ============================================================================
 # lustre_ls_csv_parallel — 用 'lfs find <dir> -maxdepth 1'（lfs 层，直接 MDT 查询）
-#   逐目录列举文件的 名字/大小/时间，多进程并发（-j）扫描 → 内存汇总 → 批量写 CSV。
-# SCRIPT_VERSION: v2.0-parallel
+#   逐目录列举文件，多进程并发（-j）扫描 → 内存汇总 → 批量写 CSV。
+#   默认取 名字/大小/时间；--names-only 时只取文件名（更快）。
+# SCRIPT_VERSION: v2.1-parallel
 # ============================================================================
 import argparse, csv, os, subprocess, sys, time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-SCRIPT_VERSION = "v2.0-parallel"
+SCRIPT_VERSION = "v2.1-parallel"
+NAMES_ONLY = False  # 由 main 设置，子进程通过 initializer 继承
+
+def _init(names_only):
+    global NAMES_ONLY
+    NAMES_ONLY = names_only
 
 def log(msg):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
 def scan_one(directory):
     """单目录 lfs find -maxdepth 1，返回 rows。子进程执行。"""
+    if NAMES_ONLY:
+        # 只列路径，不取任何 stat 属性
+        cmd = ["lfs", "find", directory, "-maxdepth", "1", "-type", "f"]
+        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        if p.returncode != 0:
+            return []
+        return [(os.path.basename(l), directory, l)
+                for l in (x.strip() for x in p.stdout.splitlines()) if l]
+    # 完整模式：名字/大小/时间
     cmd = ["lfs", "find", directory, "-maxdepth", "1", "-type", "f",
            "-printf", "%p\t%s\t%A@\n"]
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
@@ -47,6 +62,7 @@ def main():
     ap.add_argument("-d","--directory", required=True)
     ap.add_argument("-o","--output", default=None)
     ap.add_argument("-j","--jobs", type=int, default=32, help="parallel worker processes (default 32)")
+    ap.add_argument("--names-only", action="store_true", help="只取文件名，不取 size/mtime（更快）")
     args = ap.parse_args()
 
     root = args.directory
@@ -55,7 +71,8 @@ def main():
 
     log(f"Starting parallel MDT-ls ({SCRIPT_VERSION}) for: {root}")
     rc, ver = subprocess.getstatusoutput("lfs --version 2>/dev/null | awk '{print $2}'")
-    log(f"lfs version: {ver.strip()} ; jobs={args.jobs}")
+    mode = "names-only" if args.names_only else "name+size+mtime"
+    log(f"lfs version: {ver.strip()} ; jobs={args.jobs} ; mode={mode}")
 
     start = time.time()
     log("Enumerating directories...")
@@ -65,7 +82,7 @@ def main():
     log(f"Scanning with {args.jobs} parallel workers ('lfs find -maxdepth 1')...")
     records = []
     done = 0
-    with ProcessPoolExecutor(max_workers=args.jobs) as ex:
+    with ProcessPoolExecutor(max_workers=args.jobs, initializer=_init, initargs=(args.names_only,)) as ex:
         futs = {ex.submit(scan_one, d): d for d in dirs}
         for fut in as_completed(futs):
             records.extend(fut.result())
@@ -80,10 +97,15 @@ def main():
     log(f"Writing CSV: {out_csv}")
     with open(out_csv, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["name","dir","path","size_bytes","size_human","mtime_epoch","mtime_iso"])
-        for name, d, path, size, mtime in records:
-            iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat() if mtime else ""
-            w.writerow([name, d, path, size, human_size(size), mtime, iso])
+        if args.names_only:
+            w.writerow(["name","dir","path"])
+            for name, d, path in records:
+                w.writerow([name, d, path])
+        else:
+            w.writerow(["name","dir","path","size_bytes","size_human","mtime_epoch","mtime_iso"])
+            for name, d, path, size, mtime in records:
+                iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat() if mtime else ""
+                w.writerow([name, d, path, size, human_size(size), mtime, iso])
 
     log("----------------------------------------")
     log(f"Total files: {len(records)} | Total time: {time.time()-start:.2f}s")
