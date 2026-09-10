@@ -4,7 +4,7 @@
 **区域**: AWS us-east-2 (us-east-2c)
 **ONTAP**: NetApp Release 9.18.1P5 (FSx for ONTAP, Gen2)
 **执行**: 后台子 agent（继承 workspace）
-**发起**: 伟伟
+**发起**: 小帅
 
 ---
 

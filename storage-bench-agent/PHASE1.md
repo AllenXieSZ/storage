@@ -4,7 +4,7 @@
 > 「网页提交实验 → 异步执行 → 出 Markdown+图报告」完整闭环。
 > 先支持 **EBS gp3 基线 + FSx ONTAP(NFS)** 两种存储的 fio 压测。
 >
-> 默认决策（伟伟可改）：鉴权=内网+API Key；报告=Markdown+PNG 存 S3 预签名；通知=飞书。
+> 默认决策（小帅可改）：鉴权=内网+API Key；报告=Markdown+PNG 存 S3 预签名；通知=飞书。
 
 ---
 
@@ -31,7 +31,7 @@
                           └──────► [S3: 报告bucket] ◄──────┘
                                           │ 完成
                                           ▼
-                                   [飞书通知 伟伟]
+                                   [飞书通知 小帅]
 ```
 
 - 阶段一用 **Lambda + (可选)Step Functions** 做编排，不引入 AgentCore（降低复杂度，先验证价值）。
@@ -192,7 +192,7 @@ report.md 模板：
 
 ---
 
-## 8. 待伟伟确认
+## 8. 待小帅确认
 
 - [ ] 鉴权用「内网+API Key」阶段一 OK 吗？还是要 Cognito？
 - [ ] Step Functions 做编排 OK 吗？（比纯 Lambda 链更适合长流程）

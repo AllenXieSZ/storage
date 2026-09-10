@@ -1,6 +1,6 @@
 # AWS 网络面试题 30 道（2026-09-06 出题存档）
 
-> 伟伟云网络强化训练题库。风格同 GCP/AWS 安全系列：每题含【标准答案要点】+【AWS↔GCP 对照】。
+> 小帅云网络强化训练题库。风格同 GCP/AWS 安全系列：每题含【标准答案要点】+【AWS↔GCP 对照】。
 > 覆盖 10 大模块：VPC/子网/路由 · SG vs NACL · IGW/NAT/出网 · VPC Endpoint/PrivateLink · 跨 VPC 互联(Peering/TGW) · 混合云(DX/VPN) · DNS(Route 53) · 负载均衡(ELB) · CDN/边缘(CloudFront/Global Accelerator) · 可观测与限制(Flow Logs/带宽/MTU)。
 > ⚠️ 技术细节以 AWS 官方文档为准；服务特性会更新，回答/批改前查最新 User Guide 核实。
 

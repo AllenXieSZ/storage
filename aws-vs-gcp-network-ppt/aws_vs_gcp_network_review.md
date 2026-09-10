@@ -1,6 +1,6 @@
 # AWS vs GCP 网络产品深度对比（Review 稿）
 
-> 目的：供伟伟 review，确认后做成 PPT（NetApp 风，上传 S3+GitHub）。
+> 目的：供小帅 review，确认后做成 PPT（NetApp 风，上传 S3+GitHub）。
 > 铁律：每条论点/数字均来自 AWS/GCP **官方文档**并标来源；官方未明确处标"我不确定/官方未明确"，绝不臆造。
 > 核实日期：2026-08-05。
 

@@ -140,7 +140,7 @@ class FioPlugin(TestPlugin):
         iid = ctx.resources.get("ec2InstanceId")
         if iid:
             ec2.terminate_instances(InstanceIds=[iid])
-        # FSx/EBS 卷按 params/习惯: 默认保留(伟伟习惯), 由网页 cleanup 显式触发删
+        # FSx/EBS 卷按 params/习惯: 默认保留(小帅习惯), 由网页 cleanup 显式触发删
 
     # ---- helper ----------------------------------------------------------
     @staticmethod

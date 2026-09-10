@@ -13,7 +13,7 @@
 
 ### Q1. Persistent Disk 类型
 
-**伟伟答**：Balanced通用,Extreme高性能数据库,Standard性能一般web。
+**小帅答**：Balanced通用,Extreme高性能数据库,Standard性能一般web。
 
 **① 对照**：✅ balanced通用/extreme数据库/standard一般 三定位对;❌ 漏pd-ssd(四种只答三种);❌ 没说清介质(standard=HDD其余SSD)和性能梯度;🔶 漏pd-extreme可自定义IOPS。
 
@@ -43,7 +43,7 @@
 
 ### Q2. PD是什么+与VM生命周期
 
-**伟伟答**：块存储,底层虚拟成VM一个硬盘,互相独立生命周期。
+**小帅答**：块存储,底层虚拟成VM一个硬盘,互相独立生命周期。
 
 **① 对照**：✅ 块存储、网络虚拟成VM盘 对;🔶 "互相独立生命周期"太绝对——**默认不独立**(启动盘auto-delete=true跟随VM删),要独立须显式设auto-delete=false;❌ 漏auto-delete机制;❌ 漏可卸载重挂能力。
 
@@ -74,7 +74,7 @@
 
 ### Q3. Hyperdisk 是什么+与PD区别+类型
 
-**伟伟答**：PD下一代,性能更好,可单独配IOPS和throughput,有大吞吐ML,ML有限制(忘了)。
+**小帅答**：PD下一代,性能更好,可单独配IOPS和throughput,有大吞吐ML,ML有限制(忘了)。
 
 **① 对照**：✅ 下一代/性能更好/单独配IOPS吞吐/ML大吞吐 核心全对(解耦这个魂抓住了);🔶 ML限制忘了;❌ 四种类型只答到ML,漏Balanced/Extreme/Throughput。
 
@@ -91,7 +91,7 @@
 
 ### Q4. 性能与容量解耦
 
-**伟伟答**：容量小为了更好性能可配置不浪费容量,反过来一样。
+**小帅答**：容量小为了更好性能可配置不浪费容量,反过来一样。
 
 **① 对照**：✅✅ 核心完全正确(容量小也能配高性能/不浪费/双向独立),魂抓得准;🔶 没讲机制(PD绑定vs Hyperdisk三独立旋钮);🔶 没给具体例子。
 
@@ -114,7 +114,7 @@
 
 ## 批次 3：Q5–Q6（Local SSD）已批改
 
-> 说明:本批(Q5-Q6)伟伟本人已作答且已在对话中批改完;当时批改正文未持久化到本文件,此处补记关键结论+伟伟提出的重要更正,供后续复习。以后每批批改后**立即写入本文件并推 GitHub**,避免再丢。
+> 说明:本批(Q5-Q6)小帅本人已作答且已在对话中批改完;当时批改正文未持久化到本文件,此处补记关键结论+小帅提出的重要更正,供后续复习。以后每批批改后**立即写入本文件并推 GitHub**,避免再丢。
 
 ### Q5. Local SSD vs PD(物理位置/持久性/性能)
 - **物理位置**:Local SSD=**物理挂在承载VM的宿主机上**(本地直连NVMe/SCSI),不走网络;PD=**网络附加**块存储(数据在Google分布式存储,走网络)。
@@ -122,7 +122,7 @@
 - **性能**:Local SSD 因本地直连,**延迟极低、IOPS/吞吐极高**(远超PD);代价是不持久、不能独立、容量固定(按375GB分区块加,NVMe接口)。
 
 ### Q6. Local SSD 何时丢数据 + 场景
-**⚠️ 伟伟的重要更正(已查GCP官方文档核实,成立)**:不是"任何停机都丢"——**数据是否保留分情况**:
+**⚠️ 小帅的重要更正(已查GCP官方文档核实,成立)**:不是"任何停机都丢"——**数据是否保留分情况**:
 - **保留(数据在)**:guest OS 内部 reboot(重启操作系统);host maintenance 走 **live migrate**;部分较新机型(如带 Titanium/Local SSD 的第三代,维护策略 TERMINATE and RESTART)在维护事件的 terminate→restart 中 **Compute Engine 会保留 Local SSD 数据**;host error 若在 **Local SSD recovery timeout** 内恢复,数据保留。
 - **丢失(数据没)**:**stop / suspend / delete VM**;host error 超过 recovery timeout 未恢复;底层硬件故障;删除实例。
 - 所以"关机就一定丢"是错的——**取决于停机类型与机型/维护策略**;但**stop/suspend/delete 这类主动停机默认会丢**,不能当持久存储用。
@@ -145,7 +145,7 @@
 ## 批次 4：Q7–Q8（2026-09-03）
 
 ### Q7. PD 性能由什么决定
-**伟伟答**：性能和容量成比例,最高性能不能超过VM支持的上限。
+**小帅答**：性能和容量成比例,最高性能不能超过VM支持的上限。
 
 **① 对照**：✅✅ 两大要点全中——性能随容量成比例增长 + 受VM(实例)上限封顶,核心机制抓准;🔶 没展开"第三个因素"(磁盘类型)也影响每GB性能系数;🔶 没说VM上限具体由什么决定(vCPU数)。
 
@@ -167,13 +167,13 @@
 **⑤ 评分：7.5/10**。记忆点:PD性能=**min(磁盘类型×容量, VM实例上限)**;容量线性(小盘慢)+VM封顶(小VM给不满大盘)+磁盘类型系数,三者取最小;对标EBS(容量like gp2、实例上限like EBS-optimized)。
 
 ### Q8. zonal PD vs regional PD
-**伟伟答**：zonal指副本在同一个zonal;regional PD 跨Region Replication;有几种同步状态。
+**小帅答**：zonal指副本在同一个zonal;regional PD 跨Region Replication;有几种同步状态。
 
 **① 对照**：✅ zonal=单zone、regional有复制、"有几种同步状态"方向对;❌❌ **关键错误:regional PD 不是"跨Region"复制,而是跨"同一Region内的两个zone(跨AZ)"**;🔶 没说同步复制RPO=0;🔶 同步状态没具体说是哪几种。
 
 **② 参考答案(GCP官方,已核实)**：
 - **zonal PD**:数据只在**单个 zone**(可有多副本但都在同zone),该zone挂了盘不可用。
-- **regional PD**:**在同一个 region 内的两个 zone 之间同步复制(synchronous replication)**写入,**RPO=0**(写成功=两个zone都写入),可容忍**单个zone故障**仍可用。⚠️**是跨 zone(跨AZ),不是跨 region**——伟伟这里说反了。
+- **regional PD**:**在同一个 region 内的两个 zone 之间同步复制(synchronous replication)**写入,**RPO=0**(写成功=两个zone都写入),可容忍**单个zone故障**仍可用。⚠️**是跨 zone(跨AZ),不是跨 region**——小帅这里说反了。
 - **高可用机制**:一个zone挂 → 可把regional PD **force-attach / failover** 到另一个zone的VM,数据不丢(RPO=0)继续用。
 - **对性能影响**:因为**每次写都要同步到两个zone(等两边都确认)**,写延迟比zonal略高(多一跳跨zone网络往返);读通常从本地zone副本读不受影响。这是HA的代价——用一点写延迟换RPO=0的跨zone容灾。
 - **复制状态(replication states,官方3种)**:
@@ -202,7 +202,7 @@
 ## 批次 5：Q9–Q10（2026-09-03）
 
 ### Q9. PD 多挂载(multi-writer / read-only)
-**伟伟答**：multi-writer多个VM写会互相覆盖,必须上层有集群文件系统;read-only是一写多读,分享数据使用。
+**小帅答**：multi-writer多个VM写会互相覆盖,必须上层有集群文件系统;read-only是一写多读,分享数据使用。
 
 **① 对照**：✅✅ multi-writer需要上层集群文件系统(PD本身不提供锁/协调)——核心限制答对;✅ read-only多读用于分享数据——对;🔶 "一写多读"表述不准:read-only模式下**没有任何实例能写**(不是"一个写多个读"),是纯只读多挂;🔶 漏具体限制数字(multi-writer仅**最多2个N2 VM+SSD PD**;read-only可挂很多)。
 
@@ -224,7 +224,7 @@
 **⑤ 评分：7.5/10**。记忆点:read-only=**全只读**多挂分发静态数据(非"一写多读");multi-writer=SSD PD最多**2个N2 VM**读写,**PD不管锁必须上层集群FS**;对标AWS EBS Multi-Attach(io1/io2,最多16实例,同样要集群FS)。
 
 ### Q10. 在线扩容 / 能否缩小 / 扩容后文件系统操作
-**伟伟答**：可以扩展容量,不能缩小,文件系统要resize,lvm要extend。
+**小帅答**：可以扩展容量,不能缩小,文件系统要resize,lvm要extend。
 
 **① 对照**：✅✅✅ 全对!在线扩容✓、不能缩小✓、扩完要resize文件系统✓、用了LVM要先extend✓。答得干净准确。🔶 可补:①扩容不停机(无需卸载/重启)②有分区表的还要先扩分区(growpart)③resize命令具体名。
 
@@ -258,7 +258,7 @@
 ## 批次 6：Q11–Q12（2026-09-03）
 
 ### Q11. 快照工作原理 + 增量 + 存哪
-**伟伟答**：快照记录磁盘数据块,复制传送到GCS;后续快照只传变化部分省空间;快照之间互相reference。
+**小帅答**：快照记录磁盘数据块,复制传送到GCS;后续快照只传变化部分省空间;快照之间互相reference。
 
 **① 对照**：✅✅✅ 增量机制答得很准——首次全量、后续只传变化块、快照互相reference、省空间,核心全中;✅ "存到GCS"方向对(底层映射到Cloud Storage);🔶 措辞可精确:不是存进"你自己的GCS bucket",是Google托管的、**底层映射到Cloud Storage位置**的快照存储(多位置+校验和)。
 
@@ -281,12 +281,12 @@
 **⑤ 评分：8.5/10**。记忆点:首次全量+后续只传变化块+链式reference+底层存Cloud Storage(多位置+校验);删中间快照块会下放给后续快照(所以删旧快照不等比例省空间);对标AWS EBS快照(底层S3),机制几乎一样。
 
 ### Q12. 快照是什么级别资源 + 跨region恢复
-**伟伟答**：快照是regional,可以在另外regional恢复硬盘;可对磁盘拍快照传输到其他Region做迁移和容灾。
+**小帅答**：快照是regional,可以在另外regional恢复硬盘;可对磁盘拍快照传输到其他Region做迁移和容灾。
 
 **① 对照**：✅ 跨region恢复✓、用于迁移/容灾✓(用途完全对);❌ **关键错误:快照默认是 global(全局)资源,不是 regional**;🔶 混淆了"快照资源级别(global)"和"快照存储位置(可选regional/multi-regional)"两个概念。
 
 **② 参考答案(GCP官方,已核实)**：
-- **快照默认是 global 资源**(官方原文"Snapshots are, by default, global resources")——它不绑定某个zone或region,在**同一project内任意zone/region都能用它恢复出新盘/新VM**。⚠️伟伟说"regional"不对。
+- **快照默认是 global 资源**(官方原文"Snapshots are, by default, global resources")——它不绑定某个zone或region,在**同一project内任意zone/region都能用它恢复出新盘/新VM**。⚠️小帅说"regional"不对。
 - **但"存储位置"可配置**:创建时可指定快照**存储位置为 regional 或 multi-regional**(映射到GCS的region如`us-central1`或multi-region如`us`)。这是"数据实际存哪"的选择,和"资源是global(哪都能引用)"是两码事。
 - **跨region恢复**:正因为是global资源,**可以用一个zone拍的快照,在另一个region创建新磁盘**。→ 直接支撑**跨区容灾(DR)**和**跨region迁移**(把工作负载搬到别的region)。
 - **纠正**:资源级别=**global**;存储位置=可选regional/multi-regional。别把两者混成"快照是regional"。
@@ -298,22 +298,22 @@
 |--|--|--|
 | 资源作用域 | **global**(全局可用) | **regional**(绑定所在region) |
 | 跨region用 | 直接可跨region恢复 | 需先**copy-snapshot到目标region**再用 |
-👉 **重要差异**:GCP快照是global,跨region恢复更省事(直接引用);**AWS EBS快照是regional的,跨region要先显式copy一份到目标region**才能在那恢复。伟伟把GCP说成regional,恰好把它错当成了AWS的模型。
+👉 **重要差异**:GCP快照是global,跨region恢复更省事(直接引用);**AWS EBS快照是regional的,跨region要先显式copy一份到目标region**才能在那恢复。小帅把GCP说成regional,恰好把它错当成了AWS的模型。
 
-**⑤ 评分：6/10**。⚠️主要扣在"快照是regional"这个定级错误(应为global)。记忆点:**GCP快照=global资源(哪个region都能恢复),存储位置可选regional/multi-regional**;跨region恢复→天然支持DR/迁移;对比AWS EBS快照是**regional、跨region要先copy-snapshot**(这正是伟伟记混的点)。
+**⑤ 评分：6/10**。⚠️主要扣在"快照是regional"这个定级错误(应为global)。记忆点:**GCP快照=global资源(哪个region都能恢复),存储位置可选regional/multi-regional**;跨region恢复→天然支持DR/迁移;对比AWS EBS快照是**regional、跨region要先copy-snapshot**(这正是小帅记混的点)。
 
 ---
 
-**批次 6 小结**：Q11=8.5、Q12=6,均分7.25。重点纠错→**①快照默认是 global 资源(不是regional!)——"资源global(哪都能恢复)" vs "存储位置可选regional/multi-regional"是两回事**②增量:首次全量+后续变化块+链式reference,删中间快照块下放给后续③底层存Cloud Storage(AWS存S3)④GCP快照global跨region直接恢复,**AWS EBS快照regional跨region要先copy-snapshot**(伟伟把GCP错记成了AWS模型)。
+**批次 6 小结**：Q11=8.5、Q12=6,均分7.25。重点纠错→**①快照默认是 global 资源(不是regional!)——"资源global(哪都能恢复)" vs "存储位置可选regional/multi-regional"是两回事**②增量:首次全量+后续变化块+链式reference,删中间快照块下放给后续③底层存Cloud Storage(AWS存S3)④GCP快照global跨region直接恢复,**AWS EBS快照regional跨region要先copy-snapshot**(小帅把GCP错记成了AWS模型)。
 
-> 💡伟伟追问:快照global会不会违反数据隐私/主权(GDPR)? 答:**不会**。global 只是**控制面"全局可寻址/可引用"**,不是数据物理全球乱放。**数据落地位置由 `--storage-location` 控制,可锁 regional(如europe-west1,数据只在该region)或 multi-regional(如eu,限该大区内冗余)**。官方明确此功能就是"meet data residency/regulatory requirements(如病历/金融数据存特定位置)"。合规做法:建快照显式设 storage location 到合规region + 用 Org Policy `gcp.resourceLocations` 从组织层强制资源位置。合规责任在"你把快照restore到哪",不在"快照是不是global"。对比AWS EBS快照regional(默认锁死region,跨region要copy)——GCP更灵活但合规更依赖你正确设location。
+> 💡小帅追问:快照global会不会违反数据隐私/主权(GDPR)? 答:**不会**。global 只是**控制面"全局可寻址/可引用"**,不是数据物理全球乱放。**数据落地位置由 `--storage-location` 控制,可锁 regional(如europe-west1,数据只在该region)或 multi-regional(如eu,限该大区内冗余)**。官方明确此功能就是"meet data residency/regulatory requirements(如病历/金融数据存特定位置)"。合规做法:建快照显式设 storage location 到合规region + 用 Org Policy `gcp.resourceLocations` 从组织层强制资源位置。合规责任在"你把快照restore到哪",不在"快照是不是global"。对比AWS EBS快照regional(默认锁死region,跨region要copy)——GCP更灵活但合规更依赖你正确设location。
 
 ---
 
 ## 批次 7：Q13–Q14（2026-09-03）
 
 ### Q13. Snapshot Schedule(快照计划)
-**伟伟答**：定时快照,保存多久,保存多少副本,自动不忘记,自动清理过期。
+**小帅答**：定时快照,保存多久,保存多少副本,自动不忘记,自动清理过期。
 
 **① 对照**：✅✅ 定时自动拍✓、保留时长(保存多久)✓、自动不忘✓、自动清理过期✓——核心全中;🔶 "保存多少副本"表述略偏:保留策略主要按**保留天数(max retention days)**,不是"固定副本数"(到期自动删,间接决定保有数量);🔶 漏了"计划附加到盘、可设频率(每小时/天/周)、可跨region存、删盘时快照保留策略"等细节。
 
@@ -335,17 +335,17 @@
 **⑤ 评分：8/10**。记忆点:Snapshot Schedule=附加到盘的策略,自动按频率(时/天/周)增量快照+按max-retention-days自动删过期+可控删盘行为;优势=不遗漏/自动清理/统一保留策略/合规;对标AWS DLM或AWS Backup。
 
 ### Q14. 默认加密 / CMEK / CSEK / 与GCS对照
-**伟伟答**：加密使用CMEK key,和GCS类似,读时自动解密,没有client side加密,不从on-premise上传。
+**小帅答**：加密使用CMEK key,和GCS类似,读时自动解密,没有client side加密,不从on-premise上传。
 
-**① 对照**：✅ 用CMEK✓、和GCS类似✓、读时自动解密✓——对;🔶 漏了**默认加密(GMEK,Google托管)**这个最基础层(不配任何东西也默认加密);🔶 CMEK和CSEK没分清各是什么;⚠️ "没有client side加密"——**CSEK不等于客户端加密**,这里概念要厘清;🔥 **重大时效更新:CSEK在Compute Engine已于2026-07-20停用(deprecated)**,伟伟"没有客户提供密钥"这个直觉现在反而"歪打正着"(见下)。
+**① 对照**：✅ 用CMEK✓、和GCS类似✓、读时自动解密✓——对;🔶 漏了**默认加密(GMEK,Google托管)**这个最基础层(不配任何东西也默认加密);🔶 CMEK和CSEK没分清各是什么;⚠️ "没有client side加密"——**CSEK不等于客户端加密**,这里概念要厘清;🔥 **重大时效更新:CSEK在Compute Engine已于2026-07-20停用(deprecated)**,小帅"没有客户提供密钥"这个直觉现在反而"歪打正着"(见下)。
 
 **② 参考答案(GCP官方,含2026最新变更)**：GCP块存储加密**永远默认开启(at-rest),数据落盘前自动加密、读时自动解密**,分三种密钥管理方式:
 1. **GMEK(Google-managed,默认)**:啥都不配,Google全自动管密钥。免费、透明、读写自动加解密。
 2. **CMEK(Customer-Managed,用Cloud KMS)**:你在**Cloud KMS**里建/管密钥,PD用它加密。你能控制密钥轮换/禁用/审计(密钥禁用=盘打不开)。这是企业合规最常用的"自己管钥但不离开云"的方案。
 3. **CSEK(Customer-Supplied,你自带原始密钥)**:你在API调用里**直接传入原始密钥**,Google用它保护数据但**不存你的密钥**(密钥丢=数据永久打不开)。
-   - 🔥**重大更新(必须知道)**:**CSEK 在 Compute Engine 已弃用——自 2026-07-20 起不能再用 CSEK 加密 PD/镜像/机器镜像/快照;2027-07-20 从Compute Engine彻底移除**。所以**现在(2026-09)PD 实际只推 GMEK 默认 或 CMEK**,CSEK 已是历史。→ 伟伟说"没有客户提供密钥"当下已基本成立(在CE场景)。
+   - 🔥**重大更新(必须知道)**:**CSEK 在 Compute Engine 已弃用——自 2026-07-20 起不能再用 CSEK 加密 PD/镜像/机器镜像/快照;2027-07-20 从Compute Engine彻底移除**。所以**现在(2026-09)PD 实际只推 GMEK 默认 或 CMEK**,CSEK 已是历史。→ 小帅说"没有客户提供密钥"当下已基本成立(在CE场景)。
 - **读时自动解密**:对(GMEK/CMEK都是服务端透明加解密,应用无感)。
-- **⚠️厘清"client-side加密"**:CSEK ≠ 客户端加密。CSEK是**你提供密钥但加密仍在Google服务端做**;真正的**client-side encryption(CSE)是你在上传前自己在本地加密好**(GCS有CSE概念,PD块存储没有CSE概念)。伟伟"没有client side加密+不从on-premise上传"——**PD确实没有"本地先加密再上传"这种模式**(PD是VM挂载的块设备,不是你从本地传文件),这点直觉对,但用词该是"PD无CSE",别和CSEK混。
+- **⚠️厘清"client-side加密"**:CSEK ≠ 客户端加密。CSEK是**你提供密钥但加密仍在Google服务端做**;真正的**client-side encryption(CSE)是你在上传前自己在本地加密好**(GCS有CSE概念,PD块存储没有CSE概念)。小帅"没有client side加密+不从on-premise上传"——**PD确实没有"本地先加密再上传"这种模式**(PD是VM挂载的块设备,不是你从本地传文件),这点直觉对,但用词该是"PD无CSE",别和CSEK混。
 
 **③ 概念**:三层控制权递增——GMEK(Google管)<CMEK(你用KMS管钥,数据和钥都在云)<CSEK(你自带钥,Google不留)。CMEK靠Cloud KMS做密钥生命周期(轮换/禁用/权限/审计),禁用密钥即刻锁死盘=合规"随时可撤销访问"。默认永远加密,加解密对应用透明(读时自动解)。CSEK因运维风险高(丢钥即丢数据)+管理麻烦,GCP已在CE弃用。
 
@@ -355,7 +355,7 @@
 | GMEK(默认) | 默认AWS托管密钥(aws/ebs) | 都默认加密(新EBS默认加密可开) |
 | CMEK(Cloud KMS) | **KMS CMK(customer managed key)** | 概念完全对应,都用KMS管钥 |
 | CSEK(自带原始钥,已弃用) | EBS**无**CSEK等价 | AWS EBS从来只有KMS托管/客户KMS,无"传原始密钥"模式 |
-👉 CMEK↔AWS KMS客户管理密钥,概念一致(自管密钥、可轮换/禁用/审计);GCP独有的CSEK正在退场,AWS本就没有对应物。**与GCS加密对照**:GCS同样有 GMEK默认/CMEK(KMS)/CSEK 三层——所以伟伟"和GCS类似"完全正确(GCP块存储与GCS的密钥模型是一套体系)。
+👉 CMEK↔AWS KMS客户管理密钥,概念一致(自管密钥、可轮换/禁用/审计);GCP独有的CSEK正在退场,AWS本就没有对应物。**与GCS加密对照**:GCS同样有 GMEK默认/CMEK(KMS)/CSEK 三层——所以小帅"和GCS类似"完全正确(GCP块存储与GCS的密钥模型是一套体系)。
 
 **⑤ 评分：6.5/10**。记忆点:块存储**永远默认加密**;三种密钥=**GMEK(默认Google管) / CMEK(你用Cloud KMS管,合规首选) / CSEK(自带原始钥——⚠️已于2026-07-20在Compute Engine弃用,2027彻底移除)**;读时服务端自动解密;CSEK≠client-side加密(PD无CSE);与GCS加密模型同一套;CMEK对标AWS KMS客户管理密钥。
 
@@ -368,7 +368,7 @@
 ## 批次 8：Q15–Q16（2026-09-03）
 
 ### Q15. CSEK 密钥丢失 + 快照/扩容额外要求
-**伟伟答**：密钥丢了,数据无法解密;快照必须能够读密钥权限。
+**小帅答**：密钥丢了,数据无法解密;快照必须能够读密钥权限。
 
 **① 对照**：✅✅ 密钥丢=数据永久无法解密✓(核心对);✅ 快照/操作必须能拿到同一个CSEK密钥✓(方向对);🔶 措辞:CSEK是"每次操作都要**在API里重新提供原始密钥**",不是"读密钥权限"(那是CMEK/KMS的IAM权限概念);🔶 漏了"CSEK加密盘做的快照也是CSEK加密、后续从该快照建盘/扩容都要再传密钥"这个链式要求;🔥 应点出**CSEK已于2026-07-20在CE弃用**。
 
@@ -379,8 +379,8 @@
   - 从CSEK快照恢复/建新盘 → 要传密钥;
   - 扩容、创建镜像 → 都要传密钥;
   - 挂载启动VM → 要传密钥(否则VM起不来)。
-  - 本质:因为Google不存密钥,**任何要解密盘内容的动作都得你临时把密钥送进去**。伟伟"必须能读密钥"意思对,但准确说是"**必须重新提供原始密钥**"。
-- 🔥**时效(必记)**:**CSEK 自 2026-07-20 起在 Compute Engine 弃用,不能再用于 PD/快照/镜像;2027-07-20 彻底移除**。现在要"自管密钥"应用 **CMEK(Cloud KMS)**——CMEK靠IAM授权访问密钥(禁用密钥=锁盘),不用每次传原始密钥,运维安全得多。伟伟"读密钥权限"这个说法其实更贴合CMEK。
+  - 本质:因为Google不存密钥,**任何要解密盘内容的动作都得你临时把密钥送进去**。小帅"必须能读密钥"意思对,但准确说是"**必须重新提供原始密钥**"。
+- 🔥**时效(必记)**:**CSEK 自 2026-07-20 起在 Compute Engine 弃用,不能再用于 PD/快照/镜像;2027-07-20 彻底移除**。现在要"自管密钥"应用 **CMEK(Cloud KMS)**——CMEK靠IAM授权访问密钥(禁用密钥=锁盘),不用每次传原始密钥,运维安全得多。小帅"读密钥权限"这个说法其实更贴合CMEK。
 
 **③ 概念**:CSEK=你拿钥、Google不留→丢钥=数据死,且每次操作要重新递钥(极繁琐+高危);CMEK=钥放Cloud KMS你授权→靠IAM控制访问、可轮换/禁用/审计,禁用即锁盘但不丢(重新启用可恢复)。这就是CSEK被CMEK取代的根本原因:同样"客户掌控密钥",CMEK更安全易用。
 
@@ -394,8 +394,8 @@
 
 **⑤ 评分：7/10**。记忆点:CSEK丢钥=数据永久死(Google不存钥);CSEK加密盘的**快照/扩容/建盘/启动每步都要重新提供原始密钥**;🔥CSEK已2026-07-20在CE弃用→改用CMEK(Cloud KMS,IAM授权、禁用锁盘可恢复,对标AWS KMS)。
 
-### Q16. 数据库块存储选型 + latency官方数值(伟伟专门问)
-**伟伟答**：选hyperextreme(如Oracle/HANA),普通选pd-ssd,看成本和机型VM;并问:GCP官方文档有没有注明latency具体多少ms?
+### Q16. 数据库块存储选型 + latency官方数值(小帅专门问)
+**小帅答**：选hyperextreme(如Oracle/HANA),普通选pd-ssd,看成本和机型VM;并问:GCP官方文档有没有注明latency具体多少ms?
 
 **① 对照**：✅✅ Hyperdisk Extreme给顶级DB(Oracle/SAP HANA)✓、普通pd-ssd✓、要看成本和VM机型✓——选型思路完全正确;🔶 可补"pd-extreme的定位"和"选型判据的量化门槛(IOPS/吞吐阈值)"。
 
@@ -404,10 +404,10 @@
 - **具体选型**:
   - **pd-ssd**:通用高性能DB,中等IOPS,老机型/不支持Hyperdisk时的选择。
   - **pd-extreme**:PD里最高性能、可provision IOPS,高端DB(SAP HANA)——但属"上一代"高端。
-  - **Hyperdisk Extreme**:**新一代最高性能**,超高IOPS(单卷可到很高)、亚毫秒延迟,给Oracle/SAP HANA/大型高事务DB——伟伟选它给HANA/Oracle**完全正确**。
+  - **Hyperdisk Extreme**:**新一代最高性能**,超高IOPS(单卷可到很高)、亚毫秒延迟,给Oracle/SAP HANA/大型高事务DB——小帅选它给HANA/Oracle**完全正确**。
   - 趋势:新机型只支持Hyperdisk,Google主推 Hyperdisk Balanced(通用DB)/Extreme(顶级DB)取代 pd-ssd/pd-extreme。
 
-**③ 关于latency官方数值(直接回答伟伟的问题)**：
+**③ 关于latency官方数值(直接回答小帅的问题)**：
 - **GCP官方文档对块存储latency只给"定性"描述,不给具体ms数字/SLA**。查到的官方原文(Hyperdisk overview):
   - **"Hyperdisk Balanced and Hyperdisk Extreme offer sub-millisecond latency"**(亚毫秒,即 **<1ms**)。
   - 官方还说:把 Hyperdisk Balanced/Balanced HA/Extreme/ML 的延迟**类比企业级SSD(enterprise SSD)**;把 Hyperdisk Throughput 类比**HDD**的延迟。
@@ -426,14 +426,14 @@
 
 ---
 
-**批次 8 小结**：Q15=7、Q16=8,均分7.5。重点→**①CSEK丢钥=数据永久死+每步操作(快照/扩容/建盘/启动)要重传原始密钥;已2026-07-20在CE弃用→改CMEK(Cloud KMS,IAM授权)②DB选型:延迟(亚毫秒)+单卷IOPS(>160K选Extreme)+成本&机型;HANA/Oracle→Hyperdisk Extreme↔AWS io2 Block Express ③🔍伟伟问的latency:GCP官方只给"sub-millisecond(<1ms)"定性,不公布精确ms/SLA,类比企业SSD;精确值靠实测**。
+**批次 8 小结**：Q15=7、Q16=8,均分7.5。重点→**①CSEK丢钥=数据永久死+每步操作(快照/扩容/建盘/启动)要重传原始密钥;已2026-07-20在CE弃用→改CMEK(Cloud KMS,IAM授权)②DB选型:延迟(亚毫秒)+单卷IOPS(>160K选Extreme)+成本&机型;HANA/Oracle→Hyperdisk Extreme↔AWS io2 Block Express ③🔍小帅问的latency:GCP官方只给"sub-millisecond(<1ms)"定性,不公布精确ms/SLA,类比企业SSD;精确值靠实测**。
 
 ---
 
 ## 批次 9：Q17–Q18（2026-09-03）
 
 ### Q17. 小盘性能差 + 性能随容量线性机制 + 怎么避免瓶颈
-**伟伟答**：小容量IOPS/吞吐都低,容易达到上限;每个GB提供多少iops;用hyperdisk可以自由配置。
+**小帅答**：小容量IOPS/吞吐都低,容易达到上限;每个GB提供多少iops;用hyperdisk可以自由配置。
 
 **① 对照**：✅✅ 小盘IOPS/吞吐低、易达上限✓、每GB给固定iops(per-GB rate)✓、Hyperdisk解耦自由配✓——机制和解法全中;🔶 没给具体per-GB数值(可量化更好);🔶 还可补"加大容量"和"换机型"两个PD内的避坑手段。
 
@@ -445,7 +445,7 @@
 - **怎么避免小盘瓶颈(三招)**:
   1. **加大容量**(哪怕用不满空间,也为拿性能而买大盘——传统PD无奈之举)。
   2. **换更高档磁盘类型**(pd-ssd每GiB IOPS更高;pd-extreme可自定义IOPS)。
-  3. **✅最优:用Hyperdisk**——性能与容量**解耦**,小容量也能单独 provision 高IOPS/吞吐,不用为性能被迫买大盘(伟伟答的方向)。
+  3. **✅最优:用Hyperdisk**——性能与容量**解耦**,小容量也能单独 provision 高IOPS/吞吐,不用为性能被迫买大盘(小帅答的方向)。
 - ⚠️还要注意**VM实例上限**:盘性能再高也不能超过VM(vCPU数)的per-instance cap,小VM给不满大盘。
 
 **③ 概念**:PD "线性" = baseline + perGiB×size,是"用容量买性能"的配额模型 → 小盘先天性能低;Hyperdisk打破这个绑定(三独立旋钮),是Google给"小容量高性能"场景的正解;pd-extreme是PD内的过渡(可provision IOPS但仍属老一代)。
@@ -460,14 +460,14 @@
 **⑤ 评分：8/10**。记忆点:PD性能=**baseline + perGiB×容量**(pd-balanced=3000+6/GiB),小盘先天IOPS低;避坑=加容量/换高档类型/**上Hyperdisk解耦**(小容量也能高IOPS);还受VM实例cap封顶;对标AWS gp2(线性)→gp3(解耦)。
 
 ### Q18. Local SSD RAID + 为何仍不能替代PD
-**伟伟答**：RAID0提升容量,RAID1提升持久性;但机器VM坏了数据跟着坏,所以不能替代PD。
+**小帅答**：RAID0提升容量,RAID1提升持久性;但机器VM坏了数据跟着坏,所以不能替代PD。
 
 **① 对照**：✅ RAID0提升容量(和性能)✓、VM坏数据跟着坏所以不能替代PD✓——核心结论对;⚠️ **"RAID1提升持久性"在Local SSD上基本无意义(要纠正)**:所有Local SSD都在同一台宿主机,RAID1两份镜像也在同一host,host/VM挂了两份一起没——**RAID1挡不住Local SSD最主要的失效场景**;🔶 RAID0除了容量,更主要是**提升IOPS/吞吐**(条带化);🔶 GCP官方对Local SSD**推荐RAID0**。
 
 **② 参考答案(GCP官方)**：
 - **RAID配置**:每块Local SSD=**375GB NVMe分区**。**GCP官方推荐用 `mdadm` 做 RAID 0(条带化 striping)把多块Local SSD拼起来**,**同时提升容量(累加)和IOPS/吞吐(并行条带)**。要跑满性能还要用GCP镜像自带的Local SSD优化脚本。
 - **RAID0**:条带化,N块盘容量和性能≈N倍,**但无冗余**(一块坏全丢)——不过Local SSD场景本来就不追求冗余(见下)。
-- **⚠️ RAID1(镜像)在Local SSD上意义不大(纠正伟伟)**:RAID1靠"两份镜像在不同盘"防单盘故障。但**GCP的Local SSD全部物理绑定在承载VM的同一宿主机**——host宕机/VM停止/删除/迁移时,**所有Local SSD(含RAID1的两份镜像)一起丢**。所以RAID1挡不住Local SSD的主要失效场景(host级),白白牺牲一半容量。**这正是"RAID也救不了"的原因**。
+- **⚠️ RAID1(镜像)在Local SSD上意义不大(纠正小帅)**:RAID1靠"两份镜像在不同盘"防单盘故障。但**GCP的Local SSD全部物理绑定在承载VM的同一宿主机**——host宕机/VM停止/删除/迁移时,**所有Local SSD(含RAID1的两份镜像)一起丢**。所以RAID1挡不住Local SSD的主要失效场景(host级),白白牺牲一半容量。**这正是"RAID也救不了"的原因**。
 - **为何RAID也不能替代PD存持久数据**:
   1. Local SSD是**临时(ephemeral)**存储,绑定宿主机;**stop/suspend/delete VM、host故障**都会丢数据(RAID0/1都救不了host级丢失)。
   2. **无跨宿主机冗余、无快照、不能独立于VM存活、不能重挂到别的VM**。
@@ -495,7 +495,7 @@
 ## 批次 10：Q19–Q20（2026-09-03）· 本套最后一批
 
 ### Q19. PD/Hyperdisk/Local SSD 对应 AWS 什么
-**伟伟答**：PD对应上一代gp2/io1;Hyperdisk对应gp3/io2;Local SSD对应instance store。
+**小帅答**：PD对应上一代gp2/io1;Hyperdisk对应gp3/io2;Local SSD对应instance store。
 
 **① 对照**：✅✅✅ 三条对应全部正确!PD↔gp2/io1(上一代)✓、Hyperdisk↔gp3/io2(新一代)✓、Local SSD↔Instance Store✓——对照思路和代际划分都准。🔶 可补细化(哪个PD档对哪个EBS档、Hyperdisk各型对io2/gp3的细分)。
 
@@ -506,12 +506,12 @@
 | pd-balanced(SSD) | **gp2**(也可近似gp3基础档) | 通用均衡 |
 | pd-ssd(SSD) | **gp2/io1 之间** | 高性能通用 |
 | pd-extreme(可provision IOPS) | **io1 / io2** | 上一代高端预置IOPS |
-| **Hyperdisk Balanced** | **gp3**(容量/IOPS/吞吐解耦) | 新一代通用,伟伟对 |
+| **Hyperdisk Balanced** | **gp3**(容量/IOPS/吞吐解耦) | 新一代通用,小帅对 |
 | **Hyperdisk Extreme** | **io2 / io2 Block Express** | 新一代超高IOPS(HANA/Oracle) |
 | Hyperdisk Throughput | **st1**(但SSD架构,可配吞吐) | 高吞吐成本优化 |
 | Hyperdisk ML | 无直接等价(近io2 multi-attach只读/或FSx共享) | AI只读多挂 |
 | **Local SSD** | **EC2 Instance Store(NVMe)** | 宿主机本地临时盘 |
-- 伟伟的"PD↔gp2/io1、Hyperdisk↔gp3/io2、Local SSD↔instance store"是**最核心正确的三组对应**,细化后如上。
+- 小帅的"PD↔gp2/io1、Hyperdisk↔gp3/io2、Local SSD↔instance store"是**最核心正确的三组对应**,细化后如上。
 
 **③ 概念**:代际映射——**老一代"性能绑容量"**:PD(pd-*) ↔ EBS gp2/io1;**新一代"性能容量解耦"**:Hyperdisk ↔ gp3/io2;**宿主机本地临时**:Local SSD ↔ Instance Store。记住这三层就能快速在两家间换算。
 
@@ -519,18 +519,18 @@
 
 **⑤ 评分：9/10**。记忆点:**PD↔gp2/io1(老一代绑容量)、Hyperdisk↔gp3/io2(新一代解耦)、Local SSD↔Instance Store(本地临时)**;细化:pd-standard↔st1/sc1、Hyperdisk Extreme↔io2 Block Express、Hyperdisk ML无直接对应。
 
-### Q20. Hyperdisk解耦 vs gp3 + 演进时间线(伟伟专门让查)
-**伟伟答**：对应gp3;Hyperdisk演进慢一点,让我查时间线。
+### Q20. Hyperdisk解耦 vs gp3 + 演进时间线(小帅专门让查)
+**小帅答**：对应gp3;Hyperdisk演进慢一点,让我查时间线。
 
 **① 对照**：✅✅ Hyperdisk解耦↔gp3✓、"Hyperdisk演进慢一点"✓——判断**完全正确**,直觉很准。下面用官方时间线坐实。
 
 **② 参考答案 + 时间线(已查官方核实)**：
 - **"性能与容量解耦"是同一思路**:两家都从"性能随容量线性(gp2/PD)"进化到"容量/IOPS/吞吐独立配置(gp3/Hyperdisk)",解决"为拿性能被迫买大容量"的浪费。演进方向一致。
-- **⏱ 时间线(伟伟"慢一点"成立)**:
+- **⏱ 时间线(小帅"慢一点"成立)**:
   - **AWS gp3:2020年12月**(re:Invent 2020)GA——首个"性能独立于容量"的通用SSD,官方原话"provision performance independent of storage capacity"。
   - **AWS io2 Block Express:2020年12月预览,2021年7月GA**——超高端SAN(256K IOPS/4000MB/s/64TB)。
   - **GCP Hyperdisk:2022年9月/10月**(Cloud Next '22)发布,GA约2023年铺开。
-  - → **AWS 比 GCP 早约 2 年**(gp3 2020-12 vs Hyperdisk 2022-09)。伟伟"Hyperdisk演进慢一点"**准确**。
+  - → **AWS 比 GCP 早约 2 年**(gp3 2020-12 vs Hyperdisk 2022-09)。小帅"Hyperdisk演进慢一点"**准确**。
 - **原因浅析**:AWS EBS起步早(2008)、gp2早就暴露"IOPS随容量"痛点,2020就推gp3解耦;GCP的PD长期也是容量绑性能,2022才用Hyperdisk跟进解耦。属于AWS在块存储解耦上先行、GCP后至但设计更细(Hyperdisk拆成Balanced/Extreme/Throughput/ML多型)。
 
 **③ 概念**:块存储"性能容量解耦"是行业共同演进方向(摆脱"买大盘换性能")。AWS gp3(2020)先行,GCP Hyperdisk(2022)跟进但分型更细。两家终点一致(三独立旋钮),路径都是从"绑容量的上一代(gp2/PD)"走来。
@@ -544,7 +544,7 @@
 | 演进先后 | **先行~2年** | 后至,分型更细 |
 👉 思路一致(都解耦),**AWS早约2年**,GCP后发但把Hyperdisk拆成4型(Balanced/Extreme/Throughput/ML)覆盖更细分场景。
 
-**⑤ 评分：9/10**。记忆点:Hyperdisk解耦=对标gp3(思路一致,都从"绑容量"进化到"三独立旋钮");**时间线:AWS gp3 2020-12先行,GCP Hyperdisk 2022-09跟进,AWS早约2年**——伟伟"Hyperdisk慢一点"正确;GCP后发但分型更细(4种Hyperdisk)。
+**⑤ 评分：9/10**。记忆点:Hyperdisk解耦=对标gp3(思路一致,都从"绑容量"进化到"三独立旋钮");**时间线:AWS gp3 2020-12先行,GCP Hyperdisk 2022-09跟进,AWS早约2年**——小帅"Hyperdisk慢一点"正确;GCP后发但分型更细(4种Hyperdisk)。
 
 ---
 

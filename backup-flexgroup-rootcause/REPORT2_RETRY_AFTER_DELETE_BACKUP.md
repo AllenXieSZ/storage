@@ -112,7 +112,7 @@ snapmirror show / list-destinations → 空
 
 ---
 
-## 五、资源（全部保留，删除前先问伟伟）
+## 五、资源（全部保留，删除前先问小帅）
 
 复用 REPORT.md 的资源：FSxN `fs-0184d1e4b81ce12a8`，SVM `bkpfgsvm`，bkpvol `fsvol-0b96244abc8fcb7bd`（现已 flexgroup），cleanvol `fsvol-0ff9b92f659a38ed5`，EC2 `i-0e64df080d1d36235`。
 **本次已删除的仅一个对象**：FSx 卷级备份 `backup-01aaa29249100f88b`（实验必需，已删）。其余资源默认保留。

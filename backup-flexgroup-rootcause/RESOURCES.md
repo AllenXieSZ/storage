@@ -1,5 +1,5 @@
 # ⚠️ 2026-08-30 已清理（DELETED）
-> 伟伟确认后已删除本实验全部 EC2 + FSx ONTAP（含卷/SVM/DataSync task+location）。以下清单仅存档。
+> 小帅确认后已删除本实验全部 EC2 + FSx ONTAP（含卷/SVM/DataSync task+location）。以下清单仅存档。
 
 # RESOURCES — backup-flexgroup-rootcause (H1 verification)
 
@@ -22,4 +22,4 @@ Region: us-east-2 | ONTAP 9.18.1P5 | Gen2 SINGLE_AZ_2 | task 2026-08-30
 ## Data
 - Both volumes: 10 GiB = 100 files × 100 MiB (dd urandom)
 
-## Status: resources RETAINED (delete only after 伟伟 confirms)
+## Status: resources RETAINED (delete only after 小帅 confirms)

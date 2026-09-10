@@ -1,7 +1,7 @@
 # AWS 安全练习题 —— 批改与知识点沉淀
 
 > 配套题库：`./QA_ZH.md`（30 题，每批 2 题）
-> 目的：伟伟云安全薄弱点强化训练（承接 GCE 题库暴露的安全类弱项：SA/权限、防火墙、启动/机密计算、检测审计）。
+> 目的：小帅云安全薄弱点强化训练（承接 GCE 题库暴露的安全类弱项：SA/权限、防火墙、启动/机密计算、检测审计）。
 > 结构：①逐点对照 ②参考答案+原理 ③概念详解 ④AWS↔GCP对照 ⑤评分+记忆点。
 > 铁律：批改必须完整展开五板块；答完即停，不预告不催。每批改完立即写入本文件并推 GitHub。
 > 回答先查 AWS 官方文档核实；不确定标注；旧限制须查最新文档验证。
@@ -13,7 +13,7 @@
 ## 批次 1：Q1–Q2（2026-09-04）
 
 ### Q1. IAM User/Group/Role/Policy + identity vs resource-based + 请求评估逻辑
-**伟伟答**：user是登录用户,role是权限,Policy=什么资源什么权限给谁;identity从用户角度限制资源,resource based从resource角度。
+**小帅答**：user是登录用户,role是权限,Policy=什么资源什么权限给谁;identity从用户角度限制资源,resource based从resource角度。
 
 **① 对照**：✅User=登录用户✓;❌**"Role是权限"错——Role是「身份」(可临时扮演),Policy才是权限**;🔶Policy三要素方向对但"给谁"(Principal)只有resource-based才有;🔶Group漏答;🔶identity/resource"用户角度/资源角度"直觉对但没点resource-based必须带Principal/可跨账号;🔶请求allow/deny评估逻辑没答(核心)。
 
@@ -22,14 +22,14 @@
 - identity-based=挂身份上(无Principal,"这身份能干啥");resource-based=挂资源上(**必须带Principal,能跨账号授权**,"谁能动我")。
 - **请求评估三铁律**:①默认隐式拒绝(root除外)②identity或resource任一Allow即放行(**并集union**)③**任何显式Deny压倒一切(explicit deny overrides allow)**。完整链SCP→resource→identity→permission boundary→session policy取交集,显式Deny优先。
 
-**③ 概念**:IAM=身份(谁)+权限(能干啥)两层。身份=User(长期)/Role(临时可扮演);Group只是打包非身份;Policy=权限,可挂身份(identity)或资源(resource)。伟伟最大错=Role当权限(实为身份);评估记"默认拒绝/并集allow/显式deny优先"。
+**③ 概念**:IAM=身份(谁)+权限(能干啥)两层。身份=User(长期)/Role(临时可扮演);Group只是打包非身份;Policy=权限,可挂身份(identity)或资源(resource)。小帅最大错=Role当权限(实为身份);评估记"默认拒绝/并集allow/显式deny优先"。
 
 **④ AWS↔GCP对照**:AWS User/Role=身份、**Policy=权限**;GCP SA=身份、**role=权限**(⚠️命名正相反,AWS role是身份/GCP role是权限,最大混淆点,这次踩了)。AWS resource-based policy(带Principal)常用跨账号;GCP靠资源上绑member→role。评估:AWS有显式Deny,GCP传统只allow(后加deny policy)。
 
 **⑤ 评分：5/10**。⚠️Role当权限(实为身份)+评估逻辑没答。记忆点:**User=长期身份/Group=集合(非principal)/Role=临时身份(非权限!)/Policy=权限;identity-based(无Principal)vs resource-based(必带Principal可跨账号);评估三铁律=默认拒绝+任一allow并集+显式Deny压倒;⚠️AWS Role=身份Policy=权限,GCP正相反role=权限SA=身份**。
 
 ### Q2. Role vs User本质 + 为何EC2/Lambda用Role + STS AssumeRole拿临时凭证
-**伟伟答**：Lambda用access key不能轮转容易泄密;role通过STS拿到token。
+**小帅答**：Lambda用access key不能轮转容易泄密;role通过STS拿到token。
 
 **① 对照**：✅"access key不能轮转易泄密"抓住核心痛点✓;✅"role通过STS拿token"机制方向对✓;🔶太简,漏Role vs User本质对比、临时凭证三要素(尤其SessionToken)+自动过期轮转、EC2靠instance profile+IMDS自动取、AssumeRole trust policy两层校验。
 
@@ -53,7 +53,7 @@
 ## 批次 2：Q3–Q4（2026-09-04）
 
 ### Q3. Permissions Boundary + 与SCP/identity/session关系 + 有效权限取交集
-**伟伟答**：不知道。
+**小帅答**：不知道。
 
 **② 参考答案(AWS官方核实)**：
 - **Permissions Boundary**=附加到User/Role的托管策略,设"该身份能被授予的最大权限上限(ceiling)";⚠️**自己不授予任何权限**,只封顶;最终权限=**identity policy ∩ permissions boundary**(取交集,两边都allow才生效)。
@@ -67,7 +67,7 @@
 **⑤ 评分**:未作答(讲解)。记忆点:**Permissions Boundary=User/Role的最大权限上限(托管策略),不授权只封顶,最终=identity∩boundary;用途=安全委派(自建角色不超边界防提权);四类策略=授权层(identity/resource并集)+上限层(SCP/boundary/session交集),显式Deny一票否决;GCP无精确对应(AWS特色),SCP↔Org Policy**。
 
 ### Q4. SCP是什么+作用于谁+能否授权+与IAM如何生效
-**伟伟答**：scp定义整个org安全策略,作用于整个org。
+**小帅答**：scp定义整个org安全策略,作用于整个org。
 
 **① 对照**：✅"组织级安全策略"方向对;🔶"作用于整个org"不精确(可挂Root/OU/账号层层继承);🔶没答"能否授权"(核心:不能);🔶没答与IAM取交集;🔶漏"不影响管理账号"。
 
@@ -91,7 +91,7 @@
 ## 批次 3：Q5–Q6（2026-09-05）
 
 ### Q5. IAM policy 结构 + 哪个字段只有 resource-based 才有 + Condition 键 + 显式 Deny 优先
-**伟伟答**：IAM 是谁(principal),能够 allow 做什么 action,在什么 condition 下。
+**小帅答**：IAM 是谁(principal),能够 allow 做什么 action,在什么 condition 下。
 
 **① 对照**：✅抓住骨架"谁+允许+action+condition"方向对;❌**最大坑:把 Principal 当成 IAM policy 通用字段——答反了!Principal 只有 resource-based policy 有且必须有,identity-based(挂 User/Role 那种)恰恰不写 Principal**(核心考点);🔶漏 Resource 字段;🔶只说 allow,没提 Effect 有 Deny、没答"显式 Deny 优先"(核心);🔶Condition 键没举例。
 
@@ -101,14 +101,14 @@
 - **Condition 常用键**:aws:SourceIp(限来源IP)、aws:PrincipalOrgID(限本Organization内账号,跨账号授权省事)、aws:MultiFactorAuthPresent(要求MFA)、aws:SecureTransport(强制HTTPS)、aws:RequestedRegion(限region)、s3:prefix(限S3路径)。
 - **显式 Deny 优先=是,一票否决**:①默认隐式拒绝→②任一显式Allow放行→③**任何显式Deny压倒所有Allow**。设计理由:拒绝必须比允许强,一条Deny兜底(如SCP禁关CloudTrail)无论下面怎么Allow都堵死。
 
-**③ 概念**:policy=判定一次API请求是否放行的规则集=Effect×Action×Resource×Condition×Principal(仅资源侧)。identity-based答"这身份能干啥"(无Principal);resource-based答"谁能动我"(必带Principal,可跨账号)。伟伟核心错=Principal记反。
+**③ 概念**:policy=判定一次API请求是否放行的规则集=Effect×Action×Resource×Condition×Principal(仅资源侧)。identity-based答"这身份能干啥"(无Principal);resource-based答"谁能动我"(必带Principal,可跨账号)。小帅核心错=Principal记反。
 
 **④ AWS↔GCP对照**:AWS Effect/Action/Resource/Condition/Principal ↔ GCP IAM binding(role+members+condition);"谁"=AWS Principal(仅resource-based)↔GCP member;条件=AWS Condition block↔GCP IAM Condition(CEL);显式Deny=AWS核心机制↔GCP传统只allow后加Deny policy(也deny优先);跨账号=AWS resource-based带Principal↔GCP资源上直接绑他项目member。
 
 **⑤ 评分：4/10**。⚠️Principal记反(核心)+漏Resource/Effect的Deny/显式Deny优先。记忆点:**IAM policy五要素=Effect(Allow/Deny)+Action+Resource+Condition+⚠️Principal(只resource-based有且必须,identity-based不写);Condition常用aws:SourceIp/aws:PrincipalOrgID/aws:MultiFactorAuthPresent;评估三铁律=默认拒绝→任一Allow放行→显式Deny一票否决**。
 
 ### Q6. STS + 三种AssumeRole场景 + 临时凭证字段 + 能否撤销
-**伟伟答**：STS是临时授权,比如Backup运行时assume role,运行状态授权。
+**小帅答**：STS是临时授权,比如Backup运行时assume role,运行状态授权。
 
 **① 对照**：✅"STS=临时授权"核心对;✅**"Backup运行时assume role"是很好的真实例子**(AWS Backup用service role,运行时STS发临时凭证代操作资源);✅"运行状态授权"抓住临时/运行时才拿凭证的精髓;🔶太简:三种AssumeRole没区分(重点)、临时凭证字段(SessionToken)没答、"能否撤销"(核心)没答。
 
@@ -126,14 +126,14 @@
 
 ---
 
-**批次 3 小结**：Q5=4、Q6=5,均分4.5。重点纠错→**①⚠️Principal只有resource-based policy有且必须(identity-based不写)——伟伟答反了;policy五要素Effect/Action/Resource/Condition/Principal;显式Deny一票否决 ②STS临时凭证含SessionToken(标志);三种assume分内部/SAML/OIDC;⚠️临时凭证不能直接吊销,靠改policy或Revoke sessions或自动过期**。
+**批次 3 小结**：Q5=4、Q6=5,均分4.5。重点纠错→**①⚠️Principal只有resource-based policy有且必须(identity-based不写)——小帅答反了;policy五要素Effect/Action/Resource/Condition/Principal;显式Deny一票否决 ②STS临时凭证含SessionToken(标志);三种assume分内部/SAML/OIDC;⚠️临时凭证不能直接吊销,靠改policy或Revoke sessions或自动过期**。
 
 ---
 
 ## 批次 4：Q7–Q8（2026-09-05）
 
 ### Q7. 跨账号访问(Role trust policy + AssumeRole + ExternalId) + ExternalId解决什么(confused deputy)
-**伟伟答**：对端account授权,本账号授权,ExternalId不知道是什么。
+**小帅答**：对端account授权,本账号授权,ExternalId不知道是什么。
 
 **① 对照**：✅**"对端account授权+本账号授权"抓住双向握手核心**(资源方trust policy允许你assume+发起方identity policy允许自己assume);🔶不够精确:哪边trust policy、哪边identity policy的`sts:AssumeRole`没说清;❌ExternalId不会(核心考点);🔶漏confused deputy、ExternalId须"不可猜测的秘密"。
 
@@ -149,7 +149,7 @@
 **⑤ 评分：4/10**。抓住双向授权方向,但没说清trust vs identity policy,ExternalId不会。记忆点:**跨账号=双向握手(对端Role trust policy带Principal允许你assume+本账号identity policy允许sts:AssumeRole)→STS两层校验发临时凭证;ExternalId=你与第三方SaaS间"只有彼此知道的秘密串",放trust policy Condition防confused deputy(防服务多客户的第三方被诱骗越权访问你账号),须不可猜测;GCP无精确对应**。
 
 ### Q8. IAM Identity Center(原AWS SSO) + 与联合身份/IdP关系 + 与Cognito区别(内部员工vs外部用户)
-**伟伟答**：IAM Identity Center是外部授权,需要创建账号,然后可访问AWS资源。Cognito不知道。
+**小帅答**：IAM Identity Center是外部授权,需要创建账号,然后可访问AWS资源。Cognito不知道。
 
 **① 对照**：✅"Identity Center→访问AWS资源"方向对;🔶**"外部授权"说反了——Identity Center主要面向组织内部员工**;"需要创建账号"含糊(可内置目录建,也可接外部IdP不必单独建);❌Cognito不会;🔶漏核心区别"内部员工vs外部终端用户"。
 
@@ -158,7 +158,7 @@
 - **Amazon Cognito**=面向**你app的外部终端用户(客户)**的身份服务(你自己开发的移动/Web app的注册登录+用户目录)。①**User Pool**:管终端用户注册/登录/MFA/社交登录(Google/Facebook/Apple)+企业IdP;②**Identity Pool**:把登录用户换成AWS临时凭证(走**AssumeRoleWithWebIdentity**)让app用户访问S3/DynamoDB等。一句话=给你的应用装一套用户登录系统,对象是海量外部客户。
 - **核心区别(内部员工vs外部用户)**:Identity Center=内部员工SSO到多AWS账号/内部应用(员工数量级);Cognito=外部终端用户登录你的app(可百万级)。拿AWS权限:Identity Center靠permission set assume账号角色;Cognito靠Identity Pool的AssumeRoleWithWebIdentity换临时凭证。
 
-**③ 概念**:分界线=员工进公司AWS/内部系统→Identity Center;客户登录你做的App→Cognito。伟伟把Identity Center说成"外部授权"反了——它管内部;真正管外部终端用户的是Cognito(这是本题核心考点)。
+**③ 概念**:分界线=员工进公司AWS/内部系统→Identity Center;客户登录你做的App→Cognito。小帅把Identity Center说成"外部授权"反了——它管内部;真正管外部终端用户的是Cognito(这是本题核心考点)。
 
 **④ AWS↔GCP对照**:内部员工SSO多账号=AWS Identity Center↔GCP Cloud Identity/Workspace+Workforce Identity Federation;外部app用户登录=AWS Cognito↔GCP Firebase Auth/Identity Platform;app用户换云临时凭证=Cognito Identity Pool(WithWebIdentity)↔Identity Platform+STS token交换。记:Identity Center↔Workforce(员工),Cognito↔Firebase Auth(app外部用户)。
 
@@ -166,14 +166,14 @@
 
 ---
 
-**批次 4 小结**：Q7=4、Q8=3,均分3.5(本批偏弱)。重点纠错→**①跨账号=双向握手(对端trust policy带Principal+本账号identity policy允许sts:AssumeRole);ExternalId=第三方SaaS专属秘密串,防confused deputy(混淆代理人),须不可猜测,GCP无对应 ②⚠️Identity Center管「内部员工」SSO多账号(不是外部!),Cognito管「外部app终端用户」注册登录——这是最易混的核心分界,伟伟这次把Identity Center说成外部授权,记牢:内部员工=Identity Center,外部用户=Cognito**。
+**批次 4 小结**：Q7=4、Q8=3,均分3.5(本批偏弱)。重点纠错→**①跨账号=双向握手(对端trust policy带Principal+本账号identity policy允许sts:AssumeRole);ExternalId=第三方SaaS专属秘密串,防confused deputy(混淆代理人),须不可猜测,GCP无对应 ②⚠️Identity Center管「内部员工」SSO多账号(不是外部!),Cognito管「外部app终端用户」注册登录——这是最易混的核心分界,小帅这次把Identity Center说成外部授权,记牢:内部员工=Identity Center,外部用户=Cognito**。
 
 ---
 
 ## 批次 5：Q9–Q10（2026-09-05）
 
 ### Q9. EKS IRSA + Pod Identity + Pod免密钥拿AWS权限 + 机制区别 + 对照GCP Workload Identity
-**伟伟答**：Service account映射到IAM role获得权限,EBS CSI driver就是例子;EKS Pod Identity也是通过node IAM授权。
+**小帅答**：Service account映射到IAM role获得权限,EBS CSI driver就是例子;EKS Pod Identity也是通过node IAM授权。
 
 **① 对照**：✅**"SA映射到IAM role获得权限"=IRSA本质,完全对**;✅**"EBS CSI driver是例子"举得准**(集群插件靠IRSA拿AWS权限);❌**核心错:"Pod Identity通过node IAM授权"说反了**——Pod Identity恰恰是为摆脱node IAM"一节点所有Pod共享同一套粗粒度权限/过度授权"而设计,走独立的EKS Auth API+node agent(DaemonSet),给每Pod精细隔离权限,不继承node role;🔶漏IRSA底层(OIDC+AssumeRoleWithWebIdentity)、Pod Identity优势、GCP对照。
 
@@ -183,14 +183,14 @@
 - **EKS Pod Identity(更新方案,非node IAM!)**:EKS Pod Identity Association把SA关联IAM Role→集群跑`eks-pod-identity-agent` DaemonSet(node agent)拦截凭证请求、本地校验Pod身份、调**EKS Auth API AssumeRoleForPodIdentity**(STS+session tags)发临时凭证。⚠️不靠node IAM;trust policy统一信任`pods.eks.amazonaws.com`,**跨集群可复用同一Role,不用每集群配OIDC provider**。
 - **IRSA vs Pod Identity**:机制=OIDC+AssumeRoleWithWebIdentity vs node agent+EKS Auth API;trust=每集群OIDC ARN vs 统一pods.eks.amazonaws.com(可跨集群复用);配置=每集群配OIDC较繁 vs 装agent addon更省;时间=IRSA早/生态广,Pod Identity 2023底推出/AWS现推荐。两者都=每Pod精细/临时/免密钥。
 
-**③ 概念**:演进=硬编码key→node IAM(粗,危险)→IRSA/Pod Identity(细,临时,免密钥)。伟伟核心错=Pod Identity初衷就是取代node IAM过度授权,绝非"通过node IAM授权",它有独立agent+EKS Auth API通道。IRSA用到Q6的AssumeRoleWithWebIdentity。
+**③ 概念**:演进=硬编码key→node IAM(粗,危险)→IRSA/Pod Identity(细,临时,免密钥)。小帅核心错=Pod Identity初衷就是取代node IAM过度授权,绝非"通过node IAM授权",它有独立agent+EKS Auth API通道。IRSA用到Q6的AssumeRoleWithWebIdentity。
 
 **④ AWS↔GCP对照**:让Pod免密钥拿云权限=AWS IRSA/Pod Identity↔**GKE Workload Identity**;绑定=K8s SA↔IAM Role vs K8s SA↔GCP SA;底层=OIDC+AssumeRoleWithWebIdentity/EKS Auth API↔GKE metadata server换SA token;反面粗粒度=node IAM role↔node默认SA(都所有Pod共享)。哲学一致:K8s SA映射云IAM身份,Pod免密钥拿短命凭证,替代整节点共享一套权限。
 
 **⑤ 评分：6/10**。IRSA答得好(SA↔Role+EBS CSI例子准),但Pod Identity说成node IAM是核心错(它恰恰要摆脱node IAM)。记忆点:**IRSA=OIDC provider+SA注解映射IAM Role,Pod拿OIDC token调AssumeRoleWithWebIdentity换临时凭证(EBS CSI典型);EKS Pod Identity=更新方案,eks-pod-identity-agent(DaemonSet)+EKS Auth API AssumeRoleForPodIdentity,trust统一信任pods.eks.amazonaws.com跨集群可复用配置更省;⚠️两者都不是node IAM(Pod Identity正是为摆脱node IAM粗粒度而生);都=每Pod精细/临时/免密钥;对标GKE Workload Identity(K8s SA↔GCP SA)**。
 
 ### Q10. Security Group vs NACL(有状态/无状态、allow/deny、层级、规则顺序)
-**伟伟答**：Security Group有状态,自动放行回来端口;NACL无状态。Security默认deny,NACL是allow。
+**小帅答**：Security Group有状态,自动放行回来端口;NACL无状态。Security默认deny,NACL是allow。
 
 **① 对照**：✅**"SG有状态自动放行回程;NACL无状态"完全对**(最重要区别,面试最常考);🔶"SG默认deny"对但要说全——**SG只能写allow(没写即隐式拒绝),根本不能写deny**;🔶**"NACL是allow"不准确——NACL既能allow也能deny(支持显式拒绝,与SG一大区别)**,默认NACL全通/自定义NACL全拒;🔶漏层级(SG=实例/ENI级,NACL=子网级)、NACL按规则号从小到大命中即停(SG无顺序全评估)。
 
@@ -203,7 +203,7 @@
 - **有状态vs无状态(最重要)**:SG开入站443,响应从443出去自动放行(记住连接);NACL不记连接,开入站443后响应出去还得单独在出站开临时端口(1024-65535)allow否则被挡(NACL最易踩坑)。
 - **规则顺序(NACL特有)**:编号100/200/300从小到大逐条匹配,命中(allow或deny)即停;想"先deny坏IP再allow网段",deny号排前。SG无此概念。
 
-**③ 概念**:纵深两层=NACL子网门口粗筛(无状态/可deny/整子网)+SG实例门口精筛(有状态/只allow/精确网卡);包进实例先过子网NACL再过实例SG,出去反之。口诀:SG=实例级/有状态/只allow/无顺序;NACL=子网级/无状态/可allow可deny/按号命中即停。伟伟答对最关键的有状态/无状态,要补:SG不能写deny、NACL能deny、层级、NACL按号命中即停。
+**③ 概念**:纵深两层=NACL子网门口粗筛(无状态/可deny/整子网)+SG实例门口精筛(有状态/只allow/精确网卡);包进实例先过子网NACL再过实例SG,出去反之。口诀:SG=实例级/有状态/只allow/无顺序;NACL=子网级/无状态/可allow可deny/按号命中即停。小帅答对最关键的有状态/无状态,要补:SG不能写deny、NACL能deny、层级、NACL按号命中即停。
 
 **④ AWS↔GCP对照**:实例级有状态防火墙=AWS SG↔GCP VPC Firewall Rules(GCP防火墙本身有状态);子网级过滤=AWS NACL↔⚠️GCP无直接无状态子网ACL(用Firewall Rules带priority+网络标签/SA+Hierarchical firewall policy,GCP防火墙支持allow/deny靠priority排序);规则优先级=NACL规则号↔GCP priority(0-65535越小越优先)。⚠️GCP VPC Firewall默认有状态(像SG)+支持allow/deny+priority(像NACL),相当于合并简化了SG+NACL。
 
@@ -211,14 +211,14 @@
 
 ---
 
-**批次 5 小结**：Q9=6、Q10=6,均分6(比前几批好)。重点纠错→**①⚠️EKS Pod Identity不是走node IAM!它正是为摆脱node IAM"所有Pod共享粗粒度权限"而生,走eks-pod-identity-agent(DaemonSet)+EKS Auth API AssumeRoleForPodIdentity;IRSA走OIDC+AssumeRoleWithWebIdentity;都=每Pod免密钥精细临时权限,对标GKE Workload Identity ②SG=实例级/有状态/只allow(不能deny)/无顺序;⚠️NACL=子网级/无状态/可allow可deny/按规则号命中即停——伟伟漏了"NACL也能deny"和"SG不能写deny",有状态/无状态答对(核心)**。
+**批次 5 小结**：Q9=6、Q10=6,均分6(比前几批好)。重点纠错→**①⚠️EKS Pod Identity不是走node IAM!它正是为摆脱node IAM"所有Pod共享粗粒度权限"而生,走eks-pod-identity-agent(DaemonSet)+EKS Auth API AssumeRoleForPodIdentity;IRSA走OIDC+AssumeRoleWithWebIdentity;都=每Pod免密钥精细临时权限,对标GKE Workload Identity ②SG=实例级/有状态/只allow(不能deny)/无顺序;⚠️NACL=子网级/无状态/可allow可deny/按规则号命中即停——小帅漏了"NACL也能deny"和"SG不能写deny",有状态/无状态答对(核心)**。
 
 ---
 
 ## 批次 6：Q11–Q12（2026-09-05）
 
 ### Q11. VPC网络隔离与最小暴露(公有/私有子网+IGW/NAT+路由表让私有只出不进)
-**伟伟答**：公有子网可互联网访问,私有子网互联网不能直接访问;私有子网通过IGW访问公网;NAT让子网访问公网;路由表不会设置。
+**小帅答**：公有子网可互联网访问,私有子网互联网不能直接访问;私有子网通过IGW访问公网;NAT让子网访问公网;路由表不会设置。
 
 **① 对照**：✅"公有可访问/私有不能直接访问"核心方向对;❌**核心错:"私有子网通过IGW访问公网"说反了——私有子网出公网走NAT Gateway不是IGW,恰恰"没有到IGW的路由"才使它成为私有**;🔶后句"NAT让子网访问公网"对但与前句矛盾(正解=私有→NAT→公网);🔶"路由表不会设置"=本题精髓,且公有/私有本质区别就在路由表(有无指向IGW的路由)。
 
@@ -229,14 +229,14 @@
 - **"只出不进"原理**:私有子网无IGW路由→外部流量无路径进来(进不来);私有实例出网走NAT(NAT用自己公网IP做source NAT代理,响应沿已建连接回来=出得去);NAT单向(只允许内部发起+外部响应,外部无法用NAT主动连入)。
 - **最小暴露三层**:公有子网只放ALB/NAT/堡垒机;私有子网放应用+数据库(无公网IP,出网靠NAT,入站靠ALB转发)。
 
-**③ 概念**:"私有"本质=路由表无IGW路由。伟伟最大坑=把私有出公网归给IGW(实际私有子网碰不到IGW,只能靠NAT)。IGW双向(门)、NAT单向(阀门)。最小暴露=面向互联网组件压到最少。
+**③ 概念**:"私有"本质=路由表无IGW路由。小帅最大坑=把私有出公网归给IGW(实际私有子网碰不到IGW,只能靠NAT)。IGW双向(门)、NAT单向(阀门)。最小暴露=面向互联网组件压到最少。
 
 **④ AWS↔GCP对照**:公网双向大门=IGW↔GCP default-internet-gateway路由+实例外部IP;私有单向出网=NAT Gateway↔**Cloud NAT**;"私有"判定=路由表无IGW路由↔实例无外部IP+靠Cloud NAT出网。核心一致:私有实例不给公网IP+只经NAT单向出网,外部无法主动进。
 
 **⑤ 评分：4/10**。公有/私有基本概念对,但核心错=私有出公网说成IGW(实际NAT),路由表机制(精髓)没答。记忆点:**公有vs私有唯一区别=路由表有没有0.0.0.0/0→IGW;IGW=双向公网大门(公有用),NAT Gateway=单向出口(私有用,放在公有子网);私有子网路由表0.0.0.0/0→NAT,无IGW路由所以外部进不来(只出不进),NAT只允许内部发起+外部响应;最小暴露:公有只放ALB/NAT/堡垒机,业务DB放私有;对照GCP NAT Gateway↔Cloud NAT**。
 
 ### Q12. VPC Endpoint(Gateway vs Interface/PrivateLink) + S3不走公网 + 对照GCP
-**伟伟答**：VPC endpoint是VPC链接其他访问的端点,是不是kubernetes的Service?gateway endpoint是路由表,interface endpoint是网卡,非VPC范围服务可用;S3通过gateway endpoint和EC2链接。
+**小帅答**：VPC endpoint是VPC链接其他访问的端点,是不是kubernetes的Service?gateway endpoint是路由表,interface endpoint是网卡,非VPC范围服务可用;S3通过gateway endpoint和EC2链接。
 
 **① 对照**：✅**"Gateway endpoint是路由表"完全对**(靠路由表加指向endpoint的路由);✅**"Interface endpoint是网卡"完全对**(子网建带私有IP的ENI);✅"S3通过gateway endpoint"对(S3是Gateway典型);🔶**"是不是kubernetes的Service"不对**——K8s Service是集群内服务发现/负载均衡,VPC Endpoint是让VPC内流量私密(不走公网)访问AWS/第三方服务,别混;🔶"VPC链接其他访问端点"大意对但没点核心=流量不出VPC不经公网;🔶漏Gateway只支持S3/DynamoDB、Interface支持100+服务、收费差异、不走公网原理、GCP对照。
 
@@ -246,7 +246,7 @@
 - **S3不走公网**:方式一(推荐免费)=S3 Gateway Endpoint加进私有子网路由表→VPC内访问S3走私有路由不经NAT/IGW;方式二=S3 Interface Endpoint(收费,走ENI私有IP)用于从本地(DX/VPN)或跨VPC私密访问S3(Gateway做不到)。
 - **不走公网原理**:Gateway=路由表把S3目标前缀指向endpoint,流量在AWS骨干网内到S3;Interface=服务域名私有DNS解析到VPC内ENI私有IP,连的是私网地址流量不出VPC。
 
-**③ 概念**:两条分界=Gateway Endpoint(路由表+免费+只S3/DynamoDB+仅本VPC)vs Interface Endpoint/PrivateLink(ENI网卡+收费+100+服务+可跨本地/VPC/TGW)。伟伟机制都答对(路由表vs网卡),要补服务范围/收费/可否外部访问。别用K8s Service类比。
+**③ 概念**:两条分界=Gateway Endpoint(路由表+免费+只S3/DynamoDB+仅本VPC)vs Interface Endpoint/PrivateLink(ENI网卡+收费+100+服务+可跨本地/VPC/TGW)。小帅机制都答对(路由表vs网卡),要补服务范围/收费/可否外部访问。别用K8s Service类比。
 
 **④ AWS↔GCP对照**:私密访问托管服务(如对象存储)=S3/DynamoDB Gateway Endpoint↔**Private Google Access**(无外部IP的VM私密访问Google API/GCS);私密访问服务/第三方(走私有IP)=Interface Endpoint/PrivateLink↔**Private Service Connect(PSC)**;机制=Gateway路由表/Interface ENI私有IP↔PGA子网开关+私有DNS/PSC内部IP端点。
 
@@ -254,14 +254,14 @@
 
 ---
 
-**批次 6 小结**：Q11=4、Q12=6,均分5。重点纠错→**①⚠️私有子网出公网走NAT Gateway不是IGW!公有vs私有唯一区别=路由表有没有0.0.0.0/0→IGW;私有路由表0.0.0.0/0→NAT,无IGW路由所以只出不进;IGW双向/NAT单向;对照GCP Cloud NAT ②VPC Endpoint机制伟伟答对(Gateway=路由表/Interface=ENI网卡),要补:Gateway只支持S3/DynamoDB+免费+仅本VPC,Interface(PrivateLink)=ENI+收费+100+服务+可跨本地;对照GCP Private Google Access/PSC;别和K8s Service混**。
+**批次 6 小结**：Q11=4、Q12=6,均分5。重点纠错→**①⚠️私有子网出公网走NAT Gateway不是IGW!公有vs私有唯一区别=路由表有没有0.0.0.0/0→IGW;私有路由表0.0.0.0/0→NAT,无IGW路由所以只出不进;IGW双向/NAT单向;对照GCP Cloud NAT ②VPC Endpoint机制小帅答对(Gateway=路由表/Interface=ENI网卡),要补:Gateway只支持S3/DynamoDB+免费+仅本VPC,Interface(PrivateLink)=ENI+收费+100+服务+可跨本地;对照GCP Private Google Access/PSC;别和K8s Service混**。
 
 ---
 
 ## 批次 7：Q13–Q14（2026-09-05）
 
 ### Q13. WAF + Shield(Standard/Advanced) + 对照Cloud Armor(别和Shielded VM混)
-**伟伟答**：WAF是第七层,防SQL注入之类应用;Shield Standard是DDoS防御,advanced可提供人工服务。
+**小帅答**：WAF是第七层,防SQL注入之类应用;Shield Standard是DDoS防御,advanced可提供人工服务。
 
 **① 对照**：✅**"WAF是L7,防SQL注入"完全对**(应用层Web防火墙);✅"Shield Standard是DDoS防御"对;✅"advanced提供人工服务"对(=SRT响应团队);🔶漏Shield防哪层(L3/4,Advanced扩到L7);🔶漏Standard vs Advanced完整区别(免费vs收费$3000/月、L7检测、cost protection);🔶漏WAF/Shield分工、Cloud Armor对照、别和Shielded VM混。
 
@@ -277,16 +277,16 @@
 **⑤ 评分：6/10**。WAF准+Shield方向对+答对Advanced人工服务;漏Shield层级(L3/4)、Standard/Advanced完整区别、WAF/Shield分工、GCP对照。记忆点:**WAF=L7 Web防火墙防SQLi/XSS/bot/速率(CloudFront/ALB前,Managed Rules);Shield防DDoS:Standard免费自动L3/4,Advanced付费$3000/月加L7检测+24/7 SRT人工+Cost Protection+WAF集成;分工=WAF防内容攻击/Shield防洪水;对照GCP Cloud Armor(WAF+DDoS合一);⚠️别和Shielded VM混(那是VM启动层安全=Secure Boot/vTPM,AWS对应Nitro/NitroTPM)**。
 
 ### Q14. KMS + key三种类型 + Envelope Encryption信封加密
-**伟伟答**：KMS用来加密/解密key,可以托管,可以自己管理;envelope encryption不知道。
+**小帅答**：KMS用来加密/解密key,可以托管,可以自己管理;envelope encryption不知道。
 
 **① 对照**：✅"KMS加密/解密key"大方向对;✅"可托管/可自己管理"碰到key类型核心(AWS管的vs你自己管的)但没说全三种;🔶漏KMS关键特性:**主密钥永不离开KMS(HSM保护/不可导出),加解密在KMS内完成**;❌Envelope Encryption不会(本题核心+KMS能加密大数据的关键机制)。
 
 **② 参考答案(AWS官方核实)**：
 - **KMS**=托管密钥服务,创建/管理/使用加密密钥。⚠️核心=**KMS key(原CMK)主密钥永不离开KMS,由HSM保护、无法导出明文**,所有加解密把数据/密钥发进KMS内部完成;受IAM+key policy双控,CloudTrail审计。
-- **三种key类型(控制权递减)**:①**Customer managed**=你自己创建管理,完全控制(轮换/key policy/启停/删除),收费,精细控制审计场景;②**AWS managed**=AWS为某服务自动创建(如aws/s3、aws/ebs),你不能改key policy,密钥免费只收调用费;③**AWS owned**=AWS完全拥有跨账号共享,你看不见管不了,免费。伟伟"可托管/可自管"对应前两类,补AWS owned即全。
+- **三种key类型(控制权递减)**:①**Customer managed**=你自己创建管理,完全控制(轮换/key policy/启停/删除),收费,精细控制审计场景;②**AWS managed**=AWS为某服务自动创建(如aws/s3、aws/ebs),你不能改key policy,密钥免费只收调用费;③**AWS owned**=AWS完全拥有跨账号共享,你看不见管不了,免费。小帅"可托管/可自管"对应前两类,补AWS owned即全。
 - **Envelope Encryption(信封加密)—本题核心**:为何不直接用KMS加密大数据=主密钥不出KMS且单次操作限4KB、大数据来回传慢又贵。解法两层密钥:①向KMS要**Data Key**,KMS用主密钥生成返回两份(明文data key+被主密钥加密的data key密文);②用**明文data key在本地对称加密(AES)大数据**(快、不限大小);③加密后**丢弃明文data key**,只存"加密数据+加密的data key密文";④解密时把加密的data key发回KMS用主密钥解出明文data key再本地解数据。好处=大数据本地快速对称加密+主密钥始终不出KMS+绕过4KB限+每份数据可用不同data key(爆炸半径小)。S3 SSE-KMS/EBS加密底层都用它。
 
-**③ 概念**:KMS安全根基=主密钥永不出KMS(HSM/不可导出,伟伟没点出)。信封加密=两层:主密钥(KMS内管小钥匙)+数据密钥(本地加密大数据);画面=数据锁进信封(data key),信封钥匙(data key)再锁进KMS保险箱(主密钥)。key类型控制权:customer>AWS managed>AWS owned。
+**③ 概念**:KMS安全根基=主密钥永不出KMS(HSM/不可导出,小帅没点出)。信封加密=两层:主密钥(KMS内管小钥匙)+数据密钥(本地加密大数据);画面=数据锁进信封(data key),信封钥匙(data key)再锁进KMS保险箱(主密钥)。key类型控制权:customer>AWS managed>AWS owned。
 
 **④ AWS↔GCP对照**:托管密钥=KMS↔Cloud KMS;key类型=customer managed/AWS managed/AWS owned↔CMEK/Google-managed default;信封加密原理完全一样=主密钥(GCP叫KEK)加密数据密钥(GCP叫DEK)两层;主密钥不出服务两边一致(GCP还有Cloud HSM/EKM更高等级)。
 
@@ -301,7 +301,7 @@
 ## 批次 8：Q15–Q16（2026-09-05）
 
 ### Q15. KMS key policy + IAM policy如何配合 + 双重把关 + Grants
-**伟伟答**：key Policy分user/administer,谁可进行什么操作;IAM Policy授权可调用什么key/什么操作。
+**小帅答**：key Policy分user/administer,谁可进行什么操作;IAM Policy授权可调用什么key/什么操作。
 
 **① 对照**：✅**"key Policy分user/administer"答得准**(Key Administrators管key生命周期/Key Users做加解密);✅"IAM Policy授权调用什么key/操作"对;🔶漏核心机制两者如何配合(⚠️要IAM policy能管某key,该key的key policy必须先含"启用IAM"的root语句,否则IAM写了没用);🔶漏"双重把关"概念;❌Grants完全没答。
 
@@ -318,7 +318,7 @@
 **⑤ 评分：5/10**。key policy admin/user划分+IAM作用答对,漏两者配合(key policy须开IAM委托)、双重把关含义、Grants没答。记忆点:**key policy=KMS key资源策略每key必有且仅一个,分Key Administrators(管生命周期)/Key Users(加解密);⚠️要IAM policy管这把key,key policy必须先含启用IAM的root语句否则IAM无效;最终=key policy∩IAM显式Deny优先=双重把关(资源侧+身份侧同过关,所有者可用key policy独立于IAM切断访问);Grants=第三种授权细粒度/临时/可撤销(RetireGrant/RevokeGrant),常给AWS服务临时代用key(如EBS);对照GCP统一用IAM无独立key policy**。
 
 ### Q16. S3四种加密(SSE-S3/SSE-KMS/SSE-C/客户端) + SSE-KMS Bucket Key降本
-**伟伟答**：SSE-S3托管,SSE-C客户端key加密;bucket key是SSE-S3可降低成本,是不是发一把key到bucket用多久/多少object再发新key,user guide没细讲。
+**小帅答**：SSE-S3托管,SSE-C客户端key加密;bucket key是SSE-S3可降低成本,是不是发一把key到bucket用多久/多少object再发新key,user guide没细讲。
 
 **① 对照**：✅"SSE-S3托管"对;✅"SSE-C客户端key"基本对(但注意:SSE-C加密仍是S3服务端做,只是你每请求带key,别和client-side混);🔶漏SSE-KMS(最常用+Bucket Key所属);🔶漏客户端加密(client-side);❌**"bucket key是SSE-S3"错——Bucket Key是SSE-KMS的特性**;🔶"发key到bucket用多久/多少object换"方向感对(复用中间key减KMS调用)但机制不是按数量/时间轮换,是桶级中间密钥派生对象密钥减少KMS调用。
 
@@ -326,7 +326,7 @@
 - **四种加密**:①SSE-S3=S3自己托管key(AWS全权,AES-256),服务端,最省心默认有但不可自定义key策略;②SSE-KMS=用KMS key,服务端(调KMS),可控key policy+CloudTrail审计每次加解密+可轮换,每次读写调KMS(有成本→Bucket Key优化),合规常用;③SSE-C=你提供key(Customer-provided),仍是S3服务端加密只是每请求带你的key,AWS不存你key,丢了解不开;④客户端加密(client-side)=数据在你本地加密好再上传,S3只存密文AWS全程看不到明文,最安全但全你自己管。前三种是服务端加密(SSE),区别在密钥谁管;客户端加密是出门前就加密。
 - **Bucket Key降本(核心)**:痛点=SSE-KMS每次上传/下载对象都调一次KMS(GenerateDataKey/Decrypt),海量对象+频繁访问→大量KMS调用,KMS按调用收费→账单可观。解法=开启S3 Bucket Key后,S3向KMS要一把**桶级短期密钥(bucket-level key)**,在S3内部用它派生各对象数据密钥→一段时间内桶内大量对象加解密只需少数几次KMS调用(生成/刷新bucket key)而非每对象一次→**大幅减少KMS调用(官方称最多约降99%)**降低SSE-KMS的KMS费。⚠️修正:不是"发key到bucket按对象数/时间显式轮换由你控",是S3自动用桶级中间密钥减少KMS调用,派生/刷新S3内部管,你只需开Bucket Key开关(刷新周期是S3内部实现,user guide确实不强调固定数量/时间)。
 
-**③ 概念**:四种本质区别=密钥谁管+加密在哪做(SSE-S3=S3管/服务端;SSE-KMS=KMS管/服务端可审计;SSE-C=你给key/服务端;客户端=你本地加密S3只存密文)。Bucket Key属SSE-KMS(非SSE-S3),目的=削减SSE-KMS高频访问的KMS调用成本(桶级中间密钥派生对象密钥,每对象一次→少数几次)。伟伟两处纠正:①Bucket Key是SSE-KMS不是SSE-S3;②靠桶级中间密钥减KMS调用降本,非按数量/时间换key。
+**③ 概念**:四种本质区别=密钥谁管+加密在哪做(SSE-S3=S3管/服务端;SSE-KMS=KMS管/服务端可审计;SSE-C=你给key/服务端;客户端=你本地加密S3只存密文)。Bucket Key属SSE-KMS(非SSE-S3),目的=削减SSE-KMS高频访问的KMS调用成本(桶级中间密钥派生对象密钥,每对象一次→少数几次)。小帅两处纠正:①Bucket Key是SSE-KMS不是SSE-S3;②靠桶级中间密钥减KMS调用降本,非按数量/时间换key。
 
 **④ AWS↔GCP对照**:SSE-S3↔GCP GCS Google-managed默认加密;SSE-KMS↔GCP CMEK(Cloud KMS);SSE-C↔GCP CSEK(Customer-Supplied);客户端加密↔GCP客户端加密;⚠️Bucket Key降本是AWS S3+KMS特有,GCP CMEK计费模型不同无对应。
 
@@ -337,7 +337,7 @@
 ## 批次 9：Q17–Q18（2026-09-05）
 
 ### Q17. EBS/RDS/快照加密 + 默认加密开启 + 跨账号/跨区共享加密快照KMS注意
-**伟伟答**：EBS加密可account Level设置,跨区加密copy快照要全量,key要授权跨Region;加密通过kms拿data key。
+**小帅答**：EBS加密可account Level设置,跨区加密copy快照要全量,key要授权跨Region;加密通过kms拿data key。
 
 **① 对照**：✅"account Level设置"方向对(精确=encryption by default,是Region级per-Region设置);✅**"copy快照要全量"完全对**(官方:copy并换新KMS key重加密时产生完整非增量拷贝);✅**"通过kms拿data key"对**(EBS加密底层=信封加密);🔶"跨区加密key要授权跨Region"表述不准+混了两件事(跨区=目标region用它自己的KMS key重加密,KMS key是region内的不能跨region;跨账号才涉及把源账号key共享授权给目标账号);🔶漏RDS加密只能创建时启用(已有实例要走快照)、跨账号共享完整步骤。
 
@@ -346,7 +346,7 @@
 - **RDS加密关键限制**:只能**创建实例时启用**;已有未加密实例不能原地加密→做快照→copy时启用加密(指定KMS key)→从加密快照恢复新实例。
 - **快照**:加密卷快照自动加密;⚠️不能改已存在卷/快照关联的KMS key,只能copy时换新key(=全量非增量拷贝)。
 - **默认加密(per-Region)**:`aws ec2 enable-ebs-encryption-by-default`为某region开;开后该region新建卷/快照自动加密(用默认KMS key或aws/ebs);⚠️Region级,开了就不能再单独给某卷/快照关加密(所以"account level"不精确)。
-- **跨区copy加密快照**:KMS key绑region内不能跨region直接用→目标region指定它自己的KMS key重加密(全量)。伟伟"key授权跨Region"不准,不是同一把key跨region而是目标region用自己的key重加密。
+- **跨区copy加密快照**:KMS key绑region内不能跨region直接用→目标region指定它自己的KMS key重加密(全量)。小帅"key授权跨Region"不准,不是同一把key跨region而是目标region用自己的key重加密。
 - **跨账号共享加密快照(官方步骤)**:AWS managed key(aws/ebs)加密的快照不能跨账号共享,必须customer managed key;①源账号把加密用的customer managed KMS key共享/授权给目标账号(key policy允许目标账号用)②快照本身也共享给目标账号③目标账号用被授权的key copy该共享快照(通常copy时用自己的key重加密)。⚠️核心=跨账号共享加密数据必须同时共享"快照+加密它的KMS key使用权"。
 
 **③ 概念**:三者底层统一=KMS+信封加密。两条"不可原地改"规则:①已有未加密RDS不能原地加密(走快照copy)②不能改已存在卷/快照的KMS key(copy时换key且全量)。跨区vs跨账号别混:跨区=目标region用自己key重加密(全量);跨账号=必须customer managed key+把key使用权和快照都共享给目标账号。
@@ -356,7 +356,7 @@
 **⑤ 评分：6/10**。答对account/region级默认加密、copy换key全量、KMS拿data key信封加密;扣分=跨区/跨账号key授权含糊混了两件事,漏RDS创建时才能加密。记忆点:**EBS/RDS/快照加密底层=KMS+信封加密(要data key)透明无损;默认加密per-Region(enable-ebs-encryption-by-default)开后新卷/快照自动加密且不能单独关;⚠️不能改已存在卷/快照的KMS key只能copy时换key(全量非增量);RDS只能创建时启用加密,已有实例走快照→copy加密→恢复;跨区copy用目标region自己的KMS key重加密;跨账号共享加密快照必须customer managed key且同时共享key使用权+快照给目标账号再copy;对照GCP EBS↔PD/CMEK,RDS↔Cloud SQL/CMEK**。
 
 ### Q18. Secrets Manager vs SSM Parameter Store(SecureString) + 自动轮换 + 为何不把密钥写进代码/环境变量
-**伟伟答**：未作答。
+**小帅答**：未作答。
 
 **② 参考答案(AWS官方核实)**：
 - **对比**:两者都能安全存敏感信息(密码/API key/DB凭证)都用KMS加密,定位不同:Secrets Manager=专管机密功能全/**内置自动轮换**/和RDS等深度集成一键轮换/支持resource policy跨账号/**收费**(按secret月+调用);SSM Parameter Store(SecureString)=通用配置参数存储也能存机密(SecureString用KMS加密)/**无内置轮换**(自己写)/**标准参数免费**(Advanced收费)性价比高/跨账号较弱。选型:要轮换/RDS集成/跨账号→Secrets Manager;存配置或省钱→Parameter Store SecureString。
@@ -374,7 +374,7 @@
 ## 批次 10：Q19–Q20（2026-09-06）
 
 ### Q19. CloudTrail + 三类事件(management/data/insights) + 日志防篡改
-**伟伟答**：cloudtrail记录Service的API调用,调用参数和返回结果。
+**小帅答**：cloudtrail记录Service的API调用,调用参数和返回结果。
 
 **① 对照**：✅**核心定义完全对**(记API调用:谁/何时/源IP/哪个API/参数/结果);🔶漏三类事件区分(management/data/insights);🔶漏日志防篡改(log file validation/S3 Object Lock/多账号聚合)。
 
@@ -390,7 +390,7 @@
 **⑤ 评分：5/10**。核心定义准,漏三类事件+防篡改机制。记忆点:**CloudTrail=API调用审计(谁/何时/源IP/API/参数/结果);三类=management(控制平面默认记免费)/data(数据平面S3对象/Lambda Invoke,默认不记需开收费)/Insights(异常检测默认不开收费);防篡改=Log File Validation(SHA-256+签名digest检测篡改)+S3 Object Lock(WORM谁都不能删)+多账号聚合(Organization Trail→日志归档账号隔离);默认Event History仅90天,长期须Trail落S3或Lake(最长10年);对照GCP Cloud Audit Logs(Admin Activity≈management/Data Access≈data)**。
 
 ### Q20. AWS Config + 与CloudTrail区别 + Config Rules合规检查与自动修复
-**伟伟答**：不知道。
+**小帅答**：不知道。
 
 **② 参考答案(AWS官方核实)**：
 - **AWS Config**=记录+评估资源"配置状态"及变化历史。三件事:①**configuration recorder**持续记录资源当前配置+变化时间线(可回看某SG上周是什么样);②**Config Rules**检查配置是否合规(如S3必须加密、SG不能对0.0.0.0/0开22、EBS必须加密),标COMPLIANT/NONCOMPLIANT;③**remediation**自动修复不合规资源。
@@ -408,9 +408,9 @@
 ## 批次 11：Q21–Q22（2026-09-06）
 
 ### Q21. GuardDuty + 数据源 + findings处理 + 对照GCP SCC
-**伟伟答**：guardduty是安全扫描/病毒扫描,可扫S3文件/Backup文件/vpc flow logs/DNS logs/cloudtrail,发现后标识/隔离,会不会删除?
+**小帅答**：guardduty是安全扫描/病毒扫描,可扫S3文件/Backup文件/vpc flow logs/DNS logs/cloudtrail,发现后标识/隔离,会不会删除?
 
-**① 对照**：✅**数据源答得全**(vpc flow logs/DNS logs/cloudtrail正是基础三源);✅恶意软件/S3扫描方向对(有Malware Protection+S3 Protection);🔶S3相关是分析CloudTrail S3 data events,恶意软件扫的是EBS卷(及后来S3对象);❌**核心概念纠正:GuardDuty是纯检测服务,只产生findings(报警),自己不隔离/不删除/不处置**——处置靠EventBridge→Lambda/SSM或人工;🔶"Backup文件"当时判断不是数据源→**后经伟伟提示已修正:2025/11新特性GuardDuty Malware Protection for AWS Backup确实能扫Backup recovery point**(见下方修正)。
+**① 对照**：✅**数据源答得全**(vpc flow logs/DNS logs/cloudtrail正是基础三源);✅恶意软件/S3扫描方向对(有Malware Protection+S3 Protection);🔶S3相关是分析CloudTrail S3 data events,恶意软件扫的是EBS卷(及后来S3对象);❌**核心概念纠正:GuardDuty是纯检测服务,只产生findings(报警),自己不隔离/不删除/不处置**——处置靠EventBridge→Lambda/SSM或人工;🔶"Backup文件"当时判断不是数据源→**后经小帅提示已修正:2025/11新特性GuardDuty Malware Protection for AWS Backup确实能扫Backup recovery point**(见下方修正)。
 
 **② 参考答案(AWS官方核实)**：
 - **GuardDuty**=智能威胁检测服务,持续被动分析日志用ML+威胁情报(已知恶意IP/域名)+异常检测发现可疑行为(盗用凭证异常地区调API、连挖矿/C2域名、端口扫描、S3异常外泄)。⚠️定位=检测/报警,非防护/处置,只生成findings不阻断不隔离不删除。
@@ -423,12 +423,12 @@
 
 **⑤ 评分：6/10**。数据源好+方向对,核心纠正=只检测不隔离不删除。记忆点:**GuardDuty=智能威胁检测(ML+威胁情报+异常),数据源VPC Flow Logs+CloudTrail(management+S3 data events)+DNS logs+EKS/EBS+可选保护计划,无需手动开日志分析后丢弃;⚠️只生成findings报警,自己不隔离/删除,处置靠EventBridge→Lambda/SSM或人工;对照GCP SCC的Event Threat Detection**。
 
-### ⚠️ Q21修正(2026-09-06 伟伟提示后查AWS官方核实)
+### ⚠️ Q21修正(2026-09-06 小帅提示后查AWS官方核实)
 - **Amazon GuardDuty Malware Protection for AWS Backup**:2025年11月GA(AWS What's New 2025/11)。GuardDuty集成进AWS Backup,对备份recovery point做恶意软件扫描,支持EC2/EBS快照/EC2 AMI/S3 recovery points。两种触发:①AWS Backup创建/更新备份时自动扫②对历史备份按需on-demand扫。多引擎+全量/增量扫描。核心价值=识别"最后一个已知干净备份(last known clean backup)",勒索恢复时挑无毒recovery point避免把恶意软件恢复回去。结果以GuardDuty finding呈现,处置仍靠EventBridge联动(GuardDuty不删备份)。
-- **教训**:此前判断"GuardDuty不扫Backup"是按旧知识,违反了伟伟规范(旧缺点≠仍存在,须查最新文档)。查证后伟伟说的对——GuardDuty现已能扫Backup recovery point。
+- **教训**:此前判断"GuardDuty不扫Backup"是按旧知识,违反了小帅规范(旧缺点≠仍存在,须查最新文档)。查证后小帅说的对——GuardDuty现已能扫Backup recovery point。
 
 ### Q22. Security Hub + 聚合GuardDuty/Inspector/Config + CIS/PCI/FSBP + 与单个检测服务关系
-**伟伟答**：不知道。
+**小帅答**：不知道。
 
 **② 参考答案(AWS官方核实)**：
 - **Security Hub**=云安全态势管理(CSPM)+findings聚合中心。两大功能:①**聚合**:把GuardDuty(威胁)/Inspector(漏洞)/Macie(敏感数据)/Config(合规)/IAM Access Analyzer及第三方的findings用统一格式**ASFF(AWS Security Finding Format)**集中到一个面板,去重/排序/统一处置;②**合规检查(security standards)**:内置**FSBP(AWS Foundational Security Best Practices)/CIS AWS Foundations Benchmark/PCI DSS/NIST**等标准持续打分列不合规项。
@@ -446,9 +446,9 @@
 ## 批次 12：Q23–Q24（2026-09-06）
 
 ### Q23. VPC Flow Logs/CloudWatch Logs/Athena在安全分析角色 + 排查可疑访问
-**伟伟答**：vpc flow logs记录ip/端口/报文可扫网络安全;cloudwatch logs记录各服务Metrics性能超配;Athena分析结构化日志用SQL,类似duckdb。
+**小帅答**：vpc flow logs记录ip/端口/报文可扫网络安全;cloudwatch logs记录各服务Metrics性能超配;Athena分析结构化日志用SQL,类似duckdb。
 
-**① 对照**：✅VPC Flow Logs方向对(但"报文"要改=只记流量元数据不含内容);❌**把CloudWatch Logs和Metrics混了**(Logs存日志文本/Metrics存数值指标+Alarm阈值告警,伟伟说的"性能Metrics超配告警"是Metrics+Alarm不是Logs);✅**Athena答得好**(serverless SQL查S3日志,类比duckdb准,底层Trino按扫描量付费);🔶漏三者配合排查链路。
+**① 对照**：✅VPC Flow Logs方向对(但"报文"要改=只记流量元数据不含内容);❌**把CloudWatch Logs和Metrics混了**(Logs存日志文本/Metrics存数值指标+Alarm阈值告警,小帅说的"性能Metrics超配告警"是Metrics+Alarm不是Logs);✅**Athena答得好**(serverless SQL查S3日志,类比duckdb准,底层Trino按扫描量付费);🔶漏三者配合排查链路。
 
 **② 参考答案(AWS官方核实)**：
 - **VPC Flow Logs**=网络流元数据(源/目的IP+源/目的端口、协议、字节数、包数、ACCEPT/REJECT、时间),⚠️只记元数据不记报文内容(要内容用Traffic Mirroring),投S3或CloudWatch Logs。
@@ -463,7 +463,7 @@
 **⑤ 评分：5/10**。Flow Logs方向对(报文→元数据)、Athena好;扣分=CloudWatch Logs/Metrics混了+漏配合链路。记忆点:**VPC Flow Logs=网络流元数据(5元组+字节/包数+ACCEPT/REJECT,不记报文内容,要内容用Traffic Mirroring);CloudWatch Logs=存日志文本(Logs Insights查)≠CloudWatch Metrics(数值指标+Alarm告警);Athena=serverless SQL查S3日志(类比DuckDB);排查=Flow Logs存S3→Athena SQL(连大量端口多REJECT=扫描/往陌生IP传大量字节=外泄)→叠CloudTrail+GuardDuty;对照GCP Flow Logs/Cloud Logging/Cloud Monitoring/BigQuery**。
 
 ### Q24. IMDS + IMDSv1 vs v2(防SSRF) + 为何强制IMDSv2 + 对照GCP Metadata-Flavor
-**伟伟答**：IMDSv2不知道,但会影响ssh登陆。
+**小帅答**：IMDSv2不知道,但会影响ssh登陆。
 
 **① 对照**：🔶"影响ssh登陆"不对——IMDS与SSH登录无直接关系,IMDS是给实例内部程序取元数据/临时凭证用的。此题云安全高频考点,完整讲。
 
@@ -474,7 +474,7 @@
 - **防SSRF原理**:SSRF=攻击者诱骗你服务器Web应用代他发请求;经典链=Web应用有SSRF漏洞→传入169.254.169.254/.../security-credentials→IMDSv1下一个GET把凭证抓回给攻击者→账号沦陷(4个HTTP请求从Web bug打到云账号)。IMDSv2堵法=要求先PUT拿token再带token GET,而**绝大多数SSRF只能发简单GET,改不了PUT、加不了自定义header**→发不出PUT、带不上token→拿不到凭证。额外:PUT响应默认**hop limit=1**(token请求不能转发多跳,防经反向代理/容器多跳利用,EKS有时需设2)+token响应不允许带X-Forwarded-For。
 - **为何强制IMDSv2**:配HttpTokens=required强制IMDSv2,彻底关掉IMDSv1"一个GET偷凭证"的路,即使应用有SSRF也偷不到凭证=纵深防御;AWS新实例默认倾向强制。⚠️与SSH登录无关(只影响程序怎么访问169.254.169.254,老SDK/脚本/容器用v1方式取凭证时强制后可能取不到需升级SDK或调hop limit)。
 
-**③ 概念**:IMDS=实例内部拿元数据+IAM临时凭证的本地服务(169.254.169.254),凭证是安全焦点;v1=一个GET直取凭证(SSRF灾难)/v2=先PUT拿token再带token GET+hop limit=1(让只能发简单GET的SSRF失效);强制IMDSv2=纵深防御应用有SSRF也偷不到凭证,与SSH无关(伟伟这点要纠正)。
+**③ 概念**:IMDS=实例内部拿元数据+IAM临时凭证的本地服务(169.254.169.254),凭证是安全焦点;v1=一个GET直取凭证(SSRF灾难)/v2=先PUT拿token再带token GET+hop limit=1(让只能发简单GET的SSRF失效);强制IMDSv2=纵深防御应用有SSRF也偷不到凭证,与SSH无关(小帅这点要纠正)。
 
 **④ AWS↔GCP对照**:元数据地址=AWS IMDS 169.254.169.254↔GCP metadata server也是169.254.169.254(及metadata.google.internal);防SSRF=AWS IMDSv2用PUT+session token↔GCP要求请求带`Metadata-Flavor: Google`自定义header(只响应带此header的请求);原理相通=SSRF只能发简单GET加不上自定义header,所以带不上Metadata-Flavor(GCP)或IMDSv2 token(AWS)被挡;取到凭证=AWS IAM Role临时凭证↔GCP附加SA的OAuth token。
 
@@ -482,7 +482,7 @@
 
 ---
 
-## ⭐ IMDSv2 强化卡（伟伟标记的知识盲区，2026-09-06 单独重点记）
+## ⭐ IMDSv2 强化卡（小帅标记的知识盲区，2026-09-06 单独重点记）
 
 **场景**：EC2 本地元数据服务 IMDS 地址固定 `http://169.254.169.254`，能吐出实例挂的 IAM Role 临时凭证(AccessKey+SecretKey+SessionToken)，SDK/CLI 靠它免密钥拿凭证。谁能读到这地址=谁拿到你实例的 AWS 权限，是攻击头号目标。
 
@@ -492,7 +492,7 @@
 
 **两道额外防线**：①hop limit=1(默认)：token 请求不能转发跳一跳，防经反向代理/容器多跳利用。⚠️容器/EKS 坑：Pod 到 IMDS 常多一跳，EKS 有时要设 hop limit=2 否则取不到凭证。②token 响应不允许带 X-Forwarded-For。
 
-**强制方式**：实例元数据选项设 HttpTokens=required(强制 IMDSv2 禁 v1)，启动时或运行中 `aws ec2 modify-instance-metadata-options`。AWS 新实例默认倾向强制。⚠️纠正误区(伟伟原答"影响 SSH 登陆")：强制 IMDSv2 与 SSH 登录完全无关，只管程序怎么访问 169.254.169.254；唯一副作用=老旧 SDK/脚本/容器用 v1 方式取凭证时取不到→升级 SDK 或调 hop limit。
+**强制方式**：实例元数据选项设 HttpTokens=required(强制 IMDSv2 禁 v1)，启动时或运行中 `aws ec2 modify-instance-metadata-options`。AWS 新实例默认倾向强制。⚠️纠正误区(小帅原答"影响 SSH 登陆")：强制 IMDSv2 与 SSH 登录完全无关，只管程序怎么访问 169.254.169.254；唯一副作用=老旧 SDK/脚本/容器用 v1 方式取凭证时取不到→升级 SDK 或调 hop limit。
 
 **GCP 对照**：metadata server 也是 169.254.169.254(及 metadata.google.internal)；GCP 防 SSRF 靠要求带 `Metadata-Flavor: Google` 自定义 header 否则不响应；原理与 IMDSv2 一模一样=要求带一个 SSRF 加不上的东西。
 
@@ -503,7 +503,7 @@
 ## 批次 13：Q25–Q26（2026-09-06）
 
 ### Q25. SSM Session Manager vs 开放22 SSH安全优势 + 为何推荐无公网IP/无入站SG/IAM鉴权
-**伟伟答**：无公网/无SG/IAM鉴权,但需装awscli,session易断,有的OS默认没装,跟agent最方便。
+**小帅答**：无公网/无SG/IAM鉴权,但需装awscli,session易断,有的OS默认没装,跟agent最方便。
 
 **① 对照**：✅**三大优势全答对(无公网/无SG/IAM鉴权)**;✅"跟agent最方便"方向对(靠SSM Agent);❌**依赖搞反:实例侧要的是SSM Agent不是awscli;awscli(+Session Manager plugin)是操作端本地装的**;✅半对"有的OS默认没装"(主流AMI如AL2/AL2023/Ubuntu/Windows Server预装SSM Agent,自定义/老镜像可能要手动装);🔶漏核心原理(为何无入站还能连=Agent出站反连)、审计/免密钥优势。
 
@@ -520,23 +520,23 @@
 **⑤ 评分：6/10**。三大优势对+靠agent对;扣分=依赖搞反(实例装SSM Agent非awscli)+没答无入站核心原理(Agent出站反连)。记忆点:**Session Manager=不用SSH/不开端口/不用堡垒机连实例;实例装SSM Agent(主流AMI预装)+SSM权限IAM Role,操作端装AWS CLI+plugin(不是实例装awscli);核心原理=SSM Agent主动出站443连SSM服务,命令走反向通道→无需入站SG/无需公网IP/不用22;优势=消除入站攻击面+免SSH密钥+IAM鉴权+CloudTrail/S3审计+可MFA;无公网IP+无入站SG+IAM鉴权=最小暴露+纵深防御;对照GCP IAP for TCP forwarding+OS Login**。
 
 ### Q26. Amazon Inspector + 扫什么(EC2/ECR/Lambda) + 与GuardDuty分工
-**伟伟答**：inspector扫OS的CVE如EC2/ECR,为什么能扫Lambda扫SDK版本吗;guardduty是扫描文件静态的。
+**小帅答**：inspector扫OS的CVE如EC2/ECR,为什么能扫Lambda扫SDK版本吗;guardduty是扫描文件静态的。
 
 **① 对照**：✅**Inspector核心答准**(漏洞评估,扫EC2 OS/软件包CVE、ECR镜像CVE);✅Lambda扫描问得好方向对(扫函数代码依赖包+运行时CVE,不单是SDK版本);❌**GuardDuty定性反了:GuardDuty是动态行为威胁检测(分析Flow Logs/CloudTrail/DNS找可疑行为),不是"静态扫文件";反过来"静态扫已知漏洞/CVE"的才是Inspector**——两者定性弄反了。
 
 **② 参考答案(AWS官方核实)**：
 - **Inspector**=自动化漏洞管理/评估,持续扫发现已知漏洞(CVE)+网络暴露。三类目标:①**EC2**(OS+已安装软件包CVE+网络可达性,靠SSM Agent收软件清单);②**ECR镜像**(推镜像时/持续扫,查镜像里OS包+应用依赖CVE,防带漏洞镜像上线);③**Lambda**(扫函数代码依赖包第三方库的CVE+运行时+可选代码扫描,不单是SDK版本)。特点=持续自动(不用手动发起)+按CVSS风险打分+结果汇总Security Hub。
-- **Inspector vs GuardDuty(核心,伟伟答反)**:Inspector=漏洞评估(找已知弱点)/**静态**(扫软件包/镜像/代码比对CVE库)/答"有没有已知漏洞可被攻击"/事前预防(补漏洞)/例=EC2的openssl有CVE、镜像依赖过时;GuardDuty=威胁检测(找正在发生的可疑行为)/**动态**(分析Flow Logs/CloudTrail/DNS看行为异常)/答"有没有正在发生的攻击"/事中检测(发现入侵)/例=凭证异常地区调API、连挖矿域名、端口扫描。Inspector="体检"(查有没有病=漏洞);GuardDuty="监控摄像头/报警器"(盯有没有坏人行动)。⚠️GuardDuty不是"静态扫文件"(虽有Malware Protection扫EBS/备份,但主业是行为威胁检测)。
+- **Inspector vs GuardDuty(核心,小帅答反)**:Inspector=漏洞评估(找已知弱点)/**静态**(扫软件包/镜像/代码比对CVE库)/答"有没有已知漏洞可被攻击"/事前预防(补漏洞)/例=EC2的openssl有CVE、镜像依赖过时;GuardDuty=威胁检测(找正在发生的可疑行为)/**动态**(分析Flow Logs/CloudTrail/DNS看行为异常)/答"有没有正在发生的攻击"/事中检测(发现入侵)/例=凭证异常地区调API、连挖矿域名、端口扫描。Inspector="体检"(查有没有病=漏洞);GuardDuty="监控摄像头/报警器"(盯有没有坏人行动)。⚠️GuardDuty不是"静态扫文件"(虽有Malware Protection扫EBS/备份,但主业是行为威胁检测)。
 
-**③ 概念**:Inspector=找弱点(已知CVE漏洞)静态预防性,扫EC2 OS包/ECR镜像/Lambda依赖代码;GuardDuty=找坏事(可疑行为/威胁)动态检测性,分析Flow Logs/CloudTrail/DNS。互补:Inspector事前补漏洞,GuardDuty事中发现攻击,结果都汇总Security Hub。伟伟答对Inspector扫CVE和Lambda方向,唯一纠正=GuardDuty定性(动态行为检测非静态扫文件)。
+**③ 概念**:Inspector=找弱点(已知CVE漏洞)静态预防性,扫EC2 OS包/ECR镜像/Lambda依赖代码;GuardDuty=找坏事(可疑行为/威胁)动态检测性,分析Flow Logs/CloudTrail/DNS。互补:Inspector事前补漏洞,GuardDuty事中发现攻击,结果都汇总Security Hub。小帅答对Inspector扫CVE和Lambda方向,唯一纠正=GuardDuty定性(动态行为检测非静态扫文件)。
 
 **④ AWS↔GCP对照**:漏洞评估/CVE扫描=Inspector↔GCP Container Analysis/Artifact Registry漏洞扫描(镜像CVE)+SCC Security Health Analytics/VM Manager OS漏洞扫描;威胁检测=GuardDuty↔SCC Event Threat Detection;分工哲学一致=漏洞评估(找弱点静态)vs威胁检测(找坏事动态)。
 
-**⑤ 评分：5/10**。Inspector扫CVE(EC2/ECR)对+Lambda方向对;GuardDuty定性答反(动态行为检测非静态扫文件)必须纠正。记忆点:**Amazon Inspector=自动化漏洞评估(找已知CVE)静态预防性,扫EC2(OS+软件包CVE+网络暴露)/ECR镜像(镜像CVE)/Lambda(代码依赖包CVE+代码扫描),按CVSS打分汇总Security Hub;⚠️与GuardDuty分工(伟伟答反):Inspector=静态找已知漏洞(体检),GuardDuty=动态找可疑行为(报警,分析Flow Logs/CloudTrail/DNS);互补=Inspector事前补漏洞+GuardDuty事中发现入侵;对照GCP Inspector↔Container Analysis/SCC漏洞扫描,GuardDuty↔SCC Event Threat Detection**。
+**⑤ 评分：5/10**。Inspector扫CVE(EC2/ECR)对+Lambda方向对;GuardDuty定性答反(动态行为检测非静态扫文件)必须纠正。记忆点:**Amazon Inspector=自动化漏洞评估(找已知CVE)静态预防性,扫EC2(OS+软件包CVE+网络暴露)/ECR镜像(镜像CVE)/Lambda(代码依赖包CVE+代码扫描),按CVSS打分汇总Security Hub;⚠️与GuardDuty分工(小帅答反):Inspector=静态找已知漏洞(体检),GuardDuty=动态找可疑行为(报警,分析Flow Logs/CloudTrail/DNS);互补=Inspector事前补漏洞+GuardDuty事中发现入侵;对照GCP Inspector↔Container Analysis/SCC漏洞扫描,GuardDuty↔SCC Event Threat Detection**。
 
 ---
 
-## ⭐ SSM 反向连接强化卡（伟伟标记的知识点，2026-09-06）
+## ⭐ SSM 反向连接强化卡（小帅标记的知识点，2026-09-06）
 
 **核心一句话**：SSM Agent 从实例「主动出站」连到 SSM 服务，操作命令沿这条已建立的反向通道下发——所以实例完全不需要入站端口、不需要公网 IP。
 
@@ -563,7 +563,7 @@
 ## 批次 14：Q27–Q28（2026-09-06）
 
 ### Q27. Nitro Enclaves/NitroTPM/EC2 Secure Boot分别防什么 + 对照GCP Confidential VM/Shielded VM
-**伟伟答**：nitro Enclave是加密计算防数据被偷看;nitro TPM是认证硬件;secure boot是启动防rootkit。
+**小帅答**：nitro Enclave是加密计算防数据被偷看;nitro TPM是认证硬件;secure boot是启动防rootkit。
 
 **① 对照**：✅**Nitro Enclaves答得准**(加密计算/隔离环境防敏感数据被偷看=机密计算保护in-use数据);✅NitroTPM"认证硬件"方向对(虚拟TPM 2.0做度量/attestation);✅**Secure Boot"启动防rootkit"完全正确**;🔶漏三者分属两个维度(Enclaves=运行时数据机密 / NitroTPM+Secure Boot=启动完整性);🔶漏Enclaves的attestation绑KMS用法+GCP对照。
 
@@ -579,7 +579,7 @@
 **⑤ 评分：8/10(本批答得好)**。三方向全对,扣分=没点两维度区分+enclave attestation绑KMS。记忆点:**两维度:①运行时数据机密=Nitro Enclaves(切隔离飞地无持久存储/无SSH/无外网只vsock,母实例root也看不到,杀手锏=attestation文档+KMS kms:RecipientAttestation让密钥只交给经认证enclave代码);②启动完整性=Secure Boot(UEFI只加载签名固件/内核防rootkit)+NitroTPM(虚拟TPM2.0存密钥+度量启动+attestation证明没篡改);对照GCP Nitro Enclaves↔Confidential VM(GCP走SEV/TDX整机内存加密),Secure Boot+NitroTPM↔Shielded VM(≠AWS Shield)**。
 
 ### Q28. AWS Organizations多账号策略(OU/SCP/日志账号/安全账号) + 为何多账号=安全隔离
-**伟伟答**：organization是多账号,不同OU实现不同策略,cloudwatch logs可集中放一个账号。
+**小帅答**：organization是多账号,不同OU实现不同策略,cloudwatch logs可集中放一个账号。
 
 **① 对照**：✅"organization多账号"对;✅**"不同OU实现不同策略"抓住核心**(OU分组+挂不同SCP);✅"日志集中放一个账号"方向对(Log Archive账号思想,更常见是CloudTrail日志集中到日志账号S3);🔶漏完整多账号蓝图(管理/安全/日志账号);🔶漏核心"为何多账号=安全隔离";🔶漏GCP对照。
 
@@ -599,38 +599,38 @@
 ## 批次 15：Q29–Q30（2026-09-06，最后一批,30题完成）
 
 ### Q29. 最小权限落地 + Access Analyzer/Access Advisor/Policy Simulator
-**伟伟答**：IAM access analyzer动态跟踪访问权限,分析如S3有没有ACL/public access等可疑行为。
+**小帅答**：IAM access analyzer动态跟踪访问权限,分析如S3有没有ACL/public access等可疑行为。
 
 **① 对照**：✅**答对Access Analyzer的external access findings那半**(扫资源策略找S3桶/ACL被公开/外部访问的暴露);🔶漏Access Analyzer另一半unused access findings(找长期没用的角色/权限建议删=直接收敛);❌Access Advisor(last accessed)和Policy Simulator完全没答;🔶漏最小权限方法论。
 
 **② 参考答案(AWS官方核实)**：
 - **最小权限落地**="先宽→看实际用量→收敛→验证→持续复查"循环,靠三工具。
-- **IAM Access Analyzer**:①external access findings(分析S3桶/KMS/Role trust/SQS资源策略,找被账号外部或公开访问的暴露,伟伟答对这半,免费);②unused access findings(按last accessed找长期没用的角色/用户/权限/访问密钥建议删,组织级可跑,直接推动最小权限);③policy generation(基于CloudTrail实际API活动自动生成只含实际用到权限的最小策略,不用手写)。
+- **IAM Access Analyzer**:①external access findings(分析S3桶/KMS/Role trust/SQS资源策略,找被账号外部或公开访问的暴露,小帅答对这半,免费);②unused access findings(按last accessed找长期没用的角色/用户/权限/访问密钥建议删,组织级可跑,直接推动最小权限);③policy generation(基于CloudTrail实际API活动自动生成只含实际用到权限的最小策略,不用手写)。
 - **Access Advisor/Last Accessed**:IAM控制台看某user/role/policy的Access Advisor页,显示每个服务/action最后被访问时间;某身份授权20服务但15个从没访问→放心删=最直接看数据收权限。
 - **IAM Policy Simulator**:测试工具,不真正执行下模拟"某身份对某资源做某action会allow还是deny+哪条策略/SCP/boundary决定的";改完策略先验证"该能的能该拒的拒"避免上线才发现配错。
 - **闭环**:Advisor/Analyzer(unused)找没用权限→砍;Analyzer(policy generation)按真实活动生成最小策略;Policy Simulator验证;Analyzer(external)持续监控暴露;周期复查。
 
-**③ 概念**:三工具分工=Access Analyzer(自动化引擎:external找暴露+unused找没用权限+policy generation生成最小策略)/Access Advisor(看last accessed手动砍权限)/Policy Simulator(模拟测试验证策略正确性)。伟伟答对external半,补unused+policy generation+Advisor+Simulator。
+**③ 概念**:三工具分工=Access Analyzer(自动化引擎:external找暴露+unused找没用权限+policy generation生成最小策略)/Access Advisor(看last accessed手动砍权限)/Policy Simulator(模拟测试验证策略正确性)。小帅答对external半,补unused+policy generation+Advisor+Simulator。
 
 **④ AWS↔GCP对照**:未使用权限收敛=Access Analyzer(unused)+Advisor↔GCP IAM Recommender;外部暴露分析=Access Analyzer(external)↔Policy Analyzer/SCC公开访问检测;策略模拟=Policy Simulator↔Policy Troubleshooter/Simulator。哲学一致=按实际使用推荐收敛+暴露分析+权限模拟三件套。
 
 **⑤ 评分：5/10**。Access Analyzer external答对,漏unused/policy generation+Advisor+Simulator+方法论。记忆点:**最小权限=先宽→看用量→收敛→验证→复查;三工具:①Access Analyzer(external找S3/KMS/Role被外部公开访问的暴露+unused按last accessed找没用角色权限建议删+policy generation按CloudTrail真实活动生成最小策略)②Access Advisor(看每个服务/action最后访问时间,没用过砍掉)③Policy Simulator(模拟某请求allow/deny+哪条策略决定,验证策略);对照GCP IAM Recommender/Policy Analyzer/Policy Troubleshooter**。
 
 ### Q30(压轴). 纵深防御AWS安全架构六层 + 串前29题 + 对照GCP
-**伟伟答**：身份IAM/cognito;网络NACL;数据guardduty;检测inspector;治理SCP/config。
+**小帅答**：身份IAM/cognito;网络NACL;数据guardduty;检测inspector;治理SCP/config。
 
-**① 对照**：✅**分层框架完全正确(身份/网络/数据/检测/主机/治理),身份(IAM/Cognito)+治理(SCP/Config)归类准**——压轴题最重要的"体系感"伟伟有;❌归类错两个:"数据=guardduty"错(GuardDuty是检测层威胁检测,数据层应是KMS/S3加密/Secrets Manager);"检测=inspector"不准(Inspector偏主机层漏洞,检测层核心是GuardDuty/Security Hub/CloudTrail/Config);🔶每层不够全+主机层(IMDSv2/SSM/Nitro)漏答。
+**① 对照**：✅**分层框架完全正确(身份/网络/数据/检测/主机/治理),身份(IAM/Cognito)+治理(SCP/Config)归类准**——压轴题最重要的"体系感"小帅有;❌归类错两个:"数据=guardduty"错(GuardDuty是检测层威胁检测,数据层应是KMS/S3加密/Secrets Manager);"检测=inspector"不准(Inspector偏主机层漏洞,检测层核心是GuardDuty/Security Hub/CloudTrail/Config);🔶每层不够全+主机层(IMDSv2/SSM/Nitro)漏答。
 
 **② 参考答案(把前29题串成体系)**：纵深防御=多层防护任一层被破还有下层兜底,六层:
 - **①身份层(Identity)谁能做什么**:IAM(Q1)+Role/STS临时凭证不用长期key(Q2/Q6)+Permissions Boundary(Q3)+跨账号AssumeRole+ExternalId(Q7)+Identity Center(内)/Cognito(外)(Q8)+IRSA/Pod Identity(Q9)+最小权限Access Analyzer(Q29)。
 - **②网络层(Network)谁能连到哪**:SG(实例级有状态)+NACL(子网级无状态)(Q10)+公有/私有子网+NAT只出不进(Q11)+VPC Endpoint/PrivateLink不走公网(Q12)+WAF(L7)+Shield(DDoS)(Q13)。
-- **③数据层(Data)数据本身保护(⚠️伟伟归错)**:KMS信封加密(Q14)+key policy/IAM双重把关/Grants(Q15)+S3加密SSE-S3/KMS/C+Bucket Key(Q16)+EBS/RDS/快照加密(Q17)+Secrets Manager/Parameter Store+轮换(Q18)。
+- **③数据层(Data)数据本身保护(⚠️小帅归错)**:KMS信封加密(Q14)+key policy/IAM双重把关/Grants(Q15)+S3加密SSE-S3/KMS/C+Bucket Key(Q16)+EBS/RDS/快照加密(Q17)+Secrets Manager/Parameter Store+轮换(Q18)。
 - **④检测审计层(Detection)出事能发现追溯**:CloudTrail(Q19)+Config(Q20)+GuardDuty威胁检测(Q21)+Security Hub聚合合规(Q22)+VPC Flow Logs+Athena(Q23)。
-- **⑤主机/工作负载层(Host)单机加固(⚠️伟伟漏)**:强制IMDSv2防SSRF(Q24)+SSM Session Manager免公网免密钥(Q25)+Inspector漏洞扫(Q26)+Nitro Enclaves/Secure Boot/NitroTPM(Q27)。
+- **⑤主机/工作负载层(Host)单机加固(⚠️小帅漏)**:强制IMDSv2防SSRF(Q24)+SSM Session Manager免公网免密钥(Q25)+Inspector漏洞扫(Q26)+Nitro Enclaves/Secure Boot/NitroTPM(Q27)。
 - **⑥治理边界层(Governance)组织级护栏隔离**:Organizations多账号硬隔离+OU+SCP护栏(Q4/Q28)+集中日志账号+安全账号(Q19/Q28)+Control Tower。
 - **心智模型**:攻击者要层层突破——过网络层(SG/NACL/WAF)→主机层(IMDSv2挡偷凭证)→拿到身份也受最小权限限(身份层)→碰到数据也是加密的(数据层)→全程被CloudTrail/GuardDuty记录告警(检测层)→爆炸半径被多账号隔离(治理层)。任一层失守有其他层兜底=纵深防御。
 
-**③ 概念**:纵深防御=不把宝押单层,每层假设上层可能被破(IMDSv2防网络被SSRF突破后别丢凭证/加密防数据被拿也读不了/多账号防一账号沦陷别扩散)。伟伟两处纠正:GuardDuty=检测层非数据;数据层核心=KMS/加密/Secrets Manager;Inspector偏主机层漏洞。六层口诀:身份(谁能做)→网络(能连哪)→主机(单机加固)→数据(加密)→检测(发现追溯)→治理(组织隔离)。
+**③ 概念**:纵深防御=不把宝押单层,每层假设上层可能被破(IMDSv2防网络被SSRF突破后别丢凭证/加密防数据被拿也读不了/多账号防一账号沦陷别扩散)。小帅两处纠正:GuardDuty=检测层非数据;数据层核心=KMS/加密/Secrets Manager;Inspector偏主机层漏洞。六层口诀:身份(谁能做)→网络(能连哪)→主机(单机加固)→数据(加密)→检测(发现追溯)→治理(组织隔离)。
 
 **④ AWS↔GCP对照(六层)**:身份=IAM/STS/Identity Center/Cognito↔Cloud IAM/SA impersonation/Workforce Identity/Firebase Auth;网络=SG/NACL/VPC Endpoint/WAF/Shield↔VPC Firewall/PSC/Private Google Access/Cloud Armor;数据=KMS/S3加密/Secrets Manager↔Cloud KMS/CMEK/Secret Manager;检测=CloudTrail/Config/GuardDuty/Security Hub↔Cloud Audit Logs/Asset Inventory/SCC;主机=IMDSv2/SSM/Inspector/Nitro/Shielded↔Metadata-Flavor/IAP+OS Login/Container Analysis/Confidential VM/Shielded VM;治理=Organizations/SCP/Control Tower↔Resource Hierarchy/Org Policy。
 
@@ -646,7 +646,7 @@
 
 ---
 
-## 📎 补充：Amazon Macie（2026-09-06，伟伟问"为什么没考Macie",作为Q22扩展归档,不单独出题）
+## 📎 补充：Amazon Macie（2026-09-06，小帅问"为什么没考Macie",作为Q22扩展归档,不单独出题）
 
 **为何30题没单独考**：本题库聚焦身份/网络/数据加密/检测审计/主机/治理六大主干。Macie属"数据分类/敏感数据发现"细分方向,已在Q22(Security Hub聚合的findings来源之一)提及,未单出一题。补充如下。
 

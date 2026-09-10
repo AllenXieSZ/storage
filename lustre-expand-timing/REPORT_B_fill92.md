@@ -142,7 +142,7 @@ summary            2.2T    used 1.1T    48%
 - ✅ **terminate 灌数据 EC2** `i-099d95e58e85c3d79`
 - ✅ **delete 本次新建 FSx Lustre** `fs-0f29a383fee84742e`
 - ✅ SG `sg-08f2883d5c47ced16`（lustre-learn，复用）**未删**
-- ✅ 伟伟保留的 learn Lustre `fs-026825936499d3bdb`（4800）**未动**
+- ✅ 小帅保留的 learn Lustre `fs-026825936499d3bdb`（4800）**未动**
 
 （清理命令与返回见报告末尾 / GitHub 提交记录。）
 

@@ -1,9 +1,9 @@
 # HANDOFF：FSxN 升吞吐过程对 IO Latency 影响实测（Ohio us-east-2）
 
-## 目标（伟伟 2026-09-06 定）
+## 目标（小帅 2026-09-06 定）
 在 Ohio 建一个**最小的 Gen2 FSx ONTAP** → 挂载后先跑 baseline → **发起"升吞吐"变更** → 从发出变更起，**每 10 秒跑一轮测延迟的 fio**，直到升吞吐完成 → 统计每 10 秒的 latency → **画 PNG 曲线图**，看升吞吐过程中 latency 最高到多少。本实验 = 测"升吞吐操作本身对 IO 延迟的冲击"。
 
-## fio 参数（严格按伟伟要求，不许改）
+## fio 参数（严格按小帅要求，不许改）
 - `bs=16k`
 - `ioengine=sync`
 - `direct=1`
@@ -50,7 +50,7 @@
    - 报告写 `REPORT.md`（环境/规格/升吞吐耗时/baseline延迟/升级中峰值延迟/结论）。
    - 脱敏后推 GitHub `AllenXieSZ/storage` 路径 `fsxn-throughput-latency/`（README+脚本+results.csv+latency_curve.png）。
    - PNG + CSV 上传 s3://s3lambdatest2/fsxn-tp-latency/，给 `--region us-east-2` 预签名链接（7天）。
-9. **清理**：测完删 volume→SVM→FSxN→新建SG。**除非伟伟说保留**（伟伟习惯保留资源，完成时问一句或默认保留并在报告注明资源ID+清理命令）。
+9. **清理**：测完删 volume→SVM→FSxN→新建SG。**除非小帅说保留**（小帅习惯保留资源，完成时问一句或默认保留并在报告注明资源ID+清理命令）。
 
 ## 注意
 - 技术问题查 AWS 官方文档核实（SOUL 铁律）；create-file-system 的确切参数名以 `aws fsx create-file-system help` 为准，别硬套。

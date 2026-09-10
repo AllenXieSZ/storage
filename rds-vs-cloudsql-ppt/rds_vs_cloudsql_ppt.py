@@ -3,7 +3,7 @@
 """
 AWS RDS vs GCP Cloud SQL 对比 PPT
 数据来源：AWS RDS User Guide / GCP Cloud SQL 官方文档 + SLA 页，均基于最新官方文档核实。
-风格：伟伟认可的 NetApp 风模板（16:9），AWS 橙 / GCP 蓝双列对照。
+风格：小帅认可的 NetApp 风模板（16:9），AWS 橙 / GCP 蓝双列对照。
 """
 from pptx import Presentation
 from pptx.util import Inches, Pt
