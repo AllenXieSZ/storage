@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 # ============================================================================
-# lustre_ls_csv_parallel — 并行版：用多进程按目录分片，逐目录 'lfs find -maxdepth 1
-#   -printf' 拿 名字/大小/时间（属性取值需 OST glimpse，串行是瓶颈）→ 内存汇总
-#   → 批量写 CSV。
+# lustre_ls_csv_parallel — 用 'lfs find <dir> -maxdepth 1'（lfs 层，直接 MDT 查询）
+#   逐目录列举文件的 名字/大小/时间，多进程并发（-j）扫描 → 内存汇总 → 批量写 CSV。
 # SCRIPT_VERSION: v2.0-parallel
-#   实测结论：单条串行取属性(size/mtime)因每文件 OST glimpse ~75x 慢于纯列名；
-#   并行化把 glimpse RPC 并发即可提速。
 # ============================================================================
 import argparse, csv, os, subprocess, sys, time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -17,7 +14,7 @@ def log(msg):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
 def scan_one(directory):
-    """单目录 lfs find -maxdepth 1 -printf，返回 rows。子进程执行。"""
+    """单目录 lfs find -maxdepth 1，返回 rows。子进程执行。"""
     cmd = ["lfs", "find", directory, "-maxdepth", "1", "-type", "f",
            "-printf", "%p\t%s\t%A@\n"]
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
@@ -65,7 +62,7 @@ def main():
     dirs = [d for d,_,_ in os.walk(root)]
     log(f"Found {len(dirs)} directories")
 
-    log(f"Scanning with {args.jobs} parallel workers ('lfs find -maxdepth 1 -printf')...")
+    log(f"Scanning with {args.jobs} parallel workers ('lfs find -maxdepth 1')...")
     records = []
     done = 0
     with ProcessPoolExecutor(max_workers=args.jobs) as ex:
