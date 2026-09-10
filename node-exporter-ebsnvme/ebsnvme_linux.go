@@ -20,7 +20,7 @@
 //
 // Author of this node_exporter collector:
 //
-//	Allen Xie <weifeng.xie@qq.com>, Storage Solution Architect
+//	<AUTHOR> <<AUTHOR_EMAIL>>, Storage Solution Architect
 
 //go:build linux && !noebsnvme
 // +build linux,!noebsnvme

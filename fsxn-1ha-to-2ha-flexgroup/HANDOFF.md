@@ -1,6 +1,6 @@
 # HANDOFF: FSxN 单HA→2HA + FlexVol→FlexGroup（只转不平衡）测试
 
-**日期**: 2026-09-08　**区域**: us-east-2　**账号**: 386094880462
+**日期**: 2026-09-08　**区域**: us-east-2　**账号**: <AWS_ACCOUNT_ID>
 **发起人**: 小帅　**执行**: 后台子 agent（继承 workspace）
 
 ## 测试目标（小帅原话）

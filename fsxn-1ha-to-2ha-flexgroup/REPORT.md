@@ -1,6 +1,6 @@
 # REPORT: FSxN 单HA→2HA + FlexVol→FlexGroup（只转不平衡）实测
 
-**日期**: 2026-09-08　**区域**: us-east-2 (Ohio)　**账号**: 386094880462
+**日期**: 2026-09-08　**区域**: us-east-2 (Ohio)　**账号**: <AWS_ACCOUNT_ID>
 **执行**: 后台子 agent　**ONTAP**: 9.18.x　**部署类型**: Gen2 `SINGLE_AZ_2`
 
 ---
