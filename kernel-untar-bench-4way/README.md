@@ -45,3 +45,30 @@ Local EBS extracts/clones the ~100k-file tree in seconds. Every network-backed s
 
 - **Phase 1 (`tar xf`):** EFS and S3 Files land close (~40 min); JuiceFS slowest (~60 min), since each file also drives an object write through the Redis→S3 path.
 - **Phase 2 (`git clone`):** EFS and S3 Files are nearly identical (~17 min, EFS marginally faster); JuiceFS is ~1.9× the S3 Files baseline. Clone is faster than tar because git streams the pack and writes the working tree with fewer fsync stalls, but the small-file metadata cost still dominates on all network stores.
+
+## Phase 3: Monthly cost estimate — 500 GB stored/written per month (us-east-2)
+
+All rates are official AWS us-east-2 rates pulled from the AWS Pricing API (Sept 2026):
+
+| Component | Rate (us-east-2) |
+|---|---|
+| EFS Standard storage | $0.30 / GB-mo |
+| EFS Elastic Throughput — write | $0.06 / GB |
+| EFS Elastic Throughput — read | $0.03 / GB |
+| S3 Standard storage (first 50 TB) | $0.023 / GB-mo |
+| S3 Files high-performance storage layer | $0.30 / GB-mo |
+| S3 Files metered write / read | $0.06 / $0.03 per GB |
+| S3 PUT/COPY/POST/LIST (Tier1) | $0.005 / 1,000 |
+| S3 GET & other (Tier2) | $0.0004 / 1,000 |
+| c7i.4xlarge Linux on-demand | $0.714 / hr |
+| EBS gp3 storage | $0.08 / GB-mo |
+
+**Assumptions:** 500 GB stored and written once/month; 500 GB read once/month (1× active-set read); S3 Files active set = full 500 GB on the high-perf layer; JuiceFS uses its default 4 MiB block → 500 GB ≈ **128,000 objects** (128k PUT to write + 128k GET to read); JuiceFS Redis runs on a dedicated c7i.4xlarge 24×7 (720 hrs) with a 30 GB gp3 root.
+
+| Storage | Storage cost | Throughput / request cost | Compute (Redis) | **TOTAL $/mo** |
+|---|---|---|---|---|
+| EFS (Elastic) | $150.00 | $45.00 (30 write + 15 read) | — | **$195.00** |
+| S3 Files | $161.50 ($11.50 S3 + $150 layer) | $45.69 (30 write + 15 read + $0.69 req) | — | **$207.19** |
+| JuiceFS | $11.50 (S3 Standard) | $0.69 (128k PUT + 128k GET) | $516.48 ($514.08 EC2 + $2.40 EBS) | **$528.67** |
+
+**Note — cheapest at 500 GB & the JuiceFS TCO flip:** On raw *storage+IO*, JuiceFS looks cheapest by far (~$12/mo — it only pays S3 Standard) and EFS ($195) beats S3 Files ($207) slightly. But the **dedicated Redis EC2 is JuiceFS's hidden TCO driver**: at 24×7 a single c7i.4xlarge adds ~$514/mo, pushing JuiceFS to **$529/mo — the most expensive of the three** and ~2.7× the fully-managed EFS. Managed EFS and S3 Files have no compute floor, so at modest scale (500 GB) they win decisively. JuiceFS's economics only turn favorable at much larger capacities, where the fixed Redis/compute cost amortizes across many TB and its cheap S3 Standard storage ($0.023/GB-mo vs $0.30) dominates — but you would also right-size (or share) the metadata node rather than dedicate a c7i.4xlarge. **At 500 GB, EFS is the cheapest sensible choice; JuiceFS is cheapest only if you ignore its required metadata server.**
