@@ -1,0 +1,9 @@
+Kernel untar 4-way benchmark — raw timing log
+Region: us-east-2 | Client: c7i.4xlarge AL2023 | Workload: tar xf linux-7.2.5.tar.xz (101062 files)
+Format: backend|mountpoint|wall_seconds|file_count|rc
+
+=== Phase 1: tar xf ===
+EBS-gp3|/mnt/ebs|10.355975027|101062|rc=0
+EFS-Elastic|/mnt/efs|2392.362464872|101062|rc=0
+S3Files|/mnt/s3files|2408.211036274|101062|rc=0
+JuiceFS|/mnt/juicefs|3617.058817969|101062|rc=0
