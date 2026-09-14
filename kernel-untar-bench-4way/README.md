@@ -28,6 +28,20 @@ Backends:
 | S3 Files | NFSv4.2, versioned bucket | **40 m 8 s** (2408 s) | 101,062 | ~232× |
 | JuiceFS | Redis meta + S3 data, FUSE | **1 h 0 m 17 s** (3617 s) | 101,062 | ~349× |
 
+## Results — Phase 2: `git clone` (baseline = S3 Files)
+
+Serial single-threaded `git clone` of **NixOS/nixpkgs** (92,712 files, shallow) from a local reference repo into each backend. Page caches dropped between clones. S3 Files is the baseline; EBS is an observational reference only (too fast to be a fair baseline).
+
+| Storage | git clone time | Files | Relative to S3 Files |
+|---|---|---|---|
+| S3 Files | **17 m 16 s** (1035.7 s) | 92,712 | 1× (baseline) |
+| EFS (Elastic) | **16 m 49 s** (1009.2 s) | 92,712 | ~0.97× |
+| JuiceFS | **33 m 2 s** (1981.8 s) | 92,712 | ~1.91× |
+| EBS gp3 (reference only, not baseline) | **5.0 s** | 92,712 | ~0.005× |
+
 ## Takeaway
 
-Local EBS extracts the 101k-file tree in ~10 s. Every network-backed store is 2+ orders of magnitude slower because single-threaded `tar` serializes one small-file create per metadata round-trip — the bottleneck is per-file latency, not bandwidth. EFS and S3 Files land close together (~40 min); JuiceFS is slowest here (~60 min) as each file also drives an object write through the Redis→S3 path.
+Local EBS extracts/clones the ~100k-file tree in seconds. Every network-backed store is 2+ orders of magnitude slower because single-threaded work serializes one small-file create per metadata round-trip — the bottleneck is per-file latency, not bandwidth.
+
+- **Phase 1 (`tar xf`):** EFS and S3 Files land close (~40 min); JuiceFS slowest (~60 min), since each file also drives an object write through the Redis→S3 path.
+- **Phase 2 (`git clone`):** EFS and S3 Files are nearly identical (~17 min, EFS marginally faster); JuiceFS is ~1.9× the S3 Files baseline. Clone is faster than tar because git streams the pack and writes the working tree with fewer fsync stalls, but the small-file metadata cost still dominates on all network stores.

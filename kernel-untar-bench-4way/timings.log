@@ -7,3 +7,9 @@ EBS-gp3|/mnt/ebs|10.355975027|101062|rc=0
 EFS-Elastic|/mnt/efs|2392.362464872|101062|rc=0
 S3Files|/mnt/s3files|2408.211036274|101062|rc=0
 JuiceFS|/mnt/juicefs|3617.058817969|101062|rc=0
+
+=== Phase 2: git clone (NixOS/nixpkgs, 92712 files, local source) ===
+S3Files|/mnt/s3files|1035.667255790|92712|rc=0
+EFS-Elastic|/mnt/efs|1009.153281685|92712|rc=0
+JuiceFS|/mnt/juicefs|1981.813062581|92712|rc=0
+EBS-gp3|/mnt/ebs|4.995824911|92712|rc=0
