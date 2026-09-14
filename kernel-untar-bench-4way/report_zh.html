@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存储性能与成本对比报告 · EFS / S3 Files / JuiceFS / EBS</title>
+<style>
+  :root{
+    --blue:#0067C5; --dark:#1A2B4A; --orange:#F58220; --green:#2E9E5B;
+    --red:#D64545; --gray:#5A6B82; --bg:#F2F6FB; --line:#E1E8F0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+    color:var(--dark);background:var(--bg);line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px 80px}
+  header{background:linear-gradient(135deg,#1A2B4A 0%,#0d47a1 100%);color:#fff;
+    padding:56px 20px 48px;text-align:center;border-bottom:5px solid var(--orange)}
+  header h1{font-size:30px;font-weight:700;margin-bottom:12px;letter-spacing:.5px}
+  header p{font-size:15px;opacity:.85;max-width:720px;margin:0 auto}
+  .badges{margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .badge{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);
+    padding:5px 14px;border-radius:20px;font-size:13px}
+  section{background:#fff;border-radius:12px;padding:30px 32px;margin-top:26px;
+    box-shadow:0 2px 12px rgba(26,43,74,.06)}
+  h2{font-size:22px;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  h2 .num{background:var(--blue);color:#fff;width:30px;height:30px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+  .sub{color:var(--gray);font-size:14px;margin-bottom:18px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th{background:var(--blue);color:#fff;padding:11px 12px;text-align:left;font-weight:600}
+  th:first-child{border-radius:8px 0 0 0}th:last-child{border-radius:0 8px 0 0}
+  td{padding:10px 12px;border-bottom:1px solid var(--line)}
+  tbody tr:nth-child(even){background:#F7FAFD}
+  tbody tr:hover{background:#EEF4FB}
+  .base{font-weight:700;color:var(--blue)}
+  .win{color:var(--green);font-weight:700}
+  .lose{color:var(--red);font-weight:700}
+  .ref{color:var(--gray);font-style:italic}
+  .bar-wrap{display:flex;align-items:center;gap:8px}
+  .bar{height:16px;border-radius:4px;background:var(--blue);min-width:2px}
+  .bar.efs{background:var(--blue)}.bar.s3f{background:#5b8def}
+  .bar.juice{background:var(--orange)}.bar.ebs{background:#b8c4d6}
+  .note{background:#FFF7ED;border-left:4px solid var(--orange);padding:14px 18px;
+    border-radius:0 8px 8px 0;margin-top:16px;font-size:14.5px}
+  .note b{color:var(--orange)}
+  .kbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:8px}
+  .k{background:var(--bg);border-radius:10px;padding:16px 18px;border:1px solid var(--line)}
+  .k .t{font-size:13px;color:var(--gray);margin-bottom:6px}
+  .k .v{font-size:22px;font-weight:700;color:var(--dark)}
+  .k .v small{font-size:13px;color:var(--gray);font-weight:400}
+  ul.take{list-style:none;margin-top:8px}
+  ul.take li{padding:10px 0 10px 26px;position:relative;border-bottom:1px dashed var(--line);font-size:14.5px}
+  ul.take li:before{content:"▸";position:absolute;left:4px;color:var(--orange);font-weight:700}
+  ul.take li:last-child{border-bottom:none}
+  .setup-tbl td:first-child{color:var(--gray);width:38%}
+  footer{text-align:center;color:var(--gray);font-size:13px;margin-top:34px;padding-top:20px}
+  footer a{color:var(--blue);text-decoration:none}
+  .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:5px;margin-left:6px}
+  .tag.b{background:#E3F0FF;color:var(--blue)}
+  .tag.r{background:#F0F2F5;color:var(--gray)}
+</style>
+</head>
+<body>
+<header>
+  <h1>存储性能与月成本对比报告</h1>
+  <p>在同一台 EC2 客户端上，对 EFS、S3 Files、JuiceFS、本地 EBS 四种存储进行海量小文件（~10 万文件）的解压 / 克隆性能与月成本对比</p>
+  <div class="badges">
+    <span class="badge">AWS us-east-2 (Ohio)</span>
+    <span class="badge">Linux 内核 7.2.5</span>
+    <span class="badge">c7i.4xlarge</span>
+    <span class="badge">2026-09-14</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <h2><span class="num">i</span>测试环境</h2>
+    <table class="setup-tbl">
+      <tbody>
+        <tr><td>区域</td><td>us-east-2（俄亥俄）</td></tr>
+        <tr><td>客户端</td><td>1× c7i.4xlarge（16 vCPU / 32 GiB），Amazon Linux 2023</td></tr>
+        <tr><td>Redis 节点（JuiceFS 元数据）</td><td>1× c7i.4xlarge</td></tr>
+        <tr><td>解压负载</td><td><code>tar xf linux-7.2.5.tar.xz</code>（最新稳定版内核），单线程</td></tr>
+        <tr><td>解压文件数</td><td>101,062 个 / 每种存储</td></tr>
+        <tr><td>方法</td><td>每轮前清空 page cache（<code>echo 3 &gt; drop_caches</code>），记录墙钟时间</td></tr>
+      </tbody>
+    </table>
+    <div class="kbox">
+      <div class="k"><div class="t">EFS</div><div class="v">Elastic 吞吐<br><small>NFSv4.1 · Phase 1 基准</small></div></div>
+      <div class="k"><div class="t">S3 Files</div><div class="v">新服务<br><small>NFSv4.2 · 挂版本控制桶</small></div></div>
+      <div class="k"><div class="t">JuiceFS</div><div class="v">Redis + S3<br><small>元数据 Redis · 数据 S3 · FUSE</small></div></div>
+      <div class="k"><div class="t">EBS gp3</div><div class="v">本地盘<br><small>8000 IOPS / 500 MB/s · 仅参考</small></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">1</span>解压性能 <span class="tag b">基准 = EFS</span></h2>
+    <p class="sub">单线程 <code>tar xf</code> 解压内核源码（101,062 文件）。EFS 为基准，EBS 因太快仅作观察参考。</p>
+    <table>
+      <thead><tr><th>存储</th><th>配置</th><th>解压耗时</th><th>相对 EFS</th><th>可视化</th></tr></thead>
+      <tbody>
+        <tr><td class="base">EFS</td><td>Elastic 吞吐, NFSv4.1</td><td><b>39分52秒</b> (2392s)</td><td class="base">1×（基准）</td>
+          <td><div class="bar-wrap"><div class="bar efs" style="width:66%"></div></div></td></tr>
+        <tr><td>S3 Files</td><td>NFSv4.2, 版本控制桶</td><td><b>40分08秒</b> (2408s)</td><td>~1.01×</td>
+          <td><div class="bar-wrap"><div class="bar s3f" style="width:66.5%"></div></div></td></tr>
+        <tr><td>JuiceFS</td><td>Redis 元数据 + S3 数据, FUSE</td><td><b>1小时00分17秒</b> (3617s)</td><td class="lose">~1.51×</td>
+          <td><div class="bar-wrap"><div class="bar juice" style="width:100%"></div></div></td></tr>
+        <tr><td class="ref">EBS gp3（仅参考）</td><td>本地, 8000 IOPS / 500 MB/s</td><td class="ref"><b>10.4 秒</b></td><td class="ref">~0.004×</td>
+          <td><div class="bar-wrap"><div class="bar ebs" style="width:1%"></div></div></td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>结论：</b>EFS 与 S3 Files 几乎持平（S3 Files ≈ 1.01× EFS）；JuiceFS 最慢（≈ 1.51× EFS），因为每个文件解压时还要经 Redis→S3 路径写一次对象。本地 EBS 只要 10 秒，快 2 个数量级，但仅作参考。</div>
+  </section>
+
+  <section>
+    <h2><span class="num">2</span>git clone 性能 <span class="tag b">基准 = S3 Files</span></h2>
+    <p class="sub">串行单线程 <code>git clone</code> <b>NixOS/nixpkgs</b>（92,712 文件）到各存储。以 S3 Files 为基准，EBS 仅作观察参考。</p>
+    <table>
+      <thead><tr><th>存储</th><th>clone 耗时</th><th>文件数</th><th>相对 S3 Files</th><th>可视化</th></tr></thead>
+      <tbody>
+        <tr><td class="base">S3 Files</td><td><b>17分16秒</b> (1035.7s)</td><td>92,712</td><td class="base">1×（基准）</td>
+          <td><div class="bar-wrap"><div class="bar s3f" style="width:52%"></div></div></td></tr>
+        <tr><td>EFS (Elastic)</td><td><b>16分49秒</b> (1009.2s)</td><td>92,712</td><td class="win">~0.97×</td>
+          <td><div class="bar-wrap"><div class="bar efs" style="width:51%"></div></div></td></tr>
+        <tr><td>JuiceFS</td><td><b>33分02秒</b> (1981.8s)</td><td>92,712</td><td class="lose">~1.91×</td>
+          <td><div class="bar-wrap"><div class="bar juice" style="width:100%"></div></div></td></tr>
+        <tr><td class="ref">EBS gp3（仅参考）</td><td class="ref"><b>5.0 秒</b></td><td>92,712</td><td class="ref">~0.005×</td>
+          <td><div class="bar-wrap"><div class="bar ebs" style="width:1%"></div></div></td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>结论：</b>EFS 与 S3 Files 几乎一致（EFS 略快 3%）；JuiceFS 约为 S3 Files 基准的 1.9 倍。clone 比 tar 快，是因为 git 流式写 pack、fsync 停顿更少，但海量小文件的元数据开销在所有网络存储上仍是主导瓶颈。</div>
+  </section>
+
+  <section>
+    <h2><span class="num">3</span>月成本估算 <span class="tag r">500 GB / 月 · us-east-2</span></h2>
+    <p class="sub">费率取自 AWS Pricing API 官方 us-east-2 价格（2026 年 9 月）。假设：每月存储并写入 500 GB、读取 500 GB（1 次全量读）；S3 Files 高性能层活跃集 = 全部 500 GB；JuiceFS 默认 4 MiB 块 → 500 GB ≈ 128,000 个对象（写 128k PUT + 读 128k GET）；JuiceFS 的 Redis 独占一台 c7i.4xlarge 全天候（720 小时）运行 + 30 GB gp3 系统盘。</p>
+    <table>
+      <thead><tr><th>存储</th><th>存储费</th><th>吞吐 / 请求费</th><th>计算(Redis)</th><th>月总计</th></tr></thead>
+      <tbody>
+        <tr><td class="base">EFS (Elastic)</td><td>$150.00</td><td>$45.00<br><small>(写 30 + 读 15)</small></td><td>—</td><td class="win"><b>$195.00</b></td></tr>
+        <tr><td>S3 Files</td><td>$161.50<br><small>($11.5 S3 + $150 高性能层)</small></td><td>$45.69<br><small>(写30 + 读15 + 请求0.69)</small></td><td>—</td><td><b>$207.19</b></td></tr>
+        <tr><td>JuiceFS</td><td>$11.50<br><small>(S3 Standard)</small></td><td>$0.69<br><small>(128k PUT + 128k GET)</small></td><td class="lose">$516.48<br><small>($514 EC2 + $2.4 EBS)</small></td><td class="lose"><b>$528.67</b></td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>关键：JuiceFS 的隐性成本陷阱。</b>只看"存储 + IO"，JuiceFS 便宜到离谱（约 $12/月，只付 S3 Standard），EFS（$195）也略优于 S3 Files（$207）。但 <b>独占的 Redis EC2 是 JuiceFS 的隐性 TCO 大头</b>——一台 c7i.4xlarge 全天候运行每月 ~$514，直接把 JuiceFS 顶到 <b>$529/月，成为三者中最贵</b>，约为全托管 EFS 的 2.7 倍。托管的 EFS / S3 Files 没有这个"计算底座"成本，所以在 500 GB 这种中小规模决定性胜出。JuiceFS 只有在多 TB / PB 级、固定元数据节点成本被摊薄后才有经济性——而且那时你会合理调优（或共用）元数据节点，而不是独占一台 c7i.4xlarge。<b>500 GB 规模，EFS 是最划算的理性选择；JuiceFS 只有在无视其必需的元数据服务器时才"最便宜"。</b></div>
+  </section>
+
+  <section>
+    <h2><span class="num">✓</span>总体要点</h2>
+    <ul class="take">
+      <li>本地 EBS 秒级完成 ~10 万文件的解压/克隆；所有网络存储都慢 2 个数量级以上——瓶颈是<b>逐文件元数据网络往返延迟</b>，不是带宽（单线程把每个小文件的 create 串行化了）。</li>
+      <li><b>性能</b>：EFS ≈ S3 Files（两项测试都咬得很紧）；JuiceFS 明显落后（解压 1.5×、clone 1.9×），FUSE + Redis 往返 + S3 分块写在海量小文件场景吃亏。</li>
+      <li><b>成本</b>：500 GB 规模下 EFS（$195）最省，S3 Files（$207）接近；JuiceFS 因独占 Redis EC2 反而最贵（$529）。</li>
+      <li><b>选型</b>：中小规模（≤ 数 TB、小文件密集）优先托管的 EFS；JuiceFS 的经济性只在多 TB/PB 级、元数据节点成本被摊薄时才体现。</li>
+    </ul>
+  </section>
+
+  <footer>
+    数据来源：AllenXieSZ/storage · kernel-untar-bench-4way · 2026-09-14<br>
+    <a href="https://github.com/AllenXieSZ/storage/tree/main/kernel-untar-bench-4way">https://github.com/AllenXieSZ/storage/tree/main/kernel-untar-bench-4way</a>
+  </footer>
+
+</div>
+</body>
+</html>
