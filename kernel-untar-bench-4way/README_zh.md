@@ -14,7 +14,8 @@
 | 方法 | 每轮前清空 page cache（`echo 3 > drop_caches`），记录墙钟时间 |
 
 存储后端：
-- **EFS** —— Elastic 吞吐模式，NFSv4.1（Phase 1 基准）
+- **EFS (Elastic)** —— Elastic 吞吐模式，NFSv4.1（Phase 1 基准）
+- **EFS (Bursting)** —— Bursting 突发吞吐模式，NFSv4.1
 - **EBS gp3** —— 本地系统盘，预置 8000 IOPS / 500 MB/s（仅作参考，太快不适合当基准）
 - **S3 Files** —— 新服务，NFSv4.2，挂载到开启版本控制的 S3 桶（prefix `s3files/`）
 - **JuiceFS** —— Redis 元数据（第二台 EC2）+ S3 数据后端，FUSE 挂载
@@ -25,7 +26,8 @@ EFS 为基准；EBS 因太快仅作观察参考。
 
 | 存储 | 配置 | 解压耗时 | 文件数 | 相对 EFS |
 |---|---|---|---|---|
-| EFS | Elastic 吞吐, NFSv4.1 | **39分52秒** (2392s) | 101,062 | 1×（基准） |
+| EFS (Elastic) | Elastic 吞吐, NFSv4.1 | **39分52秒** (2392s) | 101,062 | 1×（基准） |
+| EFS (Bursting) | Bursting 吞吐, NFSv4.1 | **41分37秒** (2497s) | 101,062 | ~1.04× |
 | S3 Files | NFSv4.2, 版本控制桶 | **40分08秒** (2408s) | 101,062 | ~1.01× |
 | JuiceFS | Redis 元数据 + S3 数据, FUSE | **1小时00分17秒** (3617s) | 101,062 | ~1.51× |
 | EBS gp3（仅参考，非基准） | 本地, 8000 IOPS / 500 MB/s | **10.4 秒** | 101,062 | ~0.004× |
@@ -38,6 +40,7 @@ EFS 为基准；EBS 因太快仅作观察参考。
 |---|---|---|---|
 | S3 Files | **17分16秒** (1035.7s) | 92,712 | 1×（基准） |
 | EFS (Elastic) | **16分49秒** (1009.2s) | 92,712 | ~0.97× |
+| EFS (Bursting) | **16分32秒** (992.0s) | 92,725 | ~0.96× |
 | JuiceFS | **33分02秒** (1981.8s) | 92,712 | ~1.91× |
 | EBS gp3（仅参考，非基准） | **5.0 秒** | 92,712 | ~0.005× |
 
@@ -46,7 +49,8 @@ EFS 为基准；EBS 因太快仅作观察参考。
 本地 EBS 秒级完成这棵 ~10 万文件的目录树；所有网络存储都慢 2 个数量级以上——因为单线程会把每个小文件的 create 串行化，每次都对应一次元数据网络往返，**瓶颈是逐文件延迟，不是带宽**。
 
 - **Phase 1（`tar xf`，基准 = EFS）**：EFS 与 S3 Files 咬得很紧（S3 Files ≈ 1.01× EFS）；JuiceFS 最慢（约 60 分钟，≈ 1.51× EFS），因为每个文件解压时还要经 Redis→S3 路径写一次对象。EBS 快 2 个数量级（10 秒），但仅作参考。
-- **Phase 2（`git clone`）**：EFS 与 S3 Files 几乎一致（EFS 略快 3%）；JuiceFS 约为 S3 Files 基准的 1.9 倍。clone 比 tar 快，是因为 git 流式写 pack、fsync 停顿更少，但海量小文件的元数据开销在所有网络存储上仍是主导瓶颈。
+- **Phase 2（`git clone`）**：EFS（Elastic 与 Bursting）与 S3 Files 几乎一致（约 16~17 分钟）；JuiceFS 约为 S3 Files 基准的 1.9 倍。clone 比 tar 快，是因为 git 流式写 pack、fsync 停顿更少，但海量小文件的元数据开销在所有网络存储上仍是主导瓶颈。
+- **EFS Bursting vs Elastic**：对这种小而短的负载，Bursting 性能与 Elastic 基本一致（解压 ≈ 1.04× Elastic，clone ≈ 0.96×）——全新/空的 EFS 起步就带满额突发信用，本次吞吐没被限速。但 Bursting **更便宜**：$150/月（纯存储，无单独吞吐费）vs Elastic 的 $195/月。代价：Bursting 的 baseline 吞吐仅为每 GB 存储 50 KB/s，在持续高吞吐的大规模场景下（突发信用耗尽后）会被严重限速，而 Elastic 按需弹性扩展吞吐。**小规模/突发型负载 Bursting 成本占优；持续重 I/O 场景 Elastic（或 Provisioned）更稳妥。**
 
 ## Phase 3：月成本估算 —— 每月存储/写入 500 GB（us-east-2）
 
@@ -70,6 +74,7 @@ EFS 为基准；EBS 因太快仅作观察参考。
 | 存储 | 存储费 | 吞吐 / 请求费 | 计算(Redis) | **月总计** |
 |---|---|---|---|---|
 | EFS (Elastic) | $150.00 | $45.00（写 30 + 读 15） | — | **$195.00** |
+| EFS (Bursting) | $150.00 | —（已含在存储费中） | — | **$150.00** |
 | S3 Files | $161.50（$11.5 S3 + $150 高性能层） | $45.69（写30 + 读15 + 请求0.69） | — | **$207.19** |
 | JuiceFS | $11.50（S3 Standard） | $0.69（128k PUT + 128k GET） | $516.48（$514.08 EC2 + $2.40 EBS） | **$528.67** |
 

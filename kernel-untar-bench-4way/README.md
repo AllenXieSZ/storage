@@ -14,7 +14,8 @@ Single-threaded `tar xf` extraction of the Linux kernel source across four stora
 | Method | drop page caches (`echo 3 > drop_caches`) before each run, wall-clock time |
 
 Backends:
-- **EFS** — Elastic Throughput mode, NFSv4.1 (Phase 1 baseline)
+- **EFS (Elastic)** — Elastic Throughput mode, NFSv4.1 (Phase 1 baseline)
+- **EFS (Bursting)** — Bursting Throughput mode, NFSv4.1
 - **EBS gp3** — local root volume, provisioned 8000 IOPS / 500 MB/s (reference only, too fast to be a fair baseline)
 - **S3 Files** — new service, NFSv4.2, linked to a versioned S3 bucket (prefix `s3files/`)
 - **JuiceFS** — Redis metadata (on the 2nd EC2) + S3 data backend, FUSE mount
@@ -25,7 +26,8 @@ EFS is the baseline; EBS is an observational reference only (too fast to be a fa
 
 | Storage | Config | Extract time | Files | Relative to EFS |
 |---|---|---|---|---|
-| EFS | Elastic Throughput, NFSv4.1 | **39 m 52 s** (2392 s) | 101,062 | 1× (baseline) |
+| EFS (Elastic) | Elastic Throughput, NFSv4.1 | **39 m 52 s** (2392 s) | 101,062 | 1× (baseline) |
+| EFS (Bursting) | Bursting Throughput, NFSv4.1 | **41 m 37 s** (2497 s) | 101,062 | ~1.04× |
 | S3 Files | NFSv4.2, versioned bucket | **40 m 8 s** (2408 s) | 101,062 | ~1.01× |
 | JuiceFS | Redis meta + S3 data, FUSE | **1 h 0 m 17 s** (3617 s) | 101,062 | ~1.51× |
 | EBS gp3 (reference only, not baseline) | local, 8000 IOPS / 500 MB/s | **10.4 s** | 101,062 | ~0.004× |
@@ -38,6 +40,7 @@ Serial single-threaded `git clone` of **NixOS/nixpkgs** (92,712 files, shallow) 
 |---|---|---|---|
 | S3 Files | **17 m 16 s** (1035.7 s) | 92,712 | 1× (baseline) |
 | EFS (Elastic) | **16 m 49 s** (1009.2 s) | 92,712 | ~0.97× |
+| EFS (Bursting) | **16 m 32 s** (992.0 s) | 92,725 | ~0.96× |
 | JuiceFS | **33 m 2 s** (1981.8 s) | 92,712 | ~1.91× |
 | EBS gp3 (reference only, not baseline) | **5.0 s** | 92,712 | ~0.005× |
 
@@ -46,7 +49,8 @@ Serial single-threaded `git clone` of **NixOS/nixpkgs** (92,712 files, shallow) 
 Local EBS extracts/clones the ~100k-file tree in seconds. Every network-backed store is 2+ orders of magnitude slower because single-threaded work serializes one small-file create per metadata round-trip — the bottleneck is per-file latency, not bandwidth.
 
 - **Phase 1 (`tar xf`, baseline = EFS):** EFS and S3 Files land close (~40 min, S3 Files ~1.01× EFS); JuiceFS slowest (~60 min, ~1.51× EFS), since each file also drives an object write through the Redis→S3 path. EBS is orders of magnitude faster (10 s) but shown only as a reference.
-- **Phase 2 (`git clone`):** EFS and S3 Files are nearly identical (~17 min, EFS marginally faster); JuiceFS is ~1.9× the S3 Files baseline. Clone is faster than tar because git streams the pack and writes the working tree with fewer fsync stalls, but the small-file metadata cost still dominates on all network stores.
+- **Phase 2 (`git clone`):** EFS (Elastic & Bursting) and S3 Files are nearly identical (~16–17 min); JuiceFS is ~1.9× the S3 Files baseline. Clone is faster than tar because git streams the pack and writes the working tree with fewer fsync stalls, but the small-file metadata cost still dominates on all network stores.
+- **EFS Bursting vs Elastic:** performance is essentially the same as Elastic for this small, short workload (untar ~1.04× Elastic, clone ~0.96×) — a fresh/empty EFS starts with a full burst-credit balance, so throughput is not throttled here. But Bursting is **cheaper**: $150/mo (storage only, no separate throughput fee) vs Elastic's $195/mo. The trade-off: Bursting's baseline is only 50 KB/s per GB stored, so at sustained high-throughput scale (once burst credits deplete) it can be throttled hard, whereas Elastic scales throughput on demand. For small or bursty workloads Bursting wins on cost; for sustained heavy I/O, Elastic (or Provisioned) is safer.
 
 ## Phase 3: Monthly cost estimate — 500 GB stored/written per month (us-east-2)
 
@@ -70,6 +74,7 @@ All rates are official AWS us-east-2 rates pulled from the AWS Pricing API (Sept
 | Storage | Storage cost | Throughput / request cost | Compute (Redis) | **TOTAL $/mo** |
 |---|---|---|---|---|
 | EFS (Elastic) | $150.00 | $45.00 (30 write + 15 read) | — | **$195.00** |
+| EFS (Bursting) | $150.00 | — (included in storage) | — | **$150.00** |
 | S3 Files | $161.50 ($11.50 S3 + $150 layer) | $45.69 (30 write + 15 read + $0.69 req) | — | **$207.19** |
 | JuiceFS | $11.50 (S3 Standard) | $0.69 (128k PUT + 128k GET) | $516.48 ($514.08 EC2 + $2.40 EBS) | **$528.67** |
 
