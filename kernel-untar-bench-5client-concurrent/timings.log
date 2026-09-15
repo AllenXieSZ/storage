@@ -1,0 +1,43 @@
+# Phase 1: tar xf linux-7.2.5.tar.xz (5 clients concurrent)
+RESULT client=1 store=efsburst seconds=2310.097680653 files=94758
+RESULT client=2 store=efsburst seconds=2314.571221213 files=94758
+RESULT client=3 store=efsburst seconds=2256.484773280 files=94758
+RESULT client=4 store=efsburst seconds=2289.465826699 files=94758
+RESULT client=5 store=efsburst seconds=2235.309666172 files=94758
+RESULT client=1 store=efselastic seconds=2438.785850154 files=94758
+RESULT client=2 store=efselastic seconds=2428.868392423 files=94758
+RESULT client=3 store=efselastic seconds=2407.013834547 files=94758
+RESULT client=4 store=efselastic seconds=2434.513978632 files=94758
+RESULT client=5 store=efselastic seconds=2401.708983984 files=94758
+RESULT client=1 store=s3files seconds=2457.803772074 files=94758
+RESULT client=2 store=s3files seconds=2448.894577827 files=94758
+RESULT client=3 store=s3files seconds=2431.757842706 files=94758
+RESULT client=4 store=s3files seconds=2436.005104260 files=94758
+RESULT client=5 store=s3files seconds=2440.549347706 files=94758
+RESULT client=1 store=juicefs seconds=3813.452470573 files=94758
+RESULT client=2 store=juicefs seconds=3757.445604356 files=94758
+RESULT client=3 store=juicefs seconds=3859.886258923 files=94758
+RESULT client=4 store=juicefs seconds=3739.967378939 files=94758
+RESULT client=5 store=juicefs seconds=3814.229373951 files=94758
+
+# Phase 2: git clone nixpkgs (5 clients concurrent)
+RESULT client=1 store=efsburst seconds=936.815897505 files=54447
+RESULT client=2 store=efsburst seconds=938.071891175 files=54447
+RESULT client=3 store=efsburst seconds=905.443146046 files=54447
+RESULT client=4 store=efsburst seconds=929.125714888 files=54447
+RESULT client=5 store=efsburst seconds=903.295382929 files=54447
+RESULT client=1 store=efselastic seconds=1039.023902093 files=54447
+RESULT client=2 store=efselastic seconds=1047.623439577 files=54447
+RESULT client=3 store=efselastic seconds=1032.030680232 files=54447
+RESULT client=4 store=efselastic seconds=1024.841708010 files=54447
+RESULT client=5 store=efselastic seconds=998.209383768 files=54447
+RESULT client=1 store=s3files seconds=1061.502042780 files=54447
+RESULT client=2 store=s3files seconds=1055.085447208 files=54447
+RESULT client=3 store=s3files seconds=1051.031001601 files=54447
+RESULT client=4 store=s3files seconds=1050.861658263 files=54447
+RESULT client=5 store=s3files seconds=1047.392669225 files=54447
+RESULT client=1 store=juicefs seconds=2015.041837507 files=54447
+RESULT client=2 store=juicefs seconds=2000.095292182 files=54447
+RESULT client=3 store=juicefs seconds=2028.412957226 files=54447
+RESULT client=4 store=juicefs seconds=1954.758271767 files=54447
+RESULT client=5 store=juicefs seconds=2016.030449121 files=54447
