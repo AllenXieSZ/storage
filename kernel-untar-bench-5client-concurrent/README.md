@@ -26,21 +26,21 @@ Per-client counts: Phase 1 = **94,758 files/client** (tar); Phase 2 = **54,447 f
 
 ## Results — Phase 1: `tar xf` (5 clients concurrent)
 
-| Storage | fastest client | mean | **slowest (concurrent done)** | files/client |
-|---|---|---|---|---|
-| EFS (Bursting) | 2235.3 s | 2281.2 s | **2314.6 s** (38 m 35 s) | 94,758 |
-| EFS (Elastic) | 2401.7 s | 2422.2 s | **2438.8 s** (40 m 39 s) | 94,758 |
-| S3 Files | 2431.8 s | 2443.0 s | **2457.8 s** (40 m 58 s) | 94,758 |
-| JuiceFS | 3740.0 s | 3797.0 s | **3859.9 s** (1 h 4 m 20 s) | 94,758 |
+| Storage | fastest client | mean | **slowest (concurrent done)** | vs EFS Bursting | files/client |
+|---|---|---|---|---|---|
+| EFS (Bursting) | 2235.3 s | 2281.2 s | **2314.6 s** (38 m 35 s) | **1.00×** (baseline) | 94,758 |
+| EFS (Elastic) | 2401.7 s | 2422.2 s | **2438.8 s** (40 m 39 s) | 1.05× | 94,758 |
+| S3 Files | 2431.8 s | 2443.0 s | **2457.8 s** (40 m 58 s) | 1.06× | 94,758 |
+| JuiceFS | 3740.0 s | 3797.0 s | **3859.9 s** (1 h 4 m 20 s) | 1.67× | 94,758 |
 
 ## Results — Phase 2: `git clone` (5 clients concurrent)
 
-| Storage | fastest client | mean | **slowest (concurrent done)** | files/client |
-|---|---|---|---|---|
-| EFS (Bursting) | 903.3 s | 922.6 s | **938.1 s** (15 m 38 s) | 54,447 |
-| EFS (Elastic) | 998.2 s | 1028.3 s | **1047.6 s** (17 m 28 s) | 54,447 |
-| S3 Files | 1047.4 s | 1053.2 s | **1061.5 s** (17 m 42 s) | 54,447 |
-| JuiceFS | 1954.8 s | 2002.9 s | **2028.4 s** (33 m 48 s) | 54,447 |
+| Storage | fastest client | mean | **slowest (concurrent done)** | vs EFS Bursting | files/client |
+|---|---|---|---|---|---|
+| EFS (Bursting) | 903.3 s | 922.6 s | **938.1 s** (15 m 38 s) | **1.00×** (baseline) | 54,447 |
+| EFS (Elastic) | 998.2 s | 1028.3 s | **1047.6 s** (17 m 28 s) | 1.12× | 54,447 |
+| S3 Files | 1047.4 s | 1053.2 s | **1061.5 s** (17 m 42 s) | 1.13× | 54,447 |
+| JuiceFS | 1954.8 s | 2002.9 s | **2028.4 s** (33 m 48 s) | 2.16× | 54,447 |
 
 ## Concurrency scaling vs single-client baseline
 
