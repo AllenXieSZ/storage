@@ -89,3 +89,26 @@ just drive five parallel pipelines against the shared backend.
 At 5 clients on a fresh filesystem, EFS Bursting is both the fastest and the cheapest (no separate
 throughput fee); JuiceFS trails on raw speed but scales cleanly and its cost story depends on the
 dedicated Redis node (see the 4-way report's cost section).
+
+## Cost estimate (monthly storage cost, us-east-2)
+
+Monthly storage cost for the 4 storages at **1 TB / 10 TB / 50 TB** (1 TB = 1024 GB).
+
+**Unit prices (us-east-2 official list price, storage only):**
+- EFS Standard storage: $0.30/GB-month (Bursting and Elastic share the same storage price)
+- S3 Standard storage: $0.023/GB-month
+- JuiceFS: data stored on S3 Standard at $0.023/GB-month + one always-on metadata Redis node (this test used c7i.4xlarge on-demand ≈ $0.714/hr × 730 hr ≈ **$521/month fixed cost**, independent of data size)
+
+| Storage | 1 TB | 10 TB | 50 TB |
+|---|---|---|---|
+| EFS (Bursting) | $307.20 | $3,072.00 | $15,360.00 |
+| EFS (Elastic) | $307.20 | $3,072.00 | $15,360.00 |
+| S3 Files | $23.55 | $235.52 | $1,177.60 |
+| JuiceFS | $544.55 | $756.52 | $1,698.60 |
+
+**Notes:**
+- This table is **storage cost only** — it excludes request charges, EFS throughput charges, data-transfer fees, and S3 request/retrieval fees.
+- EFS Bursting and Elastic share the same storage price ($0.30/GB-month); they differ only in throughput billing, so storage cost is identical.
+- S3 Files is S3 Standard underneath, so it has the lowest storage cost.
+- JuiceFS data storage matches S3 ($0.023/GB-month) but adds the fixed cost of one always-on Redis node (~$521/month); the smaller the dataset, the more this fixed cost dominates.
+- ⚠️ Unit prices may change over time; refer to the AWS official pricing page for current rates.
