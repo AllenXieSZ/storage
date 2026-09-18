@@ -1,0 +1,8 @@
+storage,variant,tar_sec,files,rc,mountopts
+EBS,optimized_noatime_xfs,10.124904052,101062,0,"local xfs rw,noatime (root vol)"
+EFS,optimized_tls_noatime_1M,2667.145734718,101062,0,"/mnt/efs_opt from 127.0.0.1:/  Flags:	rw,noatime,nodiratime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,hard,noresvport,fatal_neterrors=none,proto=tcp,port=20825,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1  "
+EFS,optimized_actimeo600_tls,2575.757125912,101062,0,"/mnt/efs_act from 127.0.0.1:/  Flags:	rw,noatime,nodiratime,vers=4.1,rsize=1048576,wsize=1048576,namlen=255,acregmin=600,acregmax=600,acdirmin=600,acdirmax=600,hard,noresvport,fatal_neterrors=none,proto=tcp,port=20938,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1  "
+EFS,nconnect16_rawnfs_notls,PATHOLOGICAL_KILLED_38min_only_3files,3,124,"raw nfs4 nconnect=16 notls; verified 16 TCP conns; ~3 files in 38min => aborted"
+S3Files,optimized_tls_iam_noatime_1M,2354.816829039,101062,0,"/mnt/s3files_opt from 127.0.0.1:/  Flags:	rw,noatime,nodiratime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,noresvport,fatal_neterrors=none,proto=tcp,port=20094,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1  "
+S3Files,optimized_actimeo600_tls_iam,2391.350742924,101062,0,"/mnt/s3files_act from 127.0.0.1:/  Flags:	rw,noatime,nodiratime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,acregmin=600,acregmax=600,acdirmin=600,acdirmax=600,hard,noresvport,fatal_neterrors=none,proto=tcp,port=20603,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1  "
+JuiceFS,optimized_writeback_caches,135.871317106,101062,0,"writeback,attr-cache=300,entry-cache=300,dir-entry-cache=300,cache-size=10240,buffer-size=1024"
