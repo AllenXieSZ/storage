@@ -13,3 +13,12 @@ S3Files|/mnt/s3files|1035.667255790|92712|rc=0
 EFS-Elastic|/mnt/efs|1009.153281685|92712|rc=0
 JuiceFS|/mnt/juicefs|1981.813062581|92712|rc=0
 EBS-gp3|/mnt/ebs|4.995824911|92712|rc=0
+
+=== Phase 4: npm install (66513 files, default vs optimized mount) ===
+EBS-gp3|/mnt/ebs|13.1|66513|rc=0|noatime(ref)
+EFS-Elastic|default(tls)|223.1|66513|rc=0
+EFS-Elastic|optimized(noatime,rsize/wsize=1M,actimeo=600)|228.8|66513|rc=0|-2.6%
+S3Files|default(tls,iam)|239.4|66513|rc=0
+S3Files|optimized|238.8|66513|rc=0|+0.3%
+JuiceFS|default(redis+S3)|432.1|66513|rc=0
+JuiceFS|optimized(writeback+cache)|103.1|66513|rc=0|+76.1%

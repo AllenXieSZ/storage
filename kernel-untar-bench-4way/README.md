@@ -52,6 +52,26 @@ Local EBS extracts/clones the ~100k-file tree in seconds. Every network-backed s
 - **Phase 2 (`git clone`):** EFS (Elastic & Bursting) and S3 Files are nearly identical (~16–17 min); JuiceFS is ~1.9× the S3 Files baseline. Clone is faster than tar because git streams the pack and writes the working tree with fewer fsync stalls, but the small-file metadata cost still dominates on all network stores.
 - **EFS Bursting vs Elastic:** performance is essentially the same as Elastic for this small, short workload (untar ~1.04× Elastic, clone ~0.96×) — a fresh/empty EFS starts with a full burst-credit balance, so throughput is not throttled here. But Bursting is **cheaper**: $150/mo (storage only, no separate throughput fee) vs Elastic's $195/mo. The trade-off: Bursting's baseline is only 50 KB/s per GB stored, so at sustained high-throughput scale (once burst credits deplete) it can be throttled hard, whereas Elastic scales throughput on demand. For small or bursty workloads Bursting wins on cost; for sustained heavy I/O, Elastic (or Provisioned) is safer.
 
+## Results — Phase 4: `npm install` (default vs optimized mount)
+
+Single-run `npm install` of a heavyweight front-end dep tree (**66,513 files**), comparing **default vs optimized mount** options per network store (`noatime,rsize/wsize=1M,actimeo=600`; JuiceFS uses `--writeback`+cache). npm cache primed on local EBS then `--prefer-offline`, so only filesystem/metadata cost is measured. Page caches dropped between runs. EBS is an observational reference only.
+
+| Storage | Mount (default/optimized) | npm install time | Files | Optimized vs default |
+|---|---|---|---|---|
+| EFS (Elastic) | default (`tls`) | **3 m 43 s** (223.1s) | 66,513 | — (baseline) |
+| EFS (Elastic) | optimized (`noatime,rsize/wsize=1M,actimeo=600`) | **3 m 49 s** (228.8s) | 66,513 | **−2.6% (no gain)** |
+| S3 Files | default (`tls,iam`) | **3 m 59 s** (239.4s) | 66,513 | — (baseline) |
+| S3 Files | optimized (same opts) | **3 m 59 s** (238.8s) | 66,513 | **+0.3% (no gain)** |
+| JuiceFS | default (redis + S3, FUSE) | **7 m 12 s** (432.1s) | 66,513 | — (baseline) |
+| JuiceFS | optimized (`--writeback`+cache) | **1 m 43 s** (103.1s) | 66,513 | **76.1% faster** |
+| EBS gp3 (reference only) | local, noatime | **13.1 s** | 66,513 | ~0.03× |
+
+**Phase 4 — two key findings:**
+- **① NFS-class (EFS/S3 Files): optimized mount options do essentially nothing (±3%).** npm install is write/create-dominated; each `mkdir`/`open(O_CREAT)`/`rename` is a synchronous metadata round-trip. `noatime`/`rsize`/`actimeo` tune read/attr-cache and never touch it; `nconnect` is silently ignored under `-o tls`.
+- **② JuiceFS `--writeback` is the only effective optimization (−76%, 7m12s → 1m43s).** Async writes (local buffer first, background S3 upload) take S3 latency off the critical path, even beating both NFS stores. Trade-off: relaxed durability, rebuildable node_modules only.
+
+> Full Phase 4 report (with comparison chart) at [`../kernel-untar-bench-phase3-npm/`](../kernel-untar-bench-phase3-npm/).
+
 ## Phase 3: Monthly cost estimate — 500 GB stored/written per month (us-east-2)
 
 All rates are official AWS us-east-2 rates pulled from the AWS Pricing API (Sept 2026):

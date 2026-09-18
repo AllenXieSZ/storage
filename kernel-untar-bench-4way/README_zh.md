@@ -52,6 +52,26 @@ EFS 为基准；EBS 因太快仅作观察参考。
 - **Phase 2（`git clone`）**：EFS（Elastic 与 Bursting）与 S3 Files 几乎一致（约 16~17 分钟）；JuiceFS 约为 S3 Files 基准的 1.9 倍。clone 比 tar 快，是因为 git 流式写 pack、fsync 停顿更少，但海量小文件的元数据开销在所有网络存储上仍是主导瓶颈。
 - **EFS Bursting vs Elastic**：对这种小而短的负载，Bursting 性能与 Elastic 基本一致（解压 ≈ 1.04× Elastic，clone ≈ 0.96×）——全新/空的 EFS 起步就带满额突发信用，本次吞吐没被限速。但 Bursting **更便宜**：$150/月（纯存储，无单独吞吐费）vs Elastic 的 $195/月。代价：Bursting 的 baseline 吞吐仅为每 GB 存储 50 KB/s，在持续高吞吐的大规模场景下（突发信用耗尽后）会被严重限速，而 Elastic 按需弹性扩展吞吐。**小规模/突发型负载 Bursting 成本占优；持续重 I/O 场景 Elastic（或 Provisioned）更稳妥。**
 
+## 结果 —— Phase 4：`npm install`（默认 vs 优化挂载参数）
+
+单次 `npm install` 一套重量级前端依赖树（**66,513 文件**），每种网络存储比较**默认挂载 vs 优化挂载**参数（`noatime,rsize/wsize=1M,actimeo=600`；JuiceFS 用 `--writeback`+缓存）。npm 缓存在本地 EBS 预热后用 `--prefer-offline`，只测文件系统落盘/元数据开销。每轮前清空 page cache。EBS 仅作观察参考。
+
+| 存储 | 挂载（默认/优化） | npm install 耗时 | 文件数 | 优化 vs 默认 |
+|---|---|---|---|---|
+| EFS (Elastic) | 默认 (`tls`) | **3分43秒** (223.1s) | 66,513 | —（基准） |
+| EFS (Elastic) | 优化 (`noatime,rsize/wsize=1M,actimeo=600`) | **3分49秒** (228.8s) | 66,513 | **−2.6%（无增益）** |
+| S3 Files | 默认 (`tls,iam`) | **3分59秒** (239.4s) | 66,513 | —（基准） |
+| S3 Files | 优化 (同上参数) | **3分59秒** (238.8s) | 66,513 | **+0.3%（无增益）** |
+| JuiceFS | 默认 (redis + S3, FUSE) | **7分12秒** (432.1s) | 66,513 | —（基准） |
+| JuiceFS | 优化 (`--writeback`+缓存) | **1分43秒** (103.1s) | 66,513 | **快 76.1%** |
+| EBS gp3（仅参考，非基准） | 本地, noatime | **13.1 秒** | 66,513 | ~0.03× |
+
+**Phase 4 两点结论：**
+- **① NFS 类（EFS/S3 Files）优化挂载参数几乎无用（±3%）**：npm install 以写/create 为主，每个 `mkdir`/`open(O_CREAT)`/`rename` 都是同步元数据往返，`noatime`/`rsize`/`actimeo` 优化的是读/属性缓存，碰不到这堵墙；`nconnect` 在 `-o tls` 下还被静默忽略。
+- **② JuiceFS `--writeback` 是唯一有效优化（−76%，7分12秒→1分43秒）**：写异步化（先落本地缓冲、后台上传 S3），把 S3 延迟移出关键路径，甚至反超两个 NFS 存储、逼近本地盘速度。代价是持久性放宽，仅适合可重建的 node_modules。
+
+> 完整 Phase 4 报告（含对比图）见 [`../kernel-untar-bench-phase3-npm/`](../kernel-untar-bench-phase3-npm/)。
+
 ## Phase 3：月成本估算 —— 每月存储/写入 500 GB（us-east-2）
 
 所有费率取自 AWS Pricing API 官方 us-east-2 价格（2026 年 9 月）：
