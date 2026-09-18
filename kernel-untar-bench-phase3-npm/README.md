@@ -23,6 +23,9 @@ The dependency set: react, react-dom, vue, next, @mui/material, @emotion, antd, 
 
 ## Results — npm install time (EBS = reference)
 
+![npm install: default vs optimized mount](phase3_npm_compare.png)
+
+
 | Storage | Mount (default / optimized) | npm install time | Files | Optimized vs default |
 |---|---|---|---|---|
 | **EBS gp3** | local, noatime (reference only) | **13.1 s** | 66,513 | — (single run) |
@@ -35,7 +38,12 @@ The dependency set: react, react-dom, vue, next, @mui/material, @emotion, antd, 
 
 ## Verdict — does mount tuning help npm install?
 
-**It depends entirely on where the bottleneck lives.**
+**It depends entirely on where the bottleneck lives. Two key findings:**
+
+> **① NFS-class stores (EFS / S3 Files): optimized mount options do essentially nothing (±3%).** The bottleneck is the per-file **synchronous metadata round-trip** (mkdir/create/rename/write each wait for a server ACK). `noatime`/`rsize/wsize=1M`/`actimeo` tune read/attribute-cache behavior and never touch that wall; `nconnect` is also silently ignored under `-o tls`.
+>
+> **② JuiceFS `--writeback` is the only optimization that actually works (−76%, 7m12s → 1m43s).** It makes data writes asynchronous (local buffer first, background S3 upload), taking S3 latency off the critical path — even beating both NFS stores and nearing local-disk speed. Trade-off: relaxed durability, fine for rebuildable node_modules only.
+
 
 - **EFS / S3 Files: mount tuning does essentially nothing (±3%).** Both are NFS (v4.1 / v4.2) over the EFS-utils stunnel socket. The standard NFS knobs — `noatime`, `nodiratime`, `rsize/wsize=1M`, `actimeo=600` — target **read/attribute-cache** behavior. But npm install is **write- and create-dominated**: `mkdir`, `open(O_CREAT)`, `write`, `rename`, `symlink`. Each of those is a **synchronous COMMIT/metadata round-trip that the NFS client cannot cache away** — the protocol requires the server to acknowledge the create before npm proceeds. Larger `rsize/wsize` help big sequential reads, not thousands of ~2 KB file creates; attribute caching helps repeated `stat` of the *same* file, which npm barely does. So the per-file latency wall stays exactly where it was. (Note: `nconnect` is silently ignored under `-o tls`/stunnel — a single socket — so it cannot parallelize the round-trips either.)
 

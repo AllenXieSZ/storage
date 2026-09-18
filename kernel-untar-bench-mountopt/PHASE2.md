@@ -20,6 +20,8 @@ Measured with `/usr/bin/time -v`. Compared against Phase-1 **default-mount** bas
 
 ## Results
 
+![git clone: default vs optimized mount](phase2_gitclone_compare.png)
+
 | Storage   | Optimized mount            | git clone time | files | Improvement vs default baseline |
 |-----------|----------------------------|---------------:|------:|--------------------------------:|
 | EBS       | noatime (local gp3)        |        5.11 s  | 92815 |  -2.2 %  (baseline 5.0 s)  |
@@ -29,11 +31,12 @@ Measured with `/usr/bin/time -v`. Compared against Phase-1 **default-mount** bas
 
 ## Verdict
 
-**Mount-option tuning does NOT help `git clone` for NFS-backed filesystems (EFS, S3 Files).**
-`git clone` into these stores is dominated by **per-file synchronous metadata round-trips** (create,
-write, close, rename of ~92k small objects). Larger `rsize/wsize` only help large sequential I/O — the
-working set here is tiny files — and `noatime`/`actimeo` reduce *read* revalidation, which a fresh clone
-(pure writes) barely touches. Net effect for EFS/S3 Files is within noise (±1–2 %).
+**Two key findings:**
+
+> **① NFS-backed stores (EFS / S3 Files): mount-option tuning does NOT help `git clone` (±1–2%).** The bottleneck is per-file synchronous metadata round-trips over ~92k small files; larger `rsize/wsize` only help sequential I/O, and `noatime`/`actimeo` reduce read revalidation which a fresh (pure-write) clone barely touches.
+>
+> **② JuiceFS `--writeback` is the only effective optimization (+78.6%, 1982 s → 424 s, ~4× faster).** It ACKs writes to local cache and uploads to S3 async, so git's synchronous small writes stop blocking on S3 latency. Trade-off: relaxed durability, regenerable/scratch data only.
+
 
 **JuiceFS is the exception: `--writeback` cuts clone time ~4× (1982 s → 424 s, +78.6 %).**
 In writeback mode JuiceFS acknowledges writes to the local cache first and uploads to S3 asynchronously,

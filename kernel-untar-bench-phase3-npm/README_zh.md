@@ -23,6 +23,8 @@
 
 ## 结果 — npm install 耗时（EBS = 参考行）
 
+![npm install 默认 vs 优化挂载对比](phase3_npm_compare.png)
+
 | 存储 | 挂载（默认 / 优化） | npm install 耗时 | 文件数 | 优化 vs 默认 |
 |---|---|---|---|---|
 | **EBS gp3** | 本地，noatime（仅作参考） | **13.1 秒** | 66,513 | —（单次运行） |
@@ -35,7 +37,12 @@
 
 ## 结论 — 挂载调优对 npm install 有帮助吗？
 
-**完全取决于瓶颈在哪里。**
+**完全取决于瓶颈在哪里。核心两点：**
+
+> **① NFS 类存储（EFS / S3 Files）：优化挂载参数几乎无用（±3%）。** 瓶颈是每个文件的**同步元数据往返**（mkdir/create/rename/write 都要等服务端确认），`noatime`/`rsize/wsize=1M`/`actimeo` 这类参数优化的是读/属性缓存，碰不到这堵墙；`nconnect` 在 `-o tls` 下还被静默忽略。
+>
+> **② JuiceFS 的 `--writeback` 是唯一真正有效的优化（−76%，7分12秒→1分43秒）。** 它把数据写变成异步（先落本地缓冲再后台上传 S3），把 S3 延迟移出关键路径，甚至反超两个 NFS 存储、逼近本地盘速度。代价是持久性放宽，仅适合可重建的 node_modules。
+
 
 - **EFS / S3 Files：挂载调优基本没用（±3%）。** 两者都是 NFS（v4.1 / v4.2）走 EFS-utils 的 stunnel socket。标准 NFS 参数——`noatime`、`nodiratime`、`rsize/wsize=1M`、`actimeo=600`——针对的是**读取 / 属性缓存**行为。但 npm install 是**以写和创建为主**：`mkdir`、`open(O_CREAT)`、`write`、`rename`、`symlink`。这些每一个都是**同步的 COMMIT / 元数据往返，NFS 客户端无法用缓存消除**——协议要求服务端确认创建完成后 npm 才能继续。更大的 `rsize/wsize` 帮的是大块顺序读，而不是几万个 ~2KB 的小文件创建；属性缓存帮的是对**同一个**文件的重复 `stat`，而 npm 几乎不这么做。所以每文件延迟这堵墙纹丝不动。（注意：`-o tls`/stunnel 下 `nconnect` 会被静默忽略——只有单个 socket——所以它也无法把这些往返并行化。）
 
