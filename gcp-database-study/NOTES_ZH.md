@@ -102,3 +102,59 @@
 **GCP↔AWS**：Bigtable≈DynamoDB/Keyspaces；扩展 node(存算分离) vs DynamoDB按需/预置+AutoScaling(无节点概念更serverless)；多集群多活≈DynamoDB Global Tables(最终一致)；HBase兼容 vs EMR自建HBase。⚠️ Bigtable≠BigQuery，BigQuery才对标Redshift。
 
 **记忆点**：加/减node无停机(存算分离,数据在Colossus)+autoscaling按CPU；加cluster自动多活、每集群primary(多主)、集群间最终一致，app profile做multi-cluster(高可用就近)/single-cluster(隔离+强一致)路由；低延迟点查用Bigtable,分析扫描用BigQuery；对标DynamoDB(不是Redshift),是HBase鼻祖且兼容HBase API。
+
+---
+
+## 批次 7 · 第七模块 Memorystore（缓存）· Q13/Q14（2026-09-20）
+
+### Q13 Memorystore 基础 — 评分 5/10
+
+**小帅作答**：memorystore是托管的Redis memcached，使用哨兵模式做高可用，存储热门kv数据，事务性要求不严格，Redis是单线程，支持数据类别多。
+
+**逐点对照**
+- ✅ 托管 Redis/Memcached —— 对（漏 Valkey，现在是第三引擎）
+- ❌ HA=哨兵模式 —— 错。Memorystore 不用 Redis Sentinel；用 GCP 托管控制面健康检测+自动 failover，底层主从异步复制。Sentinel 是自建 Redis 的 HA 方案，托管服务不暴露。
+- ✅ 存热门 KV、事务性弱 —— 对（缓存定位）
+- ✅ Redis 单线程 —— 对（命令单线程；6.0+ 仅网络I/O多线程）
+- ✅ 数据类型多 —— 对
+- 漏答 Q13.2(Basic vs Standard tier)、Q13.3(用途/减DB压力原理)
+
+**参考答案要点**
+1. 三引擎：Redis(数据结构丰富/持久化/复制)、Memcached(多线程纯KV/无持久化)、Valkey(Redis改闭源后Linux基金会fork，协议兼容)。内存存储=微秒级，做热数据缓存层。
+2. HA：Basic tier单节点无副本无HA(挂了丢全部数据)；Standard tier跨zone主从+自动failover，异步复制(RPO>0可容忍)，endpoint不变，可选1-5读副本兼读扩展。
+3. 用途：缓存/会话/排行榜(ZSet)/限流(INCR+EXPIRE)/发布订阅/分布式锁。减DB压力=读先查缓存,hit直接返内存,miss才回源,命中率90%则DB只扛10%读。
+4. Redis(命令单线程原子无锁/数据结构多/持久化/HA) vs Memcached(多线程吃满多核/纯KV/无持久化)。
+
+**概念深入**：异步复制RPO>0 —— 缓存可容忍(能从DB重建)，对比Cloud SQL HA同步复制RPO≈0(权威数据不能丢)。取舍逻辑:权威数据同步保RPO;缓存异步保低延迟。
+
+**GCP↔AWS**：Memorystore Redis/Memcached/Valkey ≈ ElastiCache Redis/Memcached/Valkey。Standard tier跨zone HA ≈ ElastiCache Multi-AZ+Auto-Failover。Basic tier ≈ 单节点无副本组。
+
+**记忆点**：Memorystore=托管Redis/Memcached/Valkey。HA=Standard tier跨zone主从异步复制+托管控制面自动failover(不是Sentinel!);Basic单节点无HA丢数据。Redis命令单线程(原子无锁)数据结构丰富;Memcached多线程纯KV。
+
+---
+
+### Q14 Memorystore 进阶与对比 — 评分 4.5/10
+
+**小帅作答**：Redis cluster支持分片是数据分片。穿透使用布隆过滤，雪崩使用不定期时效，击穿使用什么，cache sides和write back，防止击穿，对标ElastiCache，memoryDB没有AWS对应的前端。
+
+**逐点对照**
+- ✅ Cluster=数据分片 —— 对(太简略,没讲vs单节点/主从)
+- ✅ 穿透→布隆过滤器 —— 对
+- ✅ 雪崩→TTL随机化("不定期时效") —— 对
+- ❌ 击穿→"使用什么" —— 没答。解法=互斥锁/逻辑过期/热点永不过期
+- ⚠️ cache-aside/write-back —— 名词对但没展开
+- ❌ "防止击穿" —— 张冠李戴,写策略≠防击穿手段
+- ✅ 对标 ElastiCache —— 对
+- ⚠️ "MemoryDB没有AWS对应的前端" —— 表述乱,应为"MemoryDB是AWS独有,GCP无等价物"
+
+**参考答案要点**
+1. 单节点(受单节点内存/单核限)；主从=复制(每节点全量,扩读+HA,写和总容量仍受单主限)；Cluster=分片(16384哈希槽CRC16(key)%16384分散到多shard,扩写+扩容量)。一句话:主从=复制扩读;Cluster=分片扩写。
+2. 穿透=查不存在的key(DB也没有,一直miss)→布隆/缓存空值/参数校验;击穿=单热点key过期瞬间并发打爆(DB有数据)→互斥锁/逻辑过期/永不过期;雪崩=大量key同时失效或缓存挂→TTL加随机+高可用+限流降级。
+3. Cache-aside(应用管:读miss查DB写回缓存,写=更新DB删缓存,缓存挂不影响DB);write-through(同步写缓存+DB,强一致但慢);write-back(只写缓存异步刷DB,极快但缓存挂丢数据)。三者是写策略,不是防击穿。
+4. 对标ElastiCache(含Cluster mode enabled)。MemoryDB=AWS独有的持久化+强一致+多AZ事务日志Redis主库(durable,RPO0),GCP无等价物。
+
+**概念深入**：ElastiCache(缓存,异步复制可丢,挂了从DB重建) vs MemoryDB(主数据库,写先落多AZ事务日志再返回,RPO0强一致,Redis当权威存储)。GCP无MemoryDB等价物。
+
+**GCP↔AWS**：Memorystore Redis Cluster≈ElastiCache Cluster mode enabled;持久化强一致Redis主库=AWS MemoryDB(GCP无对应)。
+
+**记忆点**：Cluster=16384哈希槽分片(扩写+扩容量),主从=复制(扩读)。穿透(查不存在→布隆/空值)/击穿(单热点key过期→互斥锁/逻辑过期)/雪崩(大量key同时失效→TTL加随机)。写策略:cache-aside/write-through/write-back(会丢)。MemoryDB=AWS独有持久化Redis主库,GCP无对应。

@@ -16,8 +16,8 @@
 | 3 | AlloyDB | Q5/Q6 | ✅ 已批改 | 已过 |
 | 4 | Cloud Spanner | Q7/Q8 | ✅ 已批改 | 已过 |
 | 5 | Bigtable | Q9/Q10 | ✅ 已批改 | Q9 5.5/10；Q10 3/10。对标错(应DynamoDB非Redshift)、数据模型/多集群路由/选型漏答。09-20 |
-| 6 | Firestore / Datastore | Q11/Q12 | ⬜ 待作答 | — |
-| 7 | Memorystore（缓存） | Q13/Q14 | ⬜ 待作答 | — |
+| 6 | Firestore / Datastore | Q11/Q12 | ⏭️ 跳过（未答） | 小帅直接跳到 Q13/Q14 |
+| 7 | Memorystore（缓存） | Q13/Q14 | ✅ 已批改 | Q13 5/10（HA误答成哨兵模式/漏Valkey/漏Basic-Standard）；Q14 4.5/10（击穿没答/写策略误当防击穿）。09-20 |
 | 8 | BigQuery（分析/数仓） | Q15/Q16 | ⬜ 待作答 | — |
 | 9 | 迁移 & 复制（DMS/Datastream） | Q17/Q18 | ⬜ 待作答 | — |
 | 10 | 综合选型 & 安全 | Q19/Q20 | ⬜ 待作答 | — |
