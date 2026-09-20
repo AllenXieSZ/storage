@@ -13,9 +13,9 @@
 |------|------|------|------|-----------|
 | 1 | Cloud SQL 基础 | Q1/Q2 | ✅ 已批改 | 09-13 综合题覆盖（Cloud SQL 三引擎/托管/区域级/IAM/Auth Proxy），6.5/10 |
 | 2 | Cloud SQL 高可用与扩展 | Q3/Q4 | ✅ 已批改 | Q3 2.5/10（HA误答成读扩展+手动切换）；Q4 5/10（级联≠外部副本混淆）。09-15 |
-| 3 | AlloyDB | Q5/Q6 | ⬜ 待作答 | — |
-| 4 | Cloud Spanner | Q7/Q8 | ⬜ 待作答 | — |
-| 5 | Bigtable | Q9/Q10 | ⬜ 待作答 | — |
+| 3 | AlloyDB | Q5/Q6 | ✅ 已批改 | 已过 |
+| 4 | Cloud Spanner | Q7/Q8 | ✅ 已批改 | 已过 |
+| 5 | Bigtable | Q9/Q10 | ✅ 已批改 | Q9 5.5/10；Q10 3/10。对标错(应DynamoDB非Redshift)、数据模型/多集群路由/选型漏答。09-20 |
 | 6 | Firestore / Datastore | Q11/Q12 | ⬜ 待作答 | — |
 | 7 | Memorystore（缓存） | Q13/Q14 | ⬜ 待作答 | — |
 | 8 | BigQuery（分析/数仓） | Q15/Q16 | ⬜ 待作答 | — |

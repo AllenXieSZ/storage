@@ -51,3 +51,54 @@
 **GCP↔AWS**：读副本≈RDS读副本(异步/可promote/可跨region)；级联≈RDS read replica of read replica；从外部源复制≈RDS原生复制/DMS CDC。GCP 无 Aurora Reader Endpoint，读写分离要应用自己做。
 
 **记忆点**：只读副本=异步+只读+分摊读+可跨region+可promote(不可逆)。级联=副本的副本(云内副本链)；外部=跨云边界(外部库/迁移,配source representation instance)。生产=HA(同步保可用)+多zone只读副本(异步保读扩展)+跨region副本(就近读+DR)。
+
+---
+
+## 批次 5 · 第五模块 Bigtable · Q9/Q10（2026-09-20）
+
+### Q9 Bigtable 是什么/数据模型 — 评分 5.5/10
+
+**小帅作答**：Bigtable 是宽列 NoSQL，适合海量数据查询，row key 是数据存储排序机制，是最终一致性。
+
+**逐点对照**
+- ✅ 宽列 NoSQL —— 对
+- ⚠️ "适合海量数据查询" —— 用词危险。强项是低延迟点查+高吞吐读写+按 row key 前缀范围扫描；无二级索引、不能按非key列过滤。别和 BigQuery 分析查询混。
+- ✅ row key 是存储排序机制 —— 对（表按 row key 字典序排序），但没展开为什么是性能命门。
+- ⚠️ "最终一致性" —— 不完整。单集群强一致(read-your-writes)；只有多集群复制后集群间才最终一致。漏了单集群强一致。
+- ❌ 数据模型(row key/CF/qualifier/带版本cell) —— 漏答。
+
+**参考答案要点**
+1. 稀疏宽列 NoSQL，十亿行×千列，TB~PB；低延迟单键读写高吞吐；HBase Java 客户端兼容。场景：时序/IoT/金融/营销/图/MapReduce。value≤10MB。
+2. 数据模型四层：Row(按row key字典序排序,唯一索引) → Column Family(建表定义,GC/权限/存储单位) → Column Qualifier(动态无限列) → Cell(row×col交叉,多个带timestamp版本)。表稀疏,空列不占空间。列由 `列族:列限定符` 标识。
+3. row key 是唯一索引+决定数据落哪个 tablet/节点+决定范围扫描效率。单调递增(时间戳打头/自增ID)→新写全落尾部同一tablet同一节点→热点。打散：字段反转(设备ID#时间戳)、加盐/哈希前缀(hash%N#key)、时间戳反转(取最新)。
+4. 单集群强一致；多集群复制最终一致(官方 eventual)；每集群都是primary都能读写；app profile 单集群路由可换强一致。
+
+**概念深入**：tablet/split(按row key排序切块,一节点服务一批tablet,自动分裂均衡)；存算分离(数据在Colossus,节点无状态,resize无停机)；单集群强一致因single-writer-per-tablet。
+
+**GCP↔AWS**：Bigtable ≈ DynamoDB(低延迟高吞吐NoSQL)/ Keyspaces(宽列Cassandra,数据模型更近)。⚠️ 不是Redshift！Redshift 对标 BigQuery。Bigtable无二级索引(DynamoDB有GSI/LSI)。时序另有 Timestream。
+
+**记忆点**：稀疏宽列NoSQL，按row key字典序排序，`列族:列限定符→带版本cell`；单集群强一致/多集群最终一致；单调递增row key会热点，加盐/哈希前缀/字段反转打散；≈DynamoDB不是Redshift。
+
+---
+
+### Q10 Bigtable 运维与选型 — 评分 3/10
+
+**小帅作答**：扩展单位是 node，对标 redshift，复制是类似 MySQL Replication。
+
+**逐点对照**
+- ✅ 扩展单位是 node —— 对，但没答存算分离/resize无停机/autoscaling。
+- ❌ 对标 Redshift —— 错。Bigtable 对标 DynamoDB/Keyspaces；Redshift 对标 BigQuery。
+- ⚠️ 复制类似 MySQL Replication —— 有本质偏差。Bigtable 多主(每集群都是primary能读写)，MySQL经典是单主多从(从只读)。
+- ❌ 多集群路由/Bigtable vs BigQuery选型/HBase关系 —— 漏答。
+
+**参考答案要点**
+1. 扩展单位=node。存算分离：数据在Colossus,节点无状态只做服务/路由。加减节点无需搬数据、无停机(resize后几分钟均衡)。Autoscaling按CPU/存储利用率自动增减节点(设目标+上下限)。
+2. 加cluster即自动开复制(无需手动配replica)；一instance跨最多8 region、每zone一cluster。多主:每集群primary都能读写,集群间异步最终一致。App profile: multi-cluster routing(路由最近/可用,自动failover=高可用就近读)；single-cluster routing(固定集群=工作负载隔离+强一致)。
+3. Bigtable vs BigQuery：Bigtable=低延迟点查/高吞吐读写(毫秒,按row key)；BigQuery=大规模分析扫描/聚合(SQL任意字段,秒~分)。低延迟高并发点查→Bigtable；分析型SQL扫全表→BigQuery。常组合:Bigtable存实时+管道喂BigQuery分析。
+4. 对标 DynamoDB/Keyspaces(不是Redshift)。HBase关系：2006 Google Bigtable论文启发了开源Apache HBase；Bigtable提供HBase兼容Java API,自建HBase可低成本迁入并接Hadoop生态;自建HBase有规模瓶颈,Bigtable托管消除。
+
+**概念深入**：resize无停机根子=存算分离(MySQL加从库要搬数据,Bigtable只重分配tablet服务权)；App Profile=定义连接/路由/一致性的配置对象,同instance多profile做隔离；多主的一致性代价(CAP)：多活换最终一致,强一致用single-cluster routing。
+
+**GCP↔AWS**：Bigtable≈DynamoDB/Keyspaces；扩展 node(存算分离) vs DynamoDB按需/预置+AutoScaling(无节点概念更serverless)；多集群多活≈DynamoDB Global Tables(最终一致)；HBase兼容 vs EMR自建HBase。⚠️ Bigtable≠BigQuery，BigQuery才对标Redshift。
+
+**记忆点**：加/减node无停机(存算分离,数据在Colossus)+autoscaling按CPU；加cluster自动多活、每集群primary(多主)、集群间最终一致，app profile做multi-cluster(高可用就近)/single-cluster(隔离+强一致)路由；低延迟点查用Bigtable,分析扫描用BigQuery；对标DynamoDB(不是Redshift),是HBase鼻祖且兼容HBase API。
