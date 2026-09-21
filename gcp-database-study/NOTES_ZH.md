@@ -158,3 +158,57 @@
 **GCP↔AWS**：Memorystore Redis Cluster≈ElastiCache Cluster mode enabled;持久化强一致Redis主库=AWS MemoryDB(GCP无对应)。
 
 **记忆点**：Cluster=16384哈希槽分片(扩写+扩容量),主从=复制(扩读)。穿透(查不存在→布隆/空值)/击穿(单热点key过期→互斥锁/逻辑过期)/雪崩(大量key同时失效→TTL加随机)。写策略:cache-aside/write-through/write-back(会丢)。MemoryDB=AWS独有持久化Redis主库,GCP无对应。
+
+---
+
+## 批次 9 · 第九模块 迁移 & 复制 · Q17/Q18（2026-09-21）
+
+### Q17 Database Migration Service — 评分 6/10
+
+**小帅作答**：DMS支持on premise rdbms到cloud rds实时传播,使用cdc,最小切换停机是source只读,然后追平,然后切换读写。
+
+**逐点对照**
+- ✅ 本地RDBMS→云托管库迁移 —— 方向对(但"cloud rds"是AWS术语,GCP目标是Cloud SQL/AlloyDB)
+- ✅ 用CDC —— 对
+- ✅ 最小停机:source只读→追平→切读写 —— 答得好,抓住cutover核心
+- ❌ 同构/异构区分 —— 没答
+- ❌ 异构schema转换工具 —— 没答
+- ❌ 对标AWS DMS/SCT —— 没答
+
+**参考答案要点**
+1. DMS=托管迁移,管初始快照+持续CDC复制,目标Cloud SQL(MySQL/PG/SQL Server)/AlloyDB。术语纠正:GCP是Cloud SQL不是RDS。
+2. 同构(同引擎,简单)vs异构(跨引擎如Oracle→PG,需schema/类型/方言转换)。异构转换工具:DMS内置+Ora2Pg,对标AWS SCT。
+3. cutover:①全量快照②CDC持续读binlog/WAL/redo追平③source停写只读→残余同步完→应用切目标读写。停机窗口仅几秒。
+4. GCP DMS≈AWS DMS;异构转换≈AWS SCT。
+
+**概念深入**：CDC最小停机本质=把全量和增量分开,全量慢搬(源库照常读写),靠读日志追上全量期间变更,只有冻结残余增量那一瞬需停写。
+
+**GCP↔AWS**：DMS≈AWS DMS;schema转换≈SCT;目标Cloud SQL/AlloyDB≈RDS/Aurora。
+
+**记忆点**：DMS=托管迁移到Cloud SQL/AlloyDB。同构(同引擎)vs异构(跨引擎需schema转换,对标SCT)。最小停机=全量快照+CDC追平→source只读冻结残余→切目标读写。DMS≈AWS DMS。
+
+---
+
+### Q18 Datastream 与实时复制 — 评分 4/10
+
+**小帅作答**：Datastream对标Zero-ETL,是大数据从GCS到数仓的数据迁移。
+
+**逐点对照**
+- ✅ 对标Zero-ETL —— 对(一半,还对标AWS DMS CDC)
+- ❌ "从GCS到数仓" —— 数据流向答反!Datastream从OLTP库(MySQL/PG/Oracle/SQL Server/MongoDB)捕获变更→写BigQuery/GCS。GCS是目标不是源。
+- ❌ serverless CDC本质 —— 没点明
+- ❌ 源数据库 —— 没答
+- ❌ →BigQuery典型架构+为什么 —— 没答
+- ❌ CDC读日志原理 —— 没答
+
+**参考答案要点**
+1. Datastream=serverless CDC复制服务。源=OLTP库(MySQL/PG含AlloyDB/Oracle/SQL Server/MongoDB/Spanner+Salesforce/ServiceNow应用源);目标=BigQuery(主打)/GCS/(配Dataflow→Cloud SQL/Spanner)。流向:OLTP库→BigQuery/GCS,不是GCS→数仓。
+2. 架构:源OLTP库→Datastream实时捕获→写BigQuery(近实时)。为什么:OLTP不擅长分析扫描,直接查生产库拖垮线上;同步到BigQuery(OLAP)做分析不影响生产,实现近实时分析而非T+1。
+3. CDC=读事务日志(MySQL binlog/PG WAL/Oracle redo)拿INSERT/UPDATE/DELETE。比全量导出好:低延迟(变更即捕获)、低开销(只传增量)、不丢中间变更(全量只看最终态)、不压源库。
+4. 对标AWS DMS CDC + Zero-ETL(如Aurora→Redshift zero-ETL)。
+
+**概念深入**：DMS vs Datastream:DMS面向一次性迁移(搬完切换收工);Datastream面向持续实时复制(长期把OLTP变更喂BigQuery做分析)。都用CDC但目的不同:搬家vs长期同步。
+
+**GCP↔AWS**：Datastream(serverless CDC)≈AWS DMS CDC模式;Datastream→BigQuery≈Aurora/RDS→Redshift Zero-ETL。
+
+**记忆点**：Datastream=serverless CDC,从OLTP库(MySQL/PG/Oracle/SQL Server/MongoDB)捕获变更→实时喂BigQuery/GCS(近实时分析不压生产库)。CDC=读binlog/WAL/redo拿增量,比全量导出低延迟/低开销/不丢变更。对标AWS DMS CDC+Zero-ETL。DMS=搬家一次性,Datastream=长期实时同步。
