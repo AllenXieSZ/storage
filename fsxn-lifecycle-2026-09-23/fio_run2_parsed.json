@@ -1,0 +1,3192 @@
+[
+  {
+    "wall": "Wed Sep 23 13:32:43 2026",
+    "t_sec": 20,
+    "read_mibps": 240.3,
+    "write_mibps": 247.6,
+    "total_mibps": 487.9,
+    "read_iops": 241,
+    "write_iops": 247,
+    "total_iops": 488
+  },
+  {
+    "wall": "Wed Sep 23 13:32:53 2026",
+    "t_sec": 30,
+    "read_mibps": 298.9,
+    "write_mibps": 293.5,
+    "total_mibps": 592.4,
+    "read_iops": 299,
+    "write_iops": 290,
+    "total_iops": 589
+  },
+  {
+    "wall": "Wed Sep 23 13:33:03 2026",
+    "t_sec": 40,
+    "read_mibps": 297.4,
+    "write_mibps": 300.7,
+    "total_mibps": 598.1,
+    "read_iops": 299,
+    "write_iops": 306,
+    "total_iops": 605
+  },
+  {
+    "wall": "Wed Sep 23 13:33:13 2026",
+    "t_sec": 50,
+    "read_mibps": 337.9,
+    "write_mibps": 337.9,
+    "total_mibps": 675.8,
+    "read_iops": 339,
+    "write_iops": 333,
+    "total_iops": 672
+  },
+  {
+    "wall": "Wed Sep 23 13:33:23 2026",
+    "t_sec": 60,
+    "read_mibps": 307.2,
+    "write_mibps": 307.2,
+    "total_mibps": 614.4,
+    "read_iops": 313,
+    "write_iops": 315,
+    "total_iops": 628
+  },
+  {
+    "wall": "Wed Sep 23 13:33:33 2026",
+    "t_sec": 70,
+    "read_mibps": 307.2,
+    "write_mibps": 317.4,
+    "total_mibps": 624.6,
+    "read_iops": 295,
+    "write_iops": 311,
+    "total_iops": 606
+  },
+  {
+    "wall": "Wed Sep 23 13:33:43 2026",
+    "t_sec": 80,
+    "read_mibps": 317.4,
+    "write_mibps": 307.2,
+    "total_mibps": 624.6,
+    "read_iops": 313,
+    "write_iops": 309,
+    "total_iops": 622
+  },
+  {
+    "wall": "Wed Sep 23 13:33:53 2026",
+    "t_sec": 90,
+    "read_mibps": 327.7,
+    "write_mibps": 348.2,
+    "total_mibps": 675.8,
+    "read_iops": 337,
+    "write_iops": 349,
+    "total_iops": 686
+  },
+  {
+    "wall": "Wed Sep 23 13:34:03 2026",
+    "t_sec": 100,
+    "read_mibps": 337.9,
+    "write_mibps": 337.9,
+    "total_mibps": 675.8,
+    "read_iops": 337,
+    "write_iops": 331,
+    "total_iops": 668
+  },
+  {
+    "wall": "Wed Sep 23 13:34:13 2026",
+    "t_sec": 110,
+    "read_mibps": 358.4,
+    "write_mibps": 348.2,
+    "total_mibps": 706.6,
+    "read_iops": 356,
+    "write_iops": 348,
+    "total_iops": 704
+  },
+  {
+    "wall": "Wed Sep 23 13:34:23 2026",
+    "t_sec": 120,
+    "read_mibps": 358.4,
+    "write_mibps": 358.4,
+    "total_mibps": 716.8,
+    "read_iops": 354,
+    "write_iops": 368,
+    "total_iops": 722
+  },
+  {
+    "wall": "Wed Sep 23 13:34:33 2026",
+    "t_sec": 130,
+    "read_mibps": 389.1,
+    "write_mibps": 399.4,
+    "total_mibps": 788.5,
+    "read_iops": 388,
+    "write_iops": 391,
+    "total_iops": 779
+  },
+  {
+    "wall": "Wed Sep 23 13:34:43 2026",
+    "t_sec": 140,
+    "read_mibps": 389.1,
+    "write_mibps": 389.1,
+    "total_mibps": 778.2,
+    "read_iops": 400,
+    "write_iops": 403,
+    "total_iops": 803
+  },
+  {
+    "wall": "Wed Sep 23 13:34:53 2026",
+    "t_sec": 150,
+    "read_mibps": 378.9,
+    "write_mibps": 378.9,
+    "total_mibps": 757.8,
+    "read_iops": 367,
+    "write_iops": 370,
+    "total_iops": 737
+  },
+  {
+    "wall": "Wed Sep 23 13:35:03 2026",
+    "t_sec": 160,
+    "read_mibps": 368.6,
+    "write_mibps": 368.6,
+    "total_mibps": 737.2,
+    "read_iops": 373,
+    "write_iops": 360,
+    "total_iops": 733
+  },
+  {
+    "wall": "Wed Sep 23 13:35:13 2026",
+    "t_sec": 170,
+    "read_mibps": 481.3,
+    "write_mibps": 471.1,
+    "total_mibps": 952.4,
+    "read_iops": 481,
+    "write_iops": 483,
+    "total_iops": 964
+  },
+  {
+    "wall": "Wed Sep 23 13:35:23 2026",
+    "t_sec": 180,
+    "read_mibps": 522.2,
+    "write_mibps": 522.2,
+    "total_mibps": 1044.4,
+    "read_iops": 517,
+    "write_iops": 519,
+    "total_iops": 1036
+  },
+  {
+    "wall": "Wed Sep 23 13:35:33 2026",
+    "t_sec": 190,
+    "read_mibps": 532.5,
+    "write_mibps": 522.3,
+    "total_mibps": 1054.8,
+    "read_iops": 518,
+    "write_iops": 520,
+    "total_iops": 1038
+  },
+  {
+    "wall": "Wed Sep 23 13:35:43 2026",
+    "t_sec": 200,
+    "read_mibps": 512.0,
+    "write_mibps": 522.2,
+    "total_mibps": 1034.2,
+    "read_iops": 516,
+    "write_iops": 518,
+    "total_iops": 1034
+  },
+  {
+    "wall": "Wed Sep 23 13:35:53 2026",
+    "t_sec": 210,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 532,
+    "write_iops": 513,
+    "total_iops": 1045
+  },
+  {
+    "wall": "Wed Sep 23 13:36:03 2026",
+    "t_sec": 220,
+    "read_mibps": 522.2,
+    "write_mibps": 512.0,
+    "total_mibps": 1034.2,
+    "read_iops": 504,
+    "write_iops": 505,
+    "total_iops": 1009
+  },
+  {
+    "wall": "Wed Sep 23 13:36:13 2026",
+    "t_sec": 230,
+    "read_mibps": 522.2,
+    "write_mibps": 512.0,
+    "total_mibps": 1034.2,
+    "read_iops": 539,
+    "write_iops": 517,
+    "total_iops": 1056
+  },
+  {
+    "wall": "Wed Sep 23 13:36:23 2026",
+    "t_sec": 240,
+    "read_mibps": 512.0,
+    "write_mibps": 522.2,
+    "total_mibps": 1034.2,
+    "read_iops": 505,
+    "write_iops": 529,
+    "total_iops": 1034
+  },
+  {
+    "wall": "Wed Sep 23 13:36:33 2026",
+    "t_sec": 250,
+    "read_mibps": 522.2,
+    "write_mibps": 512.0,
+    "total_mibps": 1034.2,
+    "read_iops": 515,
+    "write_iops": 516,
+    "total_iops": 1031
+  },
+  {
+    "wall": "Wed Sep 23 13:36:43 2026",
+    "t_sec": 260,
+    "read_mibps": 563.2,
+    "write_mibps": 553.0,
+    "total_mibps": 1116.2,
+    "read_iops": 525,
+    "write_iops": 500,
+    "total_iops": 1025
+  },
+  {
+    "wall": "Wed Sep 23 13:36:53 2026",
+    "t_sec": 270,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 535,
+    "write_iops": 535,
+    "total_iops": 1070
+  },
+  {
+    "wall": "Wed Sep 23 13:37:03 2026",
+    "t_sec": 280,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 517,
+    "write_iops": 517,
+    "total_iops": 1034
+  },
+  {
+    "wall": "Wed Sep 23 13:37:13 2026",
+    "t_sec": 290,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 496,
+    "write_iops": 525,
+    "total_iops": 1021
+  },
+  {
+    "wall": "Wed Sep 23 13:37:23 2026",
+    "t_sec": 300,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 502,
+    "write_iops": 503,
+    "total_iops": 1005
+  },
+  {
+    "wall": "Wed Sep 23 13:37:33 2026",
+    "t_sec": 310,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 539,
+    "write_iops": 540,
+    "total_iops": 1079
+  },
+  {
+    "wall": "Wed Sep 23 13:37:43 2026",
+    "t_sec": 320,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 515,
+    "write_iops": 516,
+    "total_iops": 1031
+  },
+  {
+    "wall": "Wed Sep 23 13:37:53 2026",
+    "t_sec": 330,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 521,
+    "write_iops": 522,
+    "total_iops": 1043
+  },
+  {
+    "wall": "Wed Sep 23 13:38:03 2026",
+    "t_sec": 340,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 493,
+    "write_iops": 494,
+    "total_iops": 987
+  },
+  {
+    "wall": "Wed Sep 23 13:38:13 2026",
+    "t_sec": 350,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 497,
+    "write_iops": 533,
+    "total_iops": 1030
+  },
+  {
+    "wall": "Wed Sep 23 13:38:23 2026",
+    "t_sec": 360,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 537,
+    "write_iops": 503,
+    "total_iops": 1040
+  },
+  {
+    "wall": "Wed Sep 23 13:38:33 2026",
+    "t_sec": 370,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 543,
+    "write_iops": 507,
+    "total_iops": 1050
+  },
+  {
+    "wall": "Wed Sep 23 13:38:43 2026",
+    "t_sec": 380,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 511,
+    "write_iops": 511,
+    "total_iops": 1022
+  },
+  {
+    "wall": "Wed Sep 23 13:38:53 2026",
+    "t_sec": 390,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 515,
+    "write_iops": 515,
+    "total_iops": 1030
+  },
+  {
+    "wall": "Wed Sep 23 13:39:03 2026",
+    "t_sec": 400,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 519,
+    "write_iops": 519,
+    "total_iops": 1038
+  },
+  {
+    "wall": "Wed Sep 23 13:39:13 2026",
+    "t_sec": 410,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 523,
+    "write_iops": 523,
+    "total_iops": 1046
+  },
+  {
+    "wall": "Wed Sep 23 13:39:23 2026",
+    "t_sec": 420,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 527,
+    "write_iops": 527,
+    "total_iops": 1054
+  },
+  {
+    "wall": "Wed Sep 23 13:39:33 2026",
+    "t_sec": 430,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 531,
+    "write_iops": 488,
+    "total_iops": 1019
+  },
+  {
+    "wall": "Wed Sep 23 13:39:43 2026",
+    "t_sec": 440,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 491,
+    "write_iops": 534,
+    "total_iops": 1025
+  },
+  {
+    "wall": "Wed Sep 23 13:39:53 2026",
+    "t_sec": 450,
+    "read_mibps": 511.9,
+    "write_mibps": 614.3,
+    "total_mibps": 1126.3,
+    "read_iops": 538,
+    "write_iops": 493,
+    "total_iops": 1031
+  },
+  {
+    "wall": "Wed Sep 23 13:40:03 2026",
+    "t_sec": 460,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 496,
+    "write_iops": 541,
+    "total_iops": 1037
+  },
+  {
+    "wall": "Wed Sep 23 13:40:13 2026",
+    "t_sec": 470,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 545,
+    "write_iops": 498,
+    "total_iops": 1043
+  },
+  {
+    "wall": "Wed Sep 23 13:40:23 2026",
+    "t_sec": 480,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 501,
+    "write_iops": 548,
+    "total_iops": 1049
+  },
+  {
+    "wall": "Wed Sep 23 13:40:33 2026",
+    "t_sec": 490,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 503,
+    "write_iops": 503,
+    "total_iops": 1006
+  },
+  {
+    "wall": "Wed Sep 23 13:40:43 2026",
+    "t_sec": 500,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 505,
+    "write_iops": 505,
+    "total_iops": 1010
+  },
+  {
+    "wall": "Wed Sep 23 13:40:53 2026",
+    "t_sec": 510,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 507,
+    "write_iops": 507,
+    "total_iops": 1014
+  },
+  {
+    "wall": "Wed Sep 23 13:41:03 2026",
+    "t_sec": 520,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 561,
+    "write_iops": 561,
+    "total_iops": 1122
+  },
+  {
+    "wall": "Wed Sep 23 13:41:13 2026",
+    "t_sec": 530,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 512,
+    "write_iops": 512,
+    "total_iops": 1024
+  },
+  {
+    "wall": "Wed Sep 23 13:41:23 2026",
+    "t_sec": 540,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 514,
+    "write_iops": 514,
+    "total_iops": 1028
+  },
+  {
+    "wall": "Wed Sep 23 13:41:33 2026",
+    "t_sec": 550,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 516,
+    "write_iops": 516,
+    "total_iops": 1032
+  },
+  {
+    "wall": "Wed Sep 23 13:41:43 2026",
+    "t_sec": 560,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 462,
+    "write_iops": 518,
+    "total_iops": 980
+  },
+  {
+    "wall": "Wed Sep 23 13:41:53 2026",
+    "t_sec": 570,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 519,
+    "write_iops": 520,
+    "total_iops": 1039
+  },
+  {
+    "wall": "Wed Sep 23 13:42:03 2026",
+    "t_sec": 580,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 521,
+    "write_iops": 464,
+    "total_iops": 985
+  },
+  {
+    "wall": "Wed Sep 23 13:42:13 2026",
+    "t_sec": 590,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 523,
+    "write_iops": 523,
+    "total_iops": 1046
+  },
+  {
+    "wall": "Wed Sep 23 13:42:23 2026",
+    "t_sec": 600,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 525,
+    "write_iops": 525,
+    "total_iops": 1050
+  },
+  {
+    "wall": "Wed Sep 23 13:42:33 2026",
+    "t_sec": 610,
+    "read_mibps": 307.2,
+    "write_mibps": 307.2,
+    "total_mibps": 614.4,
+    "read_iops": 283,
+    "write_iops": 283,
+    "total_iops": 566
+  },
+  {
+    "wall": "Wed Sep 23 13:42:43 2026",
+    "t_sec": 620,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 463,
+    "write_iops": 525,
+    "total_iops": 988
+  },
+  {
+    "wall": "Wed Sep 23 13:42:53 2026",
+    "t_sec": 630,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 526,
+    "write_iops": 527,
+    "total_iops": 1053
+  },
+  {
+    "wall": "Wed Sep 23 13:43:03 2026",
+    "t_sec": 640,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 528,
+    "write_iops": 465,
+    "total_iops": 993
+  },
+  {
+    "wall": "Wed Sep 23 13:43:13 2026",
+    "t_sec": 650,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 530,
+    "write_iops": 530,
+    "total_iops": 1060
+  },
+  {
+    "wall": "Wed Sep 23 13:43:23 2026",
+    "t_sec": 660,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 466,
+    "write_iops": 532,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 13:43:33 2026",
+    "t_sec": 670,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 533,
+    "write_iops": 534,
+    "total_iops": 1067
+  },
+  {
+    "wall": "Wed Sep 23 13:43:43 2026",
+    "t_sec": 680,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 535,
+    "write_iops": 468,
+    "total_iops": 1003
+  },
+  {
+    "wall": "Wed Sep 23 13:43:53 2026",
+    "t_sec": 690,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 537,
+    "write_iops": 537,
+    "total_iops": 1074
+  },
+  {
+    "wall": "Wed Sep 23 13:44:03 2026",
+    "t_sec": 700,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 469,
+    "write_iops": 539,
+    "total_iops": 1008
+  },
+  {
+    "wall": "Wed Sep 23 13:44:13 2026",
+    "t_sec": 710,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 540,
+    "write_iops": 541,
+    "total_iops": 1081
+  },
+  {
+    "wall": "Wed Sep 23 13:44:23 2026",
+    "t_sec": 720,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 542,
+    "write_iops": 471,
+    "total_iops": 1013
+  },
+  {
+    "wall": "Wed Sep 23 13:44:33 2026",
+    "t_sec": 730,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 471,
+    "write_iops": 544,
+    "total_iops": 1015
+  },
+  {
+    "wall": "Wed Sep 23 13:44:43 2026",
+    "t_sec": 740,
+    "read_mibps": 512.0,
+    "write_mibps": 409.6,
+    "total_mibps": 921.6,
+    "read_iops": 471,
+    "write_iops": 398,
+    "total_iops": 869
+  },
+  {
+    "wall": "Wed Sep 23 13:44:53 2026",
+    "t_sec": 750,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 546,
+    "write_iops": 546,
+    "total_iops": 1092
+  },
+  {
+    "wall": "Wed Sep 23 13:45:03 2026",
+    "t_sec": 760,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 472,
+    "write_iops": 548,
+    "total_iops": 1020
+  },
+  {
+    "wall": "Wed Sep 23 13:45:20 2026",
+    "t_sec": 770,
+    "read_mibps": 307.2,
+    "write_mibps": 409.6,
+    "total_mibps": 716.8,
+    "read_iops": 395,
+    "write_iops": 319,
+    "total_iops": 714
+  },
+  {
+    "wall": "Wed Sep 23 13:45:23 2026",
+    "t_sec": 780,
+    "read_mibps": 204.8,
+    "write_mibps": 102.4,
+    "total_mibps": 307.2,
+    "read_iops": 159,
+    "write_iops": 159,
+    "total_iops": 318
+  },
+  {
+    "wall": "Wed Sep 23 13:45:33 2026",
+    "t_sec": 790,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 546,
+    "write_iops": 546,
+    "total_iops": 1092
+  },
+  {
+    "wall": "Wed Sep 23 13:45:43 2026",
+    "t_sec": 800,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 468,
+    "write_iops": 548,
+    "total_iops": 1016
+  },
+  {
+    "wall": "Wed Sep 23 13:45:53 2026",
+    "t_sec": 810,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 549,
+    "write_iops": 469,
+    "total_iops": 1018
+  },
+  {
+    "wall": "Wed Sep 23 13:46:03 2026",
+    "t_sec": 820,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 551,
+    "write_iops": 551,
+    "total_iops": 1102
+  },
+  {
+    "wall": "Wed Sep 23 13:46:13 2026",
+    "t_sec": 830,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 470,
+    "write_iops": 553,
+    "total_iops": 1023
+  },
+  {
+    "wall": "Wed Sep 23 13:46:23 2026",
+    "t_sec": 840,
+    "read_mibps": 614.3,
+    "write_mibps": 511.9,
+    "total_mibps": 1126.3,
+    "read_iops": 554,
+    "write_iops": 471,
+    "total_iops": 1025
+  },
+  {
+    "wall": "Wed Sep 23 13:46:33 2026",
+    "t_sec": 850,
+    "read_mibps": 409.6,
+    "write_mibps": 409.6,
+    "total_mibps": 819.3,
+    "read_iops": 471,
+    "write_iops": 471,
+    "total_iops": 942
+  },
+  {
+    "wall": "Wed Sep 23 13:46:43 2026",
+    "t_sec": 860,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 471,
+    "write_iops": 557,
+    "total_iops": 1028
+  },
+  {
+    "wall": "Wed Sep 23 13:46:53 2026",
+    "t_sec": 870,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 558,
+    "write_iops": 472,
+    "total_iops": 1030
+  },
+  {
+    "wall": "Wed Sep 23 13:47:03 2026",
+    "t_sec": 880,
+    "read_mibps": 512.1,
+    "write_mibps": 614.5,
+    "total_mibps": 1126.5,
+    "read_iops": 472,
+    "write_iops": 560,
+    "total_iops": 1032
+  },
+  {
+    "wall": "Wed Sep 23 13:47:13 2026",
+    "t_sec": 890,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 561,
+    "write_iops": 473,
+    "total_iops": 1034
+  },
+  {
+    "wall": "Wed Sep 23 13:47:23 2026",
+    "t_sec": 900,
+    "read_mibps": 409.6,
+    "write_mibps": 307.2,
+    "total_mibps": 716.9,
+    "read_iops": 383,
+    "write_iops": 383,
+    "total_iops": 766
+  },
+  {
+    "wall": "Wed Sep 23 13:47:33 2026",
+    "t_sec": 910,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 472,
+    "write_iops": 563,
+    "total_iops": 1035
+  },
+  {
+    "wall": "Wed Sep 23 13:47:43 2026",
+    "t_sec": 920,
+    "read_mibps": 409.6,
+    "write_mibps": 409.6,
+    "total_mibps": 819.2,
+    "read_iops": 472,
+    "write_iops": 473,
+    "total_iops": 945
+  },
+  {
+    "wall": "Wed Sep 23 13:47:53 2026",
+    "t_sec": 930,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 472,
+    "write_iops": 473,
+    "total_iops": 945
+  },
+  {
+    "wall": "Wed Sep 23 13:48:03 2026",
+    "t_sec": 940,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 566,
+    "write_iops": 473,
+    "total_iops": 1039
+  },
+  {
+    "wall": "Wed Sep 23 13:48:13 2026",
+    "t_sec": 950,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 473,
+    "write_iops": 568,
+    "total_iops": 1041
+  },
+  {
+    "wall": "Wed Sep 23 13:48:23 2026",
+    "t_sec": 960,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 569,
+    "write_iops": 474,
+    "total_iops": 1043
+  },
+  {
+    "wall": "Wed Sep 23 13:48:33 2026",
+    "t_sec": 970,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 474,
+    "write_iops": 571,
+    "total_iops": 1045
+  },
+  {
+    "wall": "Wed Sep 23 13:48:43 2026",
+    "t_sec": 980,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 572,
+    "write_iops": 475,
+    "total_iops": 1047
+  },
+  {
+    "wall": "Wed Sep 23 13:48:53 2026",
+    "t_sec": 990,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 475,
+    "write_iops": 574,
+    "total_iops": 1049
+  },
+  {
+    "wall": "Wed Sep 23 13:49:03 2026",
+    "t_sec": 1000,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 475,
+    "write_iops": 476,
+    "total_iops": 951
+  },
+  {
+    "wall": "Wed Sep 23 13:49:13 2026",
+    "t_sec": 1010,
+    "read_mibps": 511.9,
+    "write_mibps": 614.3,
+    "total_mibps": 1126.3,
+    "read_iops": 576,
+    "write_iops": 577,
+    "total_iops": 1153
+  },
+  {
+    "wall": "Wed Sep 23 13:49:23 2026",
+    "t_sec": 1020,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 476,
+    "write_iops": 477,
+    "total_iops": 953
+  },
+  {
+    "wall": "Wed Sep 23 13:49:47 2026",
+    "t_sec": 1030,
+    "read_mibps": 307.2,
+    "write_mibps": 307.2,
+    "total_mibps": 614.3,
+    "read_iops": 373,
+    "write_iops": 374,
+    "total_iops": 747
+  },
+  {
+    "wall": "Wed Sep 23 13:49:47 2026",
+    "t_sec": 1045,
+    "read_mibps": 0.0,
+    "write_mibps": 0.0,
+    "total_mibps": 0.0,
+    "read_iops": -17,
+    "write_iops": -16,
+    "total_iops": -33
+  },
+  {
+    "wall": "Wed Sep 23 13:49:57 2026",
+    "t_sec": 1055,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 573,
+    "write_iops": 574,
+    "total_iops": 1148
+  },
+  {
+    "wall": "Wed Sep 23 13:50:07 2026",
+    "t_sec": 1065,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 469,
+    "write_iops": 470,
+    "total_iops": 939
+  },
+  {
+    "wall": "Wed Sep 23 13:50:17 2026",
+    "t_sec": 1075,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 576,
+    "write_iops": 577,
+    "total_iops": 1154
+  },
+  {
+    "wall": "Wed Sep 23 13:50:27 2026",
+    "t_sec": 1085,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 470,
+    "write_iops": 471,
+    "total_iops": 941
+  },
+  {
+    "wall": "Wed Sep 23 13:50:37 2026",
+    "t_sec": 1095,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 579,
+    "write_iops": 471,
+    "total_iops": 1050
+  },
+  {
+    "wall": "Wed Sep 23 13:50:47 2026",
+    "t_sec": 1105,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 471,
+    "write_iops": 581,
+    "total_iops": 1052
+  },
+  {
+    "wall": "Wed Sep 23 13:50:57 2026",
+    "t_sec": 1115,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 471,
+    "write_iops": 472,
+    "total_iops": 943
+  },
+  {
+    "wall": "Wed Sep 23 13:51:07 2026",
+    "t_sec": 1125,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 583,
+    "write_iops": 584,
+    "total_iops": 1168
+  },
+  {
+    "wall": "Wed Sep 23 13:51:17 2026",
+    "t_sec": 1135,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 472,
+    "write_iops": 473,
+    "total_iops": 945
+  },
+  {
+    "wall": "Wed Sep 23 13:51:27 2026",
+    "t_sec": 1145,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 586,
+    "write_iops": 587,
+    "total_iops": 1174
+  },
+  {
+    "wall": "Wed Sep 23 13:51:38 2026",
+    "t_sec": 1155,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 473,
+    "write_iops": 474,
+    "total_iops": 947
+  },
+  {
+    "wall": "Wed Sep 23 13:51:47 2026",
+    "t_sec": 1165,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 589,
+    "write_iops": 474,
+    "total_iops": 1063
+  },
+  {
+    "wall": "Wed Sep 23 13:51:57 2026",
+    "t_sec": 1175,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 474,
+    "write_iops": 591,
+    "total_iops": 1065
+  },
+  {
+    "wall": "Wed Sep 23 13:52:07 2026",
+    "t_sec": 1185,
+    "read_mibps": 614.3,
+    "write_mibps": 511.9,
+    "total_mibps": 1126.3,
+    "read_iops": 592,
+    "write_iops": 475,
+    "total_iops": 1067
+  },
+  {
+    "wall": "Wed Sep 23 13:52:17 2026",
+    "t_sec": 1195,
+    "read_mibps": 409.6,
+    "write_mibps": 409.6,
+    "total_mibps": 819.3,
+    "read_iops": 356,
+    "write_iops": 475,
+    "total_iops": 831
+  },
+  {
+    "wall": "Wed Sep 23 13:52:27 2026",
+    "t_sec": 1205,
+    "read_mibps": 511.9,
+    "write_mibps": 614.3,
+    "total_mibps": 1126.3,
+    "read_iops": 474,
+    "write_iops": 475,
+    "total_iops": 949
+  },
+  {
+    "wall": "Wed Sep 23 13:52:37 2026",
+    "t_sec": 1215,
+    "read_mibps": 512.0,
+    "write_mibps": 409.6,
+    "total_mibps": 921.6,
+    "read_iops": 595,
+    "write_iops": 475,
+    "total_iops": 1070
+  },
+  {
+    "wall": "Wed Sep 23 13:52:47 2026",
+    "t_sec": 1225,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 475,
+    "write_iops": 597,
+    "total_iops": 1072
+  },
+  {
+    "wall": "Wed Sep 23 13:52:57 2026",
+    "t_sec": 1235,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 598,
+    "write_iops": 476,
+    "total_iops": 1074
+  },
+  {
+    "wall": "Wed Sep 23 13:53:07 2026",
+    "t_sec": 1245,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 476,
+    "write_iops": 476,
+    "total_iops": 952
+  },
+  {
+    "wall": "Wed Sep 23 13:53:18 2026",
+    "t_sec": 1255,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 476,
+    "write_iops": 601,
+    "total_iops": 1077
+  },
+  {
+    "wall": "Wed Sep 23 13:53:27 2026",
+    "t_sec": 1265,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 602,
+    "write_iops": 477,
+    "total_iops": 1079
+  },
+  {
+    "wall": "Wed Sep 23 13:53:37 2026",
+    "t_sec": 1275,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 477,
+    "write_iops": 477,
+    "total_iops": 954
+  },
+  {
+    "wall": "Wed Sep 23 13:53:47 2026",
+    "t_sec": 1285,
+    "read_mibps": 512.0,
+    "write_mibps": 409.6,
+    "total_mibps": 921.6,
+    "read_iops": 477,
+    "write_iops": 477,
+    "total_iops": 954
+  },
+  {
+    "wall": "Wed Sep 23 13:53:57 2026",
+    "t_sec": 1295,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 477,
+    "write_iops": 606,
+    "total_iops": 1083
+  },
+  {
+    "wall": "Wed Sep 23 13:54:07 2026",
+    "t_sec": 1305,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 477,
+    "write_iops": 478,
+    "total_iops": 955
+  },
+  {
+    "wall": "Wed Sep 23 13:54:17 2026",
+    "t_sec": 1315,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 608,
+    "write_iops": 478,
+    "total_iops": 1086
+  },
+  {
+    "wall": "Wed Sep 23 13:54:27 2026",
+    "t_sec": 1325,
+    "read_mibps": 512.1,
+    "write_mibps": 614.5,
+    "total_mibps": 1126.5,
+    "read_iops": 478,
+    "write_iops": 478,
+    "total_iops": 956
+  },
+  {
+    "wall": "Wed Sep 23 13:54:37 2026",
+    "t_sec": 1335,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 478,
+    "write_iops": 611,
+    "total_iops": 1089
+  },
+  {
+    "wall": "Wed Sep 23 13:54:47 2026",
+    "t_sec": 1345,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 612,
+    "write_iops": 479,
+    "total_iops": 1091
+  },
+  {
+    "wall": "Wed Sep 23 13:54:57 2026",
+    "t_sec": 1355,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 479,
+    "write_iops": 479,
+    "total_iops": 958
+  },
+  {
+    "wall": "Wed Sep 23 13:55:07 2026",
+    "t_sec": 1365,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 479,
+    "write_iops": 615,
+    "total_iops": 1094
+  },
+  {
+    "wall": "Wed Sep 23 13:55:17 2026",
+    "t_sec": 1375,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 479,
+    "write_iops": 480,
+    "total_iops": 959
+  },
+  {
+    "wall": "Wed Sep 23 13:55:27 2026",
+    "t_sec": 1385,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 617,
+    "write_iops": 480,
+    "total_iops": 1097
+  },
+  {
+    "wall": "Wed Sep 23 13:55:37 2026",
+    "t_sec": 1395,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 480,
+    "write_iops": 619,
+    "total_iops": 1099
+  },
+  {
+    "wall": "Wed Sep 23 13:55:47 2026",
+    "t_sec": 1405,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 480,
+    "write_iops": 481,
+    "total_iops": 961
+  },
+  {
+    "wall": "Wed Sep 23 13:55:57 2026",
+    "t_sec": 1415,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 480,
+    "write_iops": 481,
+    "total_iops": 961
+  },
+  {
+    "wall": "Wed Sep 23 13:56:07 2026",
+    "t_sec": 1425,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 622,
+    "write_iops": 481,
+    "total_iops": 1103
+  },
+  {
+    "wall": "Wed Sep 23 13:56:17 2026",
+    "t_sec": 1435,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 338,
+    "write_iops": 481,
+    "total_iops": 819
+  },
+  {
+    "wall": "Wed Sep 23 13:56:28 2026",
+    "t_sec": 1445,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 624,
+    "write_iops": 625,
+    "total_iops": 1250
+  },
+  {
+    "wall": "Wed Sep 23 13:56:37 2026",
+    "t_sec": 1455,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 481,
+    "write_iops": 482,
+    "total_iops": 963
+  },
+  {
+    "wall": "Wed Sep 23 13:56:47 2026",
+    "t_sec": 1465,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 481,
+    "write_iops": 482,
+    "total_iops": 963
+  },
+  {
+    "wall": "Wed Sep 23 13:56:57 2026",
+    "t_sec": 1475,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 481,
+    "write_iops": 482,
+    "total_iops": 963
+  },
+  {
+    "wall": "Wed Sep 23 13:57:07 2026",
+    "t_sec": 1485,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 629,
+    "write_iops": 482,
+    "total_iops": 1111
+  },
+  {
+    "wall": "Wed Sep 23 13:57:17 2026",
+    "t_sec": 1495,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 482,
+    "write_iops": 631,
+    "total_iops": 1113
+  },
+  {
+    "wall": "Wed Sep 23 13:57:27 2026",
+    "t_sec": 1505,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 482,
+    "write_iops": 483,
+    "total_iops": 965
+  },
+  {
+    "wall": "Wed Sep 23 13:57:37 2026",
+    "t_sec": 1515,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 482,
+    "write_iops": 483,
+    "total_iops": 965
+  },
+  {
+    "wall": "Wed Sep 23 13:57:47 2026",
+    "t_sec": 1525,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 482,
+    "write_iops": 483,
+    "total_iops": 965
+  },
+  {
+    "wall": "Wed Sep 23 13:57:57 2026",
+    "t_sec": 1535,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 635,
+    "write_iops": 636,
+    "total_iops": 1272
+  },
+  {
+    "wall": "Wed Sep 23 13:58:07 2026",
+    "t_sec": 1545,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 483,
+    "write_iops": 484,
+    "total_iops": 967
+  },
+  {
+    "wall": "Wed Sep 23 13:58:17 2026",
+    "t_sec": 1555,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 483,
+    "write_iops": 484,
+    "total_iops": 967
+  },
+  {
+    "wall": "Wed Sep 23 13:58:27 2026",
+    "t_sec": 1565,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 483,
+    "write_iops": 484,
+    "total_iops": 967
+  },
+  {
+    "wall": "Wed Sep 23 13:58:37 2026",
+    "t_sec": 1575,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 640,
+    "write_iops": 484,
+    "total_iops": 1124
+  },
+  {
+    "wall": "Wed Sep 23 13:58:47 2026",
+    "t_sec": 1585,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 484,
+    "write_iops": 642,
+    "total_iops": 1126
+  },
+  {
+    "wall": "Wed Sep 23 13:58:57 2026",
+    "t_sec": 1595,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 484,
+    "write_iops": 485,
+    "total_iops": 969
+  },
+  {
+    "wall": "Wed Sep 23 13:59:07 2026",
+    "t_sec": 1605,
+    "read_mibps": 614.3,
+    "write_mibps": 511.9,
+    "total_mibps": 1126.3,
+    "read_iops": 484,
+    "write_iops": 485,
+    "total_iops": 969
+  },
+  {
+    "wall": "Wed Sep 23 13:59:17 2026",
+    "t_sec": 1615,
+    "read_mibps": 409.6,
+    "write_mibps": 512.0,
+    "total_mibps": 921.6,
+    "read_iops": 484,
+    "write_iops": 485,
+    "total_iops": 969
+  },
+  {
+    "wall": "Wed Sep 23 13:59:27 2026",
+    "t_sec": 1625,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 646,
+    "write_iops": 647,
+    "total_iops": 1294
+  },
+  {
+    "wall": "Wed Sep 23 13:59:37 2026",
+    "t_sec": 1635,
+    "read_mibps": 409.6,
+    "write_mibps": 512.0,
+    "total_mibps": 921.6,
+    "read_iops": 485,
+    "write_iops": 486,
+    "total_iops": 971
+  },
+  {
+    "wall": "Wed Sep 23 13:59:47 2026",
+    "t_sec": 1645,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 485,
+    "write_iops": 486,
+    "total_iops": 971
+  },
+  {
+    "wall": "Wed Sep 23 13:59:57 2026",
+    "t_sec": 1655,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 485,
+    "write_iops": 486,
+    "total_iops": 971
+  },
+  {
+    "wall": "Wed Sep 23 14:00:07 2026",
+    "t_sec": 1665,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 485,
+    "write_iops": 486,
+    "total_iops": 971
+  },
+  {
+    "wall": "Wed Sep 23 14:00:17 2026",
+    "t_sec": 1675,
+    "read_mibps": 512.1,
+    "write_mibps": 614.5,
+    "total_mibps": 1126.5,
+    "read_iops": 485,
+    "write_iops": 653,
+    "total_iops": 1138
+  },
+  {
+    "wall": "Wed Sep 23 14:00:27 2026",
+    "t_sec": 1685,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 653,
+    "write_iops": 487,
+    "total_iops": 1140
+  },
+  {
+    "wall": "Wed Sep 23 14:00:37 2026",
+    "t_sec": 1695,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 486,
+    "write_iops": 487,
+    "total_iops": 973
+  },
+  {
+    "wall": "Wed Sep 23 14:00:47 2026",
+    "t_sec": 1705,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 486,
+    "write_iops": 487,
+    "total_iops": 973
+  },
+  {
+    "wall": "Wed Sep 23 14:00:57 2026",
+    "t_sec": 1715,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 486,
+    "write_iops": 487,
+    "total_iops": 973
+  },
+  {
+    "wall": "Wed Sep 23 14:01:07 2026",
+    "t_sec": 1725,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 486,
+    "write_iops": 487,
+    "total_iops": 973
+  },
+  {
+    "wall": "Wed Sep 23 14:01:17 2026",
+    "t_sec": 1735,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 486,
+    "write_iops": 660,
+    "total_iops": 1146
+  },
+  {
+    "wall": "Wed Sep 23 14:01:27 2026",
+    "t_sec": 1745,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 660,
+    "write_iops": 488,
+    "total_iops": 1148
+  },
+  {
+    "wall": "Wed Sep 23 14:01:37 2026",
+    "t_sec": 1755,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 487,
+    "write_iops": 488,
+    "total_iops": 975
+  },
+  {
+    "wall": "Wed Sep 23 14:01:47 2026",
+    "t_sec": 1765,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 487,
+    "write_iops": 488,
+    "total_iops": 975
+  },
+  {
+    "wall": "Wed Sep 23 14:01:57 2026",
+    "t_sec": 1775,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 487,
+    "write_iops": 488,
+    "total_iops": 975
+  },
+  {
+    "wall": "Wed Sep 23 14:02:07 2026",
+    "t_sec": 1785,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 487,
+    "write_iops": 666,
+    "total_iops": 1153
+  },
+  {
+    "wall": "Wed Sep 23 14:02:17 2026",
+    "t_sec": 1795,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 487,
+    "write_iops": 489,
+    "total_iops": 976
+  },
+  {
+    "wall": "Wed Sep 23 14:02:27 2026",
+    "t_sec": 1805,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 667,
+    "write_iops": 489,
+    "total_iops": 1156
+  },
+  {
+    "wall": "Wed Sep 23 14:02:37 2026",
+    "t_sec": 1815,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 488,
+    "write_iops": 489,
+    "total_iops": 977
+  },
+  {
+    "wall": "Wed Sep 23 14:02:47 2026",
+    "t_sec": 1825,
+    "read_mibps": 512.1,
+    "write_mibps": 614.5,
+    "total_mibps": 1126.5,
+    "read_iops": 488,
+    "write_iops": 489,
+    "total_iops": 977
+  },
+  {
+    "wall": "Wed Sep 23 14:02:57 2026",
+    "t_sec": 1835,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 488,
+    "write_iops": 489,
+    "total_iops": 977
+  },
+  {
+    "wall": "Wed Sep 23 14:03:07 2026",
+    "t_sec": 1845,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 488,
+    "write_iops": 489,
+    "total_iops": 977
+  },
+  {
+    "wall": "Wed Sep 23 14:03:17 2026",
+    "t_sec": 1855,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 673,
+    "write_iops": 674,
+    "total_iops": 1348
+  },
+  {
+    "wall": "Wed Sep 23 14:03:27 2026",
+    "t_sec": 1865,
+    "read_mibps": 511.9,
+    "write_mibps": 409.6,
+    "total_mibps": 921.5,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:03:37 2026",
+    "t_sec": 1875,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:03:48 2026",
+    "t_sec": 1885,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:03:58 2026",
+    "t_sec": 1895,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:04:08 2026",
+    "t_sec": 1905,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:04:17 2026",
+    "t_sec": 1915,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:04:27 2026",
+    "t_sec": 1925,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 489,
+    "write_iops": 490,
+    "total_iops": 979
+  },
+  {
+    "wall": "Wed Sep 23 14:04:37 2026",
+    "t_sec": 1935,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 682,
+    "write_iops": 683,
+    "total_iops": 1366
+  },
+  {
+    "wall": "Wed Sep 23 14:04:47 2026",
+    "t_sec": 1945,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:04:57 2026",
+    "t_sec": 1955,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:05:07 2026",
+    "t_sec": 1965,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:05:17 2026",
+    "t_sec": 1975,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:05:27 2026",
+    "t_sec": 1985,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:05:37 2026",
+    "t_sec": 1995,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:05:47 2026",
+    "t_sec": 2005,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 490,
+    "write_iops": 491,
+    "total_iops": 981
+  },
+  {
+    "wall": "Wed Sep 23 14:05:57 2026",
+    "t_sec": 2015,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 691,
+    "write_iops": 692,
+    "total_iops": 1384
+  },
+  {
+    "wall": "Wed Sep 23 14:06:07 2026",
+    "t_sec": 2025,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:06:17 2026",
+    "t_sec": 2035,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:06:28 2026",
+    "t_sec": 2045,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:06:37 2026",
+    "t_sec": 2055,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:06:47 2026",
+    "t_sec": 2065,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:06:57 2026",
+    "t_sec": 2075,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:07:07 2026",
+    "t_sec": 2085,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 491,
+    "write_iops": 492,
+    "total_iops": 983
+  },
+  {
+    "wall": "Wed Sep 23 14:07:17 2026",
+    "t_sec": 2095,
+    "read_mibps": 614.5,
+    "write_mibps": 512.1,
+    "total_mibps": 1126.5,
+    "read_iops": 700,
+    "write_iops": 492,
+    "total_iops": 1192
+  },
+  {
+    "wall": "Wed Sep 23 14:07:27 2026",
+    "t_sec": 2105,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 492,
+    "write_iops": 492,
+    "total_iops": 984
+  },
+  {
+    "wall": "Wed Sep 23 14:07:37 2026",
+    "t_sec": 2115,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 492,
+    "write_iops": 703,
+    "total_iops": 1195
+  },
+  {
+    "wall": "Wed Sep 23 14:07:47 2026",
+    "t_sec": 2125,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 492,
+    "write_iops": 493,
+    "total_iops": 985
+  },
+  {
+    "wall": "Wed Sep 23 14:07:57 2026",
+    "t_sec": 2135,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 492,
+    "write_iops": 493,
+    "total_iops": 985
+  },
+  {
+    "wall": "Wed Sep 23 14:08:07 2026",
+    "t_sec": 2145,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 492,
+    "write_iops": 493,
+    "total_iops": 985
+  },
+  {
+    "wall": "Wed Sep 23 14:08:17 2026",
+    "t_sec": 2155,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 492,
+    "write_iops": 493,
+    "total_iops": 985
+  },
+  {
+    "wall": "Wed Sep 23 14:08:27 2026",
+    "t_sec": 2165,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 492,
+    "write_iops": 493,
+    "total_iops": 985
+  },
+  {
+    "wall": "Wed Sep 23 14:08:37 2026",
+    "t_sec": 2175,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 709,
+    "write_iops": 493,
+    "total_iops": 1202
+  },
+  {
+    "wall": "Wed Sep 23 14:08:47 2026",
+    "t_sec": 2185,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 493,
+    "write_iops": 493,
+    "total_iops": 986
+  },
+  {
+    "wall": "Wed Sep 23 14:08:57 2026",
+    "t_sec": 2195,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 493,
+    "write_iops": 493,
+    "total_iops": 986
+  },
+  {
+    "wall": "Wed Sep 23 14:09:07 2026",
+    "t_sec": 2205,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 493,
+    "write_iops": 493,
+    "total_iops": 986
+  },
+  {
+    "wall": "Wed Sep 23 14:09:17 2026",
+    "t_sec": 2215,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 493,
+    "write_iops": 714,
+    "total_iops": 1207
+  },
+  {
+    "wall": "Wed Sep 23 14:09:27 2026",
+    "t_sec": 2225,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 493,
+    "write_iops": 494,
+    "total_iops": 987
+  },
+  {
+    "wall": "Wed Sep 23 14:09:37 2026",
+    "t_sec": 2235,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 493,
+    "write_iops": 494,
+    "total_iops": 987
+  },
+  {
+    "wall": "Wed Sep 23 14:09:47 2026",
+    "t_sec": 2245,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 493,
+    "write_iops": 494,
+    "total_iops": 987
+  },
+  {
+    "wall": "Wed Sep 23 14:09:57 2026",
+    "t_sec": 2255,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 493,
+    "write_iops": 494,
+    "total_iops": 987
+  },
+  {
+    "wall": "Wed Sep 23 14:10:07 2026",
+    "t_sec": 2265,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 493,
+    "write_iops": 494,
+    "total_iops": 987
+  },
+  {
+    "wall": "Wed Sep 23 14:10:17 2026",
+    "t_sec": 2275,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 720,
+    "write_iops": 494,
+    "total_iops": 1214
+  },
+  {
+    "wall": "Wed Sep 23 14:10:27 2026",
+    "t_sec": 2285,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 494,
+    "write_iops": 494,
+    "total_iops": 988
+  },
+  {
+    "wall": "Wed Sep 23 14:10:37 2026",
+    "t_sec": 2295,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 494,
+    "write_iops": 494,
+    "total_iops": 988
+  },
+  {
+    "wall": "Wed Sep 23 14:10:47 2026",
+    "t_sec": 2305,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 494,
+    "write_iops": 494,
+    "total_iops": 988
+  },
+  {
+    "wall": "Wed Sep 23 14:10:57 2026",
+    "t_sec": 2315,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 494,
+    "write_iops": 494,
+    "total_iops": 988
+  },
+  {
+    "wall": "Wed Sep 23 14:11:07 2026",
+    "t_sec": 2325,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 494,
+    "write_iops": 726,
+    "total_iops": 1220
+  },
+  {
+    "wall": "Wed Sep 23 14:11:17 2026",
+    "t_sec": 2335,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 494,
+    "write_iops": 495,
+    "total_iops": 989
+  },
+  {
+    "wall": "Wed Sep 23 14:11:27 2026",
+    "t_sec": 2345,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 494,
+    "write_iops": 495,
+    "total_iops": 989
+  },
+  {
+    "wall": "Wed Sep 23 14:11:37 2026",
+    "t_sec": 2355,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 494,
+    "write_iops": 495,
+    "total_iops": 989
+  },
+  {
+    "wall": "Wed Sep 23 14:11:47 2026",
+    "t_sec": 2365,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 494,
+    "write_iops": 495,
+    "total_iops": 989
+  },
+  {
+    "wall": "Wed Sep 23 14:11:57 2026",
+    "t_sec": 2375,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 731,
+    "write_iops": 495,
+    "total_iops": 1226
+  },
+  {
+    "wall": "Wed Sep 23 14:12:08 2026",
+    "t_sec": 2385,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 495,
+    "write_iops": 495,
+    "total_iops": 990
+  },
+  {
+    "wall": "Wed Sep 23 14:12:17 2026",
+    "t_sec": 2395,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 495,
+    "write_iops": 495,
+    "total_iops": 990
+  },
+  {
+    "wall": "Wed Sep 23 14:12:27 2026",
+    "t_sec": 2405,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 495,
+    "write_iops": 495,
+    "total_iops": 990
+  },
+  {
+    "wall": "Wed Sep 23 14:12:37 2026",
+    "t_sec": 2415,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 495,
+    "write_iops": 495,
+    "total_iops": 990
+  },
+  {
+    "wall": "Wed Sep 23 14:12:47 2026",
+    "t_sec": 2425,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 495,
+    "write_iops": 495,
+    "total_iops": 990
+  },
+  {
+    "wall": "Wed Sep 23 14:12:57 2026",
+    "t_sec": 2435,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 495,
+    "write_iops": 738,
+    "total_iops": 1233
+  },
+  {
+    "wall": "Wed Sep 23 14:13:07 2026",
+    "t_sec": 2445,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 495,
+    "write_iops": 496,
+    "total_iops": 991
+  },
+  {
+    "wall": "Wed Sep 23 14:13:17 2026",
+    "t_sec": 2455,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 495,
+    "write_iops": 496,
+    "total_iops": 991
+  },
+  {
+    "wall": "Wed Sep 23 14:13:27 2026",
+    "t_sec": 2465,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 495,
+    "write_iops": 496,
+    "total_iops": 991
+  },
+  {
+    "wall": "Wed Sep 23 14:13:37 2026",
+    "t_sec": 2475,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 495,
+    "write_iops": 496,
+    "total_iops": 991
+  },
+  {
+    "wall": "Wed Sep 23 14:13:47 2026",
+    "t_sec": 2485,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 495,
+    "write_iops": 496,
+    "total_iops": 991
+  },
+  {
+    "wall": "Wed Sep 23 14:13:57 2026",
+    "t_sec": 2495,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 744,
+    "write_iops": 496,
+    "total_iops": 1240
+  },
+  {
+    "wall": "Wed Sep 23 14:14:07 2026",
+    "t_sec": 2505,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:14:17 2026",
+    "t_sec": 2515,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:14:27 2026",
+    "t_sec": 2525,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:14:37 2026",
+    "t_sec": 2535,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:14:47 2026",
+    "t_sec": 2545,
+    "read_mibps": 512.1,
+    "write_mibps": 614.5,
+    "total_mibps": 1126.5,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:14:57 2026",
+    "t_sec": 2555,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:15:07 2026",
+    "t_sec": 2565,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 496,
+    "write_iops": 496,
+    "total_iops": 992
+  },
+  {
+    "wall": "Wed Sep 23 14:15:17 2026",
+    "t_sec": 2575,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 496,
+    "write_iops": 753,
+    "total_iops": 1249
+  },
+  {
+    "wall": "Wed Sep 23 14:15:27 2026",
+    "t_sec": 2585,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 496,
+    "write_iops": 497,
+    "total_iops": 993
+  },
+  {
+    "wall": "Wed Sep 23 14:15:37 2026",
+    "t_sec": 2595,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 496,
+    "write_iops": 497,
+    "total_iops": 993
+  },
+  {
+    "wall": "Wed Sep 23 14:15:47 2026",
+    "t_sec": 2605,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 756,
+    "write_iops": 497,
+    "total_iops": 1253
+  },
+  {
+    "wall": "Wed Sep 23 14:15:57 2026",
+    "t_sec": 2615,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:16:07 2026",
+    "t_sec": 2625,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:16:17 2026",
+    "t_sec": 2635,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:16:27 2026",
+    "t_sec": 2645,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:16:37 2026",
+    "t_sec": 2655,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:16:47 2026",
+    "t_sec": 2665,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:16:57 2026",
+    "t_sec": 2675,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:17:07 2026",
+    "t_sec": 2685,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:17:17 2026",
+    "t_sec": 2695,
+    "read_mibps": 614.5,
+    "write_mibps": 512.1,
+    "total_mibps": 1126.5,
+    "read_iops": 497,
+    "write_iops": 497,
+    "total_iops": 994
+  },
+  {
+    "wall": "Wed Sep 23 14:17:27 2026",
+    "t_sec": 2705,
+    "read_mibps": 511.9,
+    "write_mibps": 614.3,
+    "total_mibps": 1126.3,
+    "read_iops": 497,
+    "write_iops": 767,
+    "total_iops": 1264
+  },
+  {
+    "wall": "Wed Sep 23 14:17:37 2026",
+    "t_sec": 2715,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 497,
+    "write_iops": 498,
+    "total_iops": 995
+  },
+  {
+    "wall": "Wed Sep 23 14:17:47 2026",
+    "t_sec": 2725,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 498,
+    "total_iops": 995
+  },
+  {
+    "wall": "Wed Sep 23 14:17:57 2026",
+    "t_sec": 2735,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 497,
+    "write_iops": 498,
+    "total_iops": 995
+  },
+  {
+    "wall": "Wed Sep 23 14:18:07 2026",
+    "t_sec": 2745,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 498,
+    "total_iops": 995
+  },
+  {
+    "wall": "Wed Sep 23 14:18:17 2026",
+    "t_sec": 2755,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 497,
+    "write_iops": 498,
+    "total_iops": 995
+  },
+  {
+    "wall": "Wed Sep 23 14:18:27 2026",
+    "t_sec": 2765,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 773,
+    "write_iops": 498,
+    "total_iops": 1271
+  },
+  {
+    "wall": "Wed Sep 23 14:18:37 2026",
+    "t_sec": 2775,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:18:47 2026",
+    "t_sec": 2785,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:18:57 2026",
+    "t_sec": 2795,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:19:07 2026",
+    "t_sec": 2805,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:19:17 2026",
+    "t_sec": 2815,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:19:27 2026",
+    "t_sec": 2825,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:19:37 2026",
+    "t_sec": 2835,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:19:47 2026",
+    "t_sec": 2845,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 498,
+    "total_iops": 996
+  },
+  {
+    "wall": "Wed Sep 23 14:19:57 2026",
+    "t_sec": 2855,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 783,
+    "total_iops": 1281
+  },
+  {
+    "wall": "Wed Sep 23 14:20:07 2026",
+    "t_sec": 2865,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 499,
+    "total_iops": 997
+  },
+  {
+    "wall": "Wed Sep 23 14:20:17 2026",
+    "t_sec": 2875,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 498,
+    "write_iops": 499,
+    "total_iops": 997
+  },
+  {
+    "wall": "Wed Sep 23 14:20:27 2026",
+    "t_sec": 2885,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 499,
+    "total_iops": 997
+  },
+  {
+    "wall": "Wed Sep 23 14:20:37 2026",
+    "t_sec": 2895,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 498,
+    "write_iops": 499,
+    "total_iops": 997
+  },
+  {
+    "wall": "Wed Sep 23 14:20:47 2026",
+    "t_sec": 2905,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 498,
+    "write_iops": 499,
+    "total_iops": 997
+  },
+  {
+    "wall": "Wed Sep 23 14:20:57 2026",
+    "t_sec": 2915,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 789,
+    "write_iops": 499,
+    "total_iops": 1288
+  },
+  {
+    "wall": "Wed Sep 23 14:21:07 2026",
+    "t_sec": 2925,
+    "read_mibps": 409.6,
+    "write_mibps": 614.4,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:21:17 2026",
+    "t_sec": 2935,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:21:27 2026",
+    "t_sec": 2945,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:21:37 2026",
+    "t_sec": 2955,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:21:47 2026",
+    "t_sec": 2965,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:21:57 2026",
+    "t_sec": 2975,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:22:07 2026",
+    "t_sec": 2985,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:22:17 2026",
+    "t_sec": 2995,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:22:27 2026",
+    "t_sec": 3005,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:22:37 2026",
+    "t_sec": 3015,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 499,
+    "total_iops": 998
+  },
+  {
+    "wall": "Wed Sep 23 14:22:47 2026",
+    "t_sec": 3025,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 499,
+    "write_iops": 802,
+    "total_iops": 1301
+  },
+  {
+    "wall": "Wed Sep 23 14:22:57 2026",
+    "t_sec": 3035,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 499,
+    "write_iops": 500,
+    "total_iops": 999
+  },
+  {
+    "wall": "Wed Sep 23 14:23:07 2026",
+    "t_sec": 3045,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 499,
+    "write_iops": 500,
+    "total_iops": 999
+  },
+  {
+    "wall": "Wed Sep 23 14:23:17 2026",
+    "t_sec": 3055,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 499,
+    "write_iops": 500,
+    "total_iops": 999
+  },
+  {
+    "wall": "Wed Sep 23 14:23:27 2026",
+    "t_sec": 3065,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 499,
+    "write_iops": 500,
+    "total_iops": 999
+  },
+  {
+    "wall": "Wed Sep 23 14:23:37 2026",
+    "t_sec": 3075,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 806,
+    "write_iops": 500,
+    "total_iops": 1306
+  },
+  {
+    "wall": "Wed Sep 23 14:23:47 2026",
+    "t_sec": 3085,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:23:57 2026",
+    "t_sec": 3095,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:24:07 2026",
+    "t_sec": 3105,
+    "read_mibps": 614.4,
+    "write_mibps": 512.0,
+    "total_mibps": 1126.4,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:24:17 2026",
+    "t_sec": 3115,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:24:27 2026",
+    "t_sec": 3125,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:24:37 2026",
+    "t_sec": 3135,
+    "read_mibps": 512.0,
+    "write_mibps": 614.4,
+    "total_mibps": 1126.4,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:24:47 2026",
+    "t_sec": 3145,
+    "read_mibps": 512.1,
+    "write_mibps": 512.1,
+    "total_mibps": 1024.1,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:24:57 2026",
+    "t_sec": 3155,
+    "read_mibps": 511.9,
+    "write_mibps": 511.9,
+    "total_mibps": 1023.9,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:25:07 2026",
+    "t_sec": 3165,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:25:18 2026",
+    "t_sec": 3175,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:25:27 2026",
+    "t_sec": 3185,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:25:37 2026",
+    "t_sec": 3195,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 500,
+    "total_iops": 1000
+  },
+  {
+    "wall": "Wed Sep 23 14:25:47 2026",
+    "t_sec": 3205,
+    "read_mibps": 512.0,
+    "write_mibps": 512.0,
+    "total_mibps": 1024.0,
+    "read_iops": 500,
+    "write_iops": 820,
+    "total_iops": 1320
+  }
+]
