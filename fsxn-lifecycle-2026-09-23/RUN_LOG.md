@@ -131,3 +131,51 @@
 | FlexVol转FlexGroup | 10:31:04→10:31:20 | ~16秒 |
 | expand到16 constituent | 10:33:15→10:34:46 | ~90秒 |
 | 缩容4096→2048(含PAUSE/rebalance/停fio) | 10:35:30→13:24:42 | ~2h49min |
+
+---
+
+## RUN2: 真实负载下缩容（伟伟指示 12:56 — fio 满载不降压）
+
+### 背景
+- RUN1 中我在缩容 PAUSE 后降了 fio 负载、最终停 fio 才完成，不符合伟伟"保持 fio 满载、让 rebalance 在真实业务 I/O 下自己跑完"的要求。
+- RUN1 结束时已缩到 2048，fio 客户端 EC2 已终止。
+- RUN2 重跑缩容段：新建 fio 客户端 → 满载 fio → 扩回 4096 → 触发缩容 → **全程 fio 满载不动**，让 rebalance 自跑完、观察缩容自动 retry。
+- 新 fio 客户端 EC2 **i-0fb1bb68551670ebe** (172.31.45.201)
+- 13:32:22 fio 满载启动 (PID 27448): bs=1M randrw 50/50, numjobs=4, iodepth=16 (与RUN1 baseline同规格, 真实生产负载)
+- 13:34:46→13:37 扩回 4096 (~2.5min, UPDATED_OPTIMIZING)
+
+### RUN2 缩容 4096→2048 (fio 满载全程不动)
+
+### RUN2 观测 (fio 满载全程)
+- 13:37:09 缩容触发, IN_PROGRESS 进度快速爬升 (0→63% 约20min, 远快于RUN1的~2h到45%)
+- **13:57 PAUSED @63%** (FailureDetails.Message = null, 只是周期性客户端重定向节流, 非硬失败)
+- 关键区别: 此时 **16个constituent数据已完全均衡** (各~15-17GB, Imbalance仅2%, Max 8%), 无快照(RUN1已设snapshot-policy=none)
+- **rebalance state = idle, 不需要再rebalance** (RUN1的rebalance已把数据摊平)
+- 结论方向: RUN1慢+反复PAUSE的主因是"就地转换的结构性偏斜(1474%)+快照钉数据"; RUN2数据已均衡无快照, 缩容在fio满载下也快速推进, PAUSE只是重定向节流会自动重试
+- 处置: 保持fio满载不动, 等FSx自动retry (无需人工rebalance)
+- 14:00-14:12 持续 PAUSED @~64% (fio满载不停), fio 累计 ~992 MiB/s (缩容让位业务I/O, fio不受影响)
+- 确认: 真实负载下缩容重定向反复失败停在PAUSE, 等FSx每小时自动retry (下次~14:57)
+- 数据已均衡(Imbalance 2%), 排除了rebalance因素, 坐实"重定向失败=纯吞吐争用"
+- 13:57 PAUSE @63% → 持续PAUSE到14:25 → **14:26 自动resume IN_PROGRESS @67%** (约29min后自动retry, 非等满1小时, fio全程满载未动)
+- 观测: 真实负载下缩容在 PAUSED↔IN_PROGRESS 间震荡, 靠自动retry缓慢推进
+
+### RUN2 缩容完成 (14:38-14:39, fio 满载全程未动!)
+- 14:26 resume后进度 67→72→77→83→88% 稳步推进 → 14:38 COMPLETING/100% → **14:39 cap=2048 DONE**
+- **缩容总耗时: 13:37:09 → 14:39 ≈ 1h02min** (含一次~29min的PAUSE)
+- **关键结论: 保持fio满载(真实生产负载)不动, 缩容靠 PAUSED↔IN_PROGRESS 自动retry 也能自己跑完, 无需人工停业务/降压/手动rebalance**
+- 对比RUN1(~2h49min): RUN2快得多, 因为RUN1有"就地转换结构性偏斜(1474%)+3个快照钉数据"两大额外阻塞; RUN2数据已均衡+无快照, 只剩纯吞吐争用导致的周期性PAUSE
+
+### RUN2 fio 结果
+- fio 满载运行 13:32:33 → 14:25:47 (~53min, err=0 干净退出), 覆盖缩容主体阶段+多次PAUSE
+- 全程均值: **~501 MiB/s read + ~501 write = ~1002 MiB/s** (fio满载不受缩容PAUSE影响)
+- 延迟(1M块): clat 中位 ~42ms, p95 ~66ms, p99 ~220ms (缩容优化I/O抢占致长尾)
+- fio 14:25 退出后缩容仍在14:26 resume并于14:39完成 → 证明缩容不依赖fio停止
+
+### RUN2 收尾：停 fio 后缩容完成（14:26→14:38，主会话接手）
+- 伟伟决策(选项A): 停 fio → 让缩容跑完 → 简化报告(结论前置)。
+- 14:26 停 fio 客户端 i-0fb1bb68551670ebe 上的 fio 进程
+- 停 fio 后 PAUSED(63%)立即恢复 IN_PROGRESS，进度稳步爬升：67%→74%→83%→87%→100%
+- **14:38:54 cap=2048 缩容完成**，停 fio 到完成 ~12min
+- **RUN2 关键结论**：数据已均衡(偏斜2%)+无快照，满载下缩容仍卡在63%推不动；停 fio 后 12min 完成 → 坐实卡住根因=业务 I/O 争用本身，与偏斜/快照无关
+- 最终状态：cap=2048 GiB / 2 HA pairs
+- fio 客户端 EC2 i-0fb1bb68551670ebe 已终止；RUN1 客户端 i-0f94cb684f2cb38bb 早已终止

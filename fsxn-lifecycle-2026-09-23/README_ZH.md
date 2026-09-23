@@ -1,8 +1,24 @@
 # FSx for NetApp ONTAP — Gen2 全生命周期实测：1HA → 2HA → FlexVol转FlexGroup → expand到16 constituent → 缩容回2TB
 
-> 一次完整的 FSxN Gen2 生命周期实测：从 1 HA pair 的 FlexVol 起步，扩到 2 HA pair，就地转 FlexGroup，扩到 16 个 constituent（每 aggregate 8 个），最后缩容回 2 TB。**全程 fio 1M 大块读写压测**，记录每步耗时与性能变化。
->
-> **Region**: us-east-2 (Ohio) · **ONTAP**: 9.18.1P6 · **FSxN 代次**: Gen2 (`SINGLE_AZ_2`) · 全程实测。
+**Region**: us-east-2 · **ONTAP**: 9.18.1P6 · **FSxN**: Gen2 (`SINGLE_AZ_2`) · 全程 fio 1M 读写压测
+
+---
+
+## ⭐ 最重要结论：有 I/O 负载时，缩容几乎无法完成
+
+**缩容（4TB→2TB）在 fio 持续压测下会反复 PAUSE、进度卡住推不动；一旦停掉业务负载，几分钟内就完成。**
+
+实测两轮都印证这一点：
+
+| 场景 | 数据分布 | 有快照 | fio 负载 | 结果 |
+|---|---|---|---|---|
+| RUN1 | 严重偏斜（原始 constituent 占 63%）| 有 | 满载 | 反复 PAUSE，卡在 45%/90%，**近 3 小时未完成** |
+| RUN2 | **已均衡**（各 constituent ~15GB，偏斜仅 2%）| **无** | 满载 | 仍反复 PAUSE，**卡在 63% 推不动** |
+| RUN1/RUN2 收尾 | — | — | **停 fio** | **~5–12 min 完成，缩到 2048 GiB** |
+
+- 缩容需要做"客户端访问重定向"（把要回收的 HA pair 上的数据迁走、切换挂载路径），**这一步需要短暂的低 I/O 窗口**。
+- **RUN2 是关键对照**：把数据偏斜、快照这些干扰全排除后（数据均衡、无快照），满载下缩容**照样卡死**。→ 坐实**卡住的根因就是业务 I/O 争用本身，跟数据均不均衡、有没有快照无关**。
+- **运维提醒**：FSxN 缩容不适合在业务高峰期做，最好安排在低峰/维护窗口，否则会一直 PAUSE、每小时重试、迟迟不完成。
 
 ---
 
@@ -72,7 +88,8 @@
    - 删掉钉住数据的快照（转换快照 + 两个 hourly 快照，共 ~726 GB）。
    - **降低 fio 负载**（numjobs 4→1, iodepth 16→4），仍反复 PAUSE。
    - **最终停掉 fio**，给重定向完整吞吐余量 → **~5 min 内 100% 完成，cap=2048**。
-5. **关键结论**：**缩容的客户端重定向需要短暂的低 I/O 窗口；fio 持续满压时会反复 PAUSE（每小时重试）。停止业务压测后立即完成。**
+5. **RUN2 对照验证**：为排除偏斜/快照干扰，第二轮在**数据已均衡（各 constituent ~15GB、偏斜 2%）、无快照**的状态下重跑缩容，全程 fio 满载不降压。结果**照样卡在 63% 反复 PAUSE 推不动**——直到停 fio 才在 ~12 min 内完成。
+6. **关键结论**：**缩容卡住的根因是业务 I/O 争用本身**（跟数据是否均衡、有无快照无关）。客户端重定向需要短暂低 I/O 窗口；fio 持续满压时反复 PAUSE、每小时重试。**停止业务压测后即完成。**
 
 ---
 
@@ -97,7 +114,7 @@
 | 1 | **改元数据秒级，动物理资源分钟~小时级**：转 FlexGroup **16 秒**、expand 16 constituent **90 秒**；扩 HA **~10.5 min**（起真硬件）；缩容 **~2h49min**（搬数据）。|
 | 2 | **扩 HA / 转 FlexGroup / expand 期间在线业务不中断**，吞吐仅小幅下降（~95% baseline）。|
 | 3 | **就地转换的 FlexGroup 数据结构性偏斜**：原始数据全在转换来的那个 constituent，其余 constituent 空。缩容前必须 `volume rebalance` 摊平。|
-| 4 | **缩容会 PAUSE**：客户端重定向需要低 I/O 窗口，fio 满压下反复失败、每小时重试。**停止业务压测后 ~5 min 完成**。|
+| 4 | **缩容会 PAUSE，根因是业务 I/O 争用**：客户端重定向需要低 I/O 窗口。RUN2 在数据均衡+无快照下满载仍卡死，坐实与偏斜/快照无关。**停止业务压测后 ~5–12 min 完成。**|
 | 5 | **rebalance 启动前提**：6h max-runtime 窗口内不能有快照计划——先关 `snapshot-policy` 或缩短 `-max-runtime`。快照会钉住数据（`Exclude Files Stuck in Snapshot Copies: true`），缩容前建议删快照。|
 | 6 | **缩容成功后 FlexGroup 结构完整保留**：16 constituent、8:8 分布、数据无损。|
 
@@ -157,7 +174,8 @@ pkill fio   # 停业务压测，给重定向低 I/O 窗口
 | FlexGroup 卷 | `fsvol-0f92a7bfb7cd9692d`（lifevol）| 保留 |
 | 管理端点 IP | `172.31.44.166`（fsxadmin 登录）| — |
 | NFS 端点 IP | `172.31.47.6` | — |
-| fio 客户端 EC2 | `i-0f94cb684f2cb38bb`（c6in.4xlarge）| **已终止**（用完即删）|
+| fio 客户端 EC2 (RUN1) | `i-0f94cb684f2cb38bb`（c6in.4xlarge）| **已终止** |
+| fio 客户端 EC2 (RUN2) | `i-0fb1bb68551670ebe`（c6in.4xlarge）| **已终止** |
 | Region | us-east-2 | — |
 | ONTAP 版本 | 9.18.1P6 | — |
 
