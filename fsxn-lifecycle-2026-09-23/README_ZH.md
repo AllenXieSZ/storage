@@ -96,6 +96,35 @@
    - ⚠️ **关键观测**：PAUSE 持续到 fio 停止（14:25）后 **1 分钟**（14:26）才 resume——这**不是**等满 1 小时的定时重试（若定时应到 ~14:57），强烈提示**是业务 I/O 停下腾出吞吐才让重定向成功**。
 6. **关键结论**：**缩容卡住的根因是业务 I/O 争用本身**（RUN2 排除了偏斜/快照后满载仍卡在 63%）。客户端重定向需要短暂低 I/O 窗口；fio 满压下反复 PAUSE，**业务负载停下后（RUN1 手动停、RUN2 fio 自行结束）随即在几分钟内完成**。→ **FSxN 缩容应安排在业务低峰/维护窗口。**
 
+### 缩容 PAUSE 时的 Redirect 错误信息实录
+
+缩容 PAUSE 时，FSx 控制台 / `describe-file-systems` 的 `AdministrativeActions[].FailureDetails.Message` 会给出如下重定向报错。**报错里点名的 constituent 会随窗口在 `lifevol__0001 / __0006 / __0014 …` 之间轮换**（每次卡在哪个 constituent 就报哪个），错误文本模板一致：
+
+```
+Redirecting client access for Volume(s) [lifevol__0001] has failed due to
+insufficient SSD IOPS, throughput capacity, or because the volume is full.
+Amazon FSx will retry in an hour.
+```
+
+```
+Redirecting client access for Volume(s) [lifevol__0006] has failed due to
+insufficient SSD IOPS, throughput capacity, or because the volume is full.
+Amazon FSx will retry in an hour.
+```
+
+实测观察到的报错序列：
+
+| 阶段 | 进度 | 报错点名的 constituent | 说明 |
+|---|---|---|---|
+| RUN1 第一次 PAUSE | ~45% | `lifevol__0001` | 原始 constituent 数据集中（63%），迁移它时重定向失败 |
+| RUN1 第二次 PAUSE | ~90% | `lifevol__0006` | rebalance 摊平后换到其它 constituent，仍因 fio 吞吐争用失败 |
+| RUN1 反复 PAUSE | — | `lifevol__0006 / __0014 …` 轮换 | 即便把 fio 降载（numjobs 4→1）仍反复报同一模板 |
+| RUN2 PAUSE | ~63% | `FailureDetails.Message = null` | 数据已均衡+无快照，表现为周期性重定向节流（非硬失败），fio 停后 1 分钟自动 resume |
+
+> 三个关键词 **"insufficient SSD IOPS, throughput capacity, or because the volume is full"** 是同一个根因的三种表述——本质都是**做重定向的那一刻没有足够的空闲吞吐**。RUN2 排除了"volume full"（数据均衡、利用率仅 5%）后仍然 PAUSE，坐实是 **throughput（业务 I/O 争用）**，不是容量或偏斜问题。"Amazon FSx will retry in an hour" 是定时兜底，但实测**业务 I/O 一停，1 分钟内就 resume**，不需要等满 1 小时。
+
+
+
 ---
 
 ## 5. 最终状态
