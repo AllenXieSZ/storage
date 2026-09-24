@@ -169,7 +169,70 @@ constituent 级别（全量后）：`0005/0007`（各 102G）落 aggr1；`0002/0
 
 ### 3.2 fio 全程性能时序图
 
-fio 参数：`job1: 4K randrw rwmixread=70, iodepth=32, numjobs=4` + `job2: 1M seqrw rwmixread=50, iodepth=16, numjobs=2`，每 60s 采样，per-interval 增量还原真实瞬时吞吐。
+fio 参数：`job1: 4K randrw rwmixread=70, iodepth=32, numjobs=4` + `job2: 1M seqrw rwmixread=50, iodepth=16, numjobs=2`，每 60s 采样，per-interval 增量还原真实瞬时吞吐。全程（1 HA pair → 2 HA pair 升级、转换、expand）持续运行。
+
+#### 完整 fio 命令（可复现）
+
+**前置**：在与 FSx 同 AZ/同 subnet 的独立 EC2（`c6in.4xlarge`, AL2023）上，NFS v3 挂载源卷后运行。
+
+```bash
+# 挂载（rsize/wsize 请求 1M，FSx ONTAP 实际钳制为 64K）
+sudo mount -t nfs -o nfsvers=3,rsize=1048576,wsize=1048576,hard,timeo=600 \
+  <SVM_NFS_IP>:/mfvol /mnt/fio
+sudo dnf install -y fio
+```
+
+**方式 A — job file（推荐，双 job 一目了然）** `fio_1ha_to_2ha.fio`：
+
+```ini
+[global]
+directory=/mnt/fio
+direct=1
+ioengine=libaio
+time_based=1
+runtime=13000              ; ≈3.6h，覆盖 1HA→2HA 全流程
+group_reporting=1
+randrepeat=0
+ramp_time=5
+
+[job1_4k_randrw]
+rw=randrw
+rwmixread=70
+bs=4k
+iodepth=32
+numjobs=4
+size=10G                   ; 每 job 独立文件，控制在卷剩余空间内
+
+[job2_1m_seqrw]
+rw=rw                      ; 顺序读写混合
+rwmixread=50
+bs=1M
+iodepth=16
+numjobs=2
+size=40G
+```
+
+运行（每 60s 打印一次实时 IOPS/吞吐/延迟，并落 bw/iops/lat 日志）：
+
+```bash
+fio fio_1ha_to_2ha.fio \
+  --status-interval=60 \
+  --write_bw_log=fio_bw --write_iops_log=fio_iops --write_lat_log=fio_lat \
+  --log_avg_msec=60000 \
+  --output=fio_result.json --output-format=json 2>&1 | tee fio_run.log
+```
+
+**方式 B — 等价单行命令**（不用 job file）：
+
+```bash
+fio --directory=/mnt/fio --direct=1 --ioengine=libaio --time_based=1 \
+    --runtime=13000 --group_reporting=1 --randrepeat=0 --ramp_time=5 \
+    --status-interval=60 \
+    --name=job1_4k_randrw --rw=randrw --rwmixread=70 --bs=4k --iodepth=32 --numjobs=4 --size=10G \
+    --name=job2_1m_seqrw  --rw=rw     --rwmixread=50 --bs=1M --iodepth=16 --numjobs=2 --size=40G
+```
+
+> ⚠️ 说明：这是根据本次实验的**参数规格重建的可复现命令**（会话记录保留了 job1/job2 的 rw/bs/iodepth/numjobs/rwmixread/runtime/direct/libaio/status-interval 全部规格；当时在远程 EC2 上执行的逐字命令行未落库）。`size`/`directory`/`<SVM_NFS_IP>` 按你的环境调整；`runtime=13000` 是当时用于覆盖全链路的时长，按需增减。
 
 ![fio timeseries](./02_conversion_full_chain_fio.png)
 
