@@ -35,6 +35,54 @@
 > ⚠️ **直接建 1536 throughput 的 1HA**，避免 384 档位的 1HA 无法扩 2HA 的死锁。
 > ⚠️ **绝不开自动 backup**：FSx 原生 Backup 的 SnapMirror-to-Cloud 关系会阻塞 FlexVol→FlexGroup 转换。
 
+### 完整 fio 命令（可复现）
+
+**前置**：独立 EC2（`c6in.4xlarge`, AL2023）NFS v3 挂载 FlexGroup 卷后运行。
+
+```bash
+sudo mount -t nfs -o nfsvers=3,rsize=1048576,wsize=1048576,hard,timeo=600 \
+  <SVM_NFS_IP>:/lifevol /mnt/life
+sudo dnf install -y fio
+```
+
+job file `/tmp/life.fio`：
+
+```ini
+[global]
+directory=/mnt/life
+name=life
+rw=randrw
+rwmixread=50
+bs=1M
+direct=1
+ioengine=libaio
+numjobs=4
+iodepth=16
+size=8G                 ; 每 job 一个独立文件，4 job 共 32G
+time_based=1
+runtime=14400           ; 4h，留余量覆盖全生命周期（实测约 3h 到缩容结束）
+group_reporting=1
+
+[life]
+```
+
+运行（每 10s 输出一次实时吞吐/IOPS/延迟，供画时间序列图）：
+
+```bash
+fio /tmp/life.fio --status-interval=10 2>&1 | tee /tmp/fio_ts.log
+```
+
+**等价单行命令**：
+
+```bash
+fio --directory=/mnt/life --name=life --rw=randrw --rwmixread=50 --bs=1M \
+    --direct=1 --ioengine=libaio --numjobs=4 --iodepth=16 --size=8G \
+    --time_based=1 --runtime=14400 --group_reporting=1 --status-interval=10 \
+    2>&1 | tee /tmp/fio_ts.log
+```
+
+> 先单独跑 5min 拿 baseline，之后 fio 不停，全程贯穿扩HA→转FlexGroup→expand→缩容。`<SVM_NFS_IP>` / `size` 按环境调整。
+
 ---
 
 ## 2. 全流程耗时
