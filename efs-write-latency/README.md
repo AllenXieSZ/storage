@@ -133,6 +133,32 @@ python3 efs_write_bench.py /mnt/efs
 
 ---
 
+## 补充实验：不同挂载 wsize 对写入的影响
+
+上一节固定 wsize=1MiB（EFS 默认），变化应用层 pwrite size。本节反过来：**固定应用层 pwrite=1MiB，变化挂载 `wsize`**，看真正落到 EFS 的网络层 I/O size 对性能的影响。
+
+- 挂载方式改为直连 NFS4.1（`mount -t nfs4 -o nfsvers=4.1,rsize=$WS,wsize=$WS,...`），以便显式控制 wsize；用 `nfsstat -m` 验证实际生效值。
+- wsize 取 4 档：64K / 256K / 512K / 1M。
+
+| 挂载 wsize | 实际生效 | pwrite 次数 | 最优总时间 (ms) | 3轮均值 (ms) | 平均 pwrite (ms) | fsync (ms) | 吞吐 (MB/s) |
+|:---------:|:-------:|:----------:|:--------------:|:-----------:|:---------------:|:---------:|:----------:|
+| 64K  | 65536（不钳制） | 200 | 1890.6 | 1938.9 | 0.095 | 1871.6 | 105.8 |
+| 256K | 262144（不钳制）| 200 | 774.4 | 807.2 | 0.090 | 756.4 | 258.3 |
+| 512K | 524288（不钳制）| 200 | 533.8 | 551.5 | 0.089 | 516.0 | 374.7 |
+| 1M   | 1048576（不钳制）| 200 | 457.2 | 469.9 | 0.101 | 437.0 | 437.4 |
+
+### wsize 结论
+
+1. **EFS 完全接受 64K/256K/512K/1M 的 wsize，不做钳制**（`nfsstat -m` 显示请求多少就生效多少）。这点与 FSx ONTAP 不同（ONTAP 会把 wsize 钳制到 64K）。
+2. **wsize 对写吞吐/总时间影响巨大**：wsize 从 64K → 1M，写完 200MiB 的总时间从 **1890ms 降到 457ms（快 4.1 倍）**，吞吐从 **105.8 MB/s 升到 437.4 MB/s（4.1 倍）**。
+3. **原因**：wsize 决定 NFS 客户端每个 WRITE op 携带多少数据。wsize 越小，把 200MiB 刷到 EFS 需要的网络往返（WRITE op）次数越多——64K 需要 200MiB/64K ≈ 3200 次 WRITE，1M 只需 200 次。每次 WRITE 都有网络往返开销，往返次数随 wsize 减小而线性放大，直接决定 fsync 落盘耗时（占总时间 92%+）。
+4. **应用层 pwrite 延迟几乎不受 wsize 影响**（都在 ~0.09–0.10ms），因为它写的是本地 page cache，与网络 wsize 无关。差异全部体现在 fsync 落盘阶段。
+5. **建议**：EFS 挂载务必用官方推荐的 `wsize=1048576`（1MiB，也是 EFS 上限）。用小 wsize 会显著拖慢写吞吐。
+
+> 网络层真正的写 I/O size = 挂载协商的 `wsize`，而非应用层 pwrite 的大小。参考 AWS 官方推荐挂载参数：<https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-general.html>
+
+---
+
 ## 说明与限制
 
 - pwrite 属于**缓冲写**（写入 NFS 客户端 page cache），单次调用延迟不等于数据落到 EFS 的延迟；真实落盘成本体现在末尾 `fsync()`。若需测「每次写立即落盘」的延迟，可用 `O_SYNC`/`O_DIRECT` 或每次 pwrite 后 fsync（会显著增加总时间、降低吞吐）。

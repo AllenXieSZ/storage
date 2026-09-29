@@ -1,0 +1,13 @@
+=== wsize sweep on fs-0ee88d00ebd34acf2.efs.us-east-2.amazonaws.com ===
+### requested wsize=65536  -> mounted wsize=65536
+  best_total=1890.6ms  mean_total=1938.9ms  avg_pwrite=0.095ms  fsync=1871.6ms  tput=105.8MB/s
+  JSON {"wsize": 65536, "best": {"wsize": 65536, "app_io": 1048576, "n_writes": 200, "total_ms": 1890.6344439999998, "fsync_ms": 1871.5902870000036, "avg_ms": 0.09473837999976809, "p50_ms": 0.09917500000256041, "p99_ms": 0.1179859999922428, "max_ms": 0.12602399999650515, "throughput_MBps": 105.78459555452805}, "mean_total_ms": 1938.8807886666655}
+### requested wsize=262144  -> mounted wsize=262144
+  best_total=774.4ms  mean_total=807.2ms  avg_pwrite=0.090ms  fsync=756.4ms  tput=258.3MB/s
+  JSON {"wsize": 262144, "best": {"wsize": 262144, "app_io": 1048576, "n_writes": 200, "total_ms": 774.4123170000137, "fsync_ms": 756.3511109999865, "avg_ms": 0.08982735999950364, "p50_ms": 0.09620200000881596, "p99_ms": 0.11596499999200205, "max_ms": 0.12084600001571744, "throughput_MBps": 258.260355122937}, "mean_total_ms": 807.1889216666648}
+### requested wsize=524288  -> mounted wsize=524288
+  best_total=533.8ms  mean_total=551.5ms  avg_pwrite=0.089ms  fsync=516.0ms  tput=374.7MB/s
+  JSON {"wsize": 524288, "best": {"wsize": 524288, "app_io": 1048576, "n_writes": 200, "total_ms": 533.7980330000107, "fsync_ms": 515.952378999998, "avg_ms": 0.08868752499907373, "p50_ms": 0.09319700001242381, "p99_ms": 0.10986999998863212, "max_ms": 0.13439700001072197, "throughput_MBps": 374.67354249316986}, "mean_total_ms": 551.4513046666707}
+### requested wsize=1048576  -> mounted wsize=1048576
+  best_total=457.2ms  mean_total=469.9ms  avg_pwrite=0.101ms  fsync=437.0ms  tput=437.4MB/s
+  JSON {"wsize": 1048576, "best": {"wsize": 1048576, "app_io": 1048576, "n_writes": 200, "total_ms": 457.2448180000208, "fsync_ms": 436.99969799999394, "avg_ms": 0.10076343000065435, "p50_ms": 0.1000150000152189, "p99_ms": 0.12407600002006802, "max_ms": 0.13204100000052676, "throughput_MBps": 437.40244203268566}, "mean_total_ms": 469.8942600000085}
