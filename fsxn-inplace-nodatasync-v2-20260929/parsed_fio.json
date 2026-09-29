@@ -1,0 +1,1252 @@
+[
+  {
+    "wall": "Tue Sep 29 02:04:58 2026",
+    "t_sec": 34,
+    "read_iops": 3361,
+    "write_iops": 1429,
+    "total_iops": 4790,
+    "read_mibps": 1320.0,
+    "write_mibps": 568.8,
+    "total_mibps": 1888.8
+  },
+  {
+    "wall": "Tue Sep 29 02:05:19 2026",
+    "t_sec": 54,
+    "read_iops": 3019,
+    "write_iops": 1291,
+    "total_iops": 4311,
+    "read_mibps": 1159.3,
+    "write_mibps": 487.2,
+    "total_mibps": 1646.6
+  },
+  {
+    "wall": "Tue Sep 29 02:05:38 2026",
+    "t_sec": 74,
+    "read_iops": 3121,
+    "write_iops": 1350,
+    "total_iops": 4471,
+    "read_mibps": 1282.0,
+    "write_mibps": 550.9,
+    "total_mibps": 1832.9
+  },
+  {
+    "wall": "Tue Sep 29 02:05:59 2026",
+    "t_sec": 94,
+    "read_iops": 3196,
+    "write_iops": 1376,
+    "total_iops": 4572,
+    "read_mibps": 1292.4,
+    "write_mibps": 566.3,
+    "total_mibps": 1858.8
+  },
+  {
+    "wall": "Tue Sep 29 02:06:19 2026",
+    "t_sec": 114,
+    "read_iops": 2951,
+    "write_iops": 1264,
+    "total_iops": 4216,
+    "read_mibps": 1184.7,
+    "write_mibps": 504.9,
+    "total_mibps": 1689.5
+  },
+  {
+    "wall": "Tue Sep 29 02:06:38 2026",
+    "t_sec": 134,
+    "read_iops": 3121,
+    "write_iops": 1331,
+    "total_iops": 4452,
+    "read_mibps": 1226.1,
+    "write_mibps": 530.5,
+    "total_mibps": 1756.5
+  },
+  {
+    "wall": "Tue Sep 29 02:06:58 2026",
+    "t_sec": 154,
+    "read_iops": 2964,
+    "write_iops": 1275,
+    "total_iops": 4239,
+    "read_mibps": 1235.6,
+    "write_mibps": 530.3,
+    "total_mibps": 1765.9
+  },
+  {
+    "wall": "Tue Sep 29 02:07:18 2026",
+    "t_sec": 174,
+    "read_iops": 3196,
+    "write_iops": 1384,
+    "total_iops": 4579,
+    "read_mibps": 1246.7,
+    "write_mibps": 525.6,
+    "total_mibps": 1772.3
+  },
+  {
+    "wall": "Tue Sep 29 02:07:39 2026",
+    "t_sec": 194,
+    "read_iops": 3029,
+    "write_iops": 1269,
+    "total_iops": 4298,
+    "read_mibps": 1154.0,
+    "write_mibps": 494.6,
+    "total_mibps": 1648.5
+  },
+  {
+    "wall": "Tue Sep 29 02:07:59 2026",
+    "t_sec": 214,
+    "read_iops": 3073,
+    "write_iops": 1306,
+    "total_iops": 4379,
+    "read_mibps": 1246.4,
+    "write_mibps": 520.2,
+    "total_mibps": 1766.6
+  },
+  {
+    "wall": "Tue Sep 29 02:08:18 2026",
+    "t_sec": 234,
+    "read_iops": 3103,
+    "write_iops": 1340,
+    "total_iops": 4443,
+    "read_mibps": 1236.2,
+    "write_mibps": 525.4,
+    "total_mibps": 1761.6
+  },
+  {
+    "wall": "Tue Sep 29 02:08:39 2026",
+    "t_sec": 254,
+    "read_iops": 3001,
+    "write_iops": 1263,
+    "total_iops": 4264,
+    "read_mibps": 1194.9,
+    "write_mibps": 515.0,
+    "total_mibps": 1709.9
+  },
+  {
+    "wall": "Tue Sep 29 02:08:58 2026",
+    "t_sec": 274,
+    "read_iops": 3159,
+    "write_iops": 1362,
+    "total_iops": 4521,
+    "read_mibps": 1338.5,
+    "write_mibps": 545.8,
+    "total_mibps": 1884.3
+  },
+  {
+    "wall": "Tue Sep 29 02:09:18 2026",
+    "t_sec": 294,
+    "read_iops": 3155,
+    "write_iops": 1341,
+    "total_iops": 4497,
+    "read_mibps": 1134.3,
+    "write_mibps": 500.1,
+    "total_mibps": 1634.3
+  },
+  {
+    "wall": "Tue Sep 29 02:09:39 2026",
+    "t_sec": 314,
+    "read_iops": 3171,
+    "write_iops": 1333,
+    "total_iops": 4504,
+    "read_mibps": 1185.2,
+    "write_mibps": 510.1,
+    "total_mibps": 1695.3
+  },
+  {
+    "wall": "Tue Sep 29 02:09:58 2026",
+    "t_sec": 334,
+    "read_iops": 3092,
+    "write_iops": 1309,
+    "total_iops": 4401,
+    "read_mibps": 1236.2,
+    "write_mibps": 515.2,
+    "total_mibps": 1751.4
+  },
+  {
+    "wall": "Tue Sep 29 02:10:18 2026",
+    "t_sec": 354,
+    "read_iops": 3037,
+    "write_iops": 1316,
+    "total_iops": 4353,
+    "read_mibps": 1236.1,
+    "write_mibps": 515.1,
+    "total_mibps": 1751.1
+  },
+  {
+    "wall": "Tue Sep 29 02:10:38 2026",
+    "t_sec": 374,
+    "read_iops": 3106,
+    "write_iops": 1346,
+    "total_iops": 4452,
+    "read_mibps": 1236.1,
+    "write_mibps": 545.9,
+    "total_mibps": 1781.9
+  },
+  {
+    "wall": "Tue Sep 29 02:10:58 2026",
+    "t_sec": 394,
+    "read_iops": 3092,
+    "write_iops": 1302,
+    "total_iops": 4394,
+    "read_mibps": 1236.3,
+    "write_mibps": 525.4,
+    "total_mibps": 1761.6
+  },
+  {
+    "wall": "Tue Sep 29 02:11:19 2026",
+    "t_sec": 414,
+    "read_iops": 3057,
+    "write_iops": 1336,
+    "total_iops": 4393,
+    "read_mibps": 1235.9,
+    "write_mibps": 530.4,
+    "total_mibps": 1766.3
+  },
+  {
+    "wall": "Tue Sep 29 02:11:38 2026",
+    "t_sec": 434,
+    "read_iops": 3041,
+    "write_iops": 1288,
+    "total_iops": 4330,
+    "read_mibps": 1184.8,
+    "write_mibps": 530.5,
+    "total_mibps": 1715.3
+  },
+  {
+    "wall": "Tue Sep 29 02:11:59 2026",
+    "t_sec": 454,
+    "read_iops": 3116,
+    "write_iops": 1371,
+    "total_iops": 4487,
+    "read_mibps": 1236.0,
+    "write_mibps": 530.5,
+    "total_mibps": 1766.5
+  },
+  {
+    "wall": "Tue Sep 29 02:12:18 2026",
+    "t_sec": 474,
+    "read_iops": 3132,
+    "write_iops": 1300,
+    "total_iops": 4432,
+    "read_mibps": 1236.1,
+    "write_mibps": 545.9,
+    "total_mibps": 1782.0
+  },
+  {
+    "wall": "Tue Sep 29 02:12:38 2026",
+    "t_sec": 494,
+    "read_iops": 3052,
+    "write_iops": 1343,
+    "total_iops": 4395,
+    "read_mibps": 1287.2,
+    "write_mibps": 535.5,
+    "total_mibps": 1822.7
+  },
+  {
+    "wall": "Tue Sep 29 02:12:59 2026",
+    "t_sec": 514,
+    "read_iops": 3168,
+    "write_iops": 1341,
+    "total_iops": 4510,
+    "read_mibps": 1185.1,
+    "write_mibps": 520.3,
+    "total_mibps": 1705.4
+  },
+  {
+    "wall": "Tue Sep 29 02:13:18 2026",
+    "t_sec": 534,
+    "read_iops": 3060,
+    "write_iops": 1286,
+    "total_iops": 4345,
+    "read_mibps": 1236.2,
+    "write_mibps": 504.9,
+    "total_mibps": 1741.1
+  },
+  {
+    "wall": "Tue Sep 29 02:13:39 2026",
+    "t_sec": 554,
+    "read_iops": 3050,
+    "write_iops": 1308,
+    "total_iops": 4357,
+    "read_mibps": 1236.0,
+    "write_mibps": 525.3,
+    "total_mibps": 1761.3
+  },
+  {
+    "wall": "Tue Sep 29 02:13:58 2026",
+    "t_sec": 574,
+    "read_iops": 3154,
+    "write_iops": 1361,
+    "total_iops": 4515,
+    "read_mibps": 1287.1,
+    "write_mibps": 556.1,
+    "total_mibps": 1843.2
+  },
+  {
+    "wall": "Tue Sep 29 02:14:18 2026",
+    "t_sec": 594,
+    "read_iops": 3123,
+    "write_iops": 1302,
+    "total_iops": 4424,
+    "read_mibps": 1236.2,
+    "write_mibps": 530.4,
+    "total_mibps": 1766.6
+  },
+  {
+    "wall": "Tue Sep 29 02:14:39 2026",
+    "t_sec": 614,
+    "read_iops": 3119,
+    "write_iops": 1359,
+    "total_iops": 4478,
+    "read_mibps": 1338.3,
+    "write_mibps": 566.3,
+    "total_mibps": 1904.6
+  },
+  {
+    "wall": "Tue Sep 29 02:14:58 2026",
+    "t_sec": 634,
+    "read_iops": 3146,
+    "write_iops": 1327,
+    "total_iops": 4474,
+    "read_mibps": 1287.3,
+    "write_mibps": 566.4,
+    "total_mibps": 1853.7
+  },
+  {
+    "wall": "Tue Sep 29 02:15:19 2026",
+    "t_sec": 654,
+    "read_iops": 3112,
+    "write_iops": 1325,
+    "total_iops": 4437,
+    "read_mibps": 1185.2,
+    "write_mibps": 515.3,
+    "total_mibps": 1700.5
+  },
+  {
+    "wall": "Tue Sep 29 02:15:38 2026",
+    "t_sec": 674,
+    "read_iops": 3108,
+    "write_iops": 1323,
+    "total_iops": 4431,
+    "read_mibps": 1236.1,
+    "write_mibps": 463.8,
+    "total_mibps": 1699.8
+  },
+  {
+    "wall": "Tue Sep 29 02:15:59 2026",
+    "t_sec": 694,
+    "read_iops": 3104,
+    "write_iops": 1321,
+    "total_iops": 4425,
+    "read_mibps": 1236.1,
+    "write_mibps": 617.6,
+    "total_mibps": 1853.6
+  },
+  {
+    "wall": "Tue Sep 29 02:16:18 2026",
+    "t_sec": 714,
+    "read_iops": 3100,
+    "write_iops": 1319,
+    "total_iops": 4419,
+    "read_mibps": 1236.1,
+    "write_mibps": 464.0,
+    "total_mibps": 1700.1
+  },
+  {
+    "wall": "Tue Sep 29 02:16:38 2026",
+    "t_sec": 734,
+    "read_iops": 3096,
+    "write_iops": 1317,
+    "total_iops": 4413,
+    "read_mibps": 1236.1,
+    "write_mibps": 566.3,
+    "total_mibps": 1802.5
+  },
+  {
+    "wall": "Tue Sep 29 02:16:58 2026",
+    "t_sec": 754,
+    "read_iops": 3129,
+    "write_iops": 1391,
+    "total_iops": 4520,
+    "read_mibps": 1389.6,
+    "write_mibps": 515.1,
+    "total_mibps": 1904.7
+  },
+  {
+    "wall": "Tue Sep 29 02:17:18 2026",
+    "t_sec": 774,
+    "read_iops": 3243,
+    "write_iops": 1354,
+    "total_iops": 4597,
+    "read_mibps": 1236.1,
+    "write_mibps": 566.4,
+    "total_mibps": 1802.5
+  },
+  {
+    "wall": "Tue Sep 29 02:17:38 2026",
+    "t_sec": 794,
+    "read_iops": 3049,
+    "write_iops": 1354,
+    "total_iops": 4403,
+    "read_mibps": 1287.2,
+    "write_mibps": 617.4,
+    "total_mibps": 1904.6
+  },
+  {
+    "wall": "Tue Sep 29 02:17:58 2026",
+    "t_sec": 814,
+    "read_iops": 3206,
+    "write_iops": 1313,
+    "total_iops": 4519,
+    "read_mibps": 1236.2,
+    "write_mibps": 464.0,
+    "total_mibps": 1700.1
+  },
+  {
+    "wall": "Tue Sep 29 02:18:19 2026",
+    "t_sec": 834,
+    "read_iops": 3124,
+    "write_iops": 1395,
+    "total_iops": 4519,
+    "read_mibps": 1389.6,
+    "write_mibps": 617.6,
+    "total_mibps": 2007.2
+  },
+  {
+    "wall": "Tue Sep 29 02:18:38 2026",
+    "t_sec": 854,
+    "read_iops": 2140,
+    "write_iops": 927,
+    "total_iops": 3067,
+    "read_mibps": 722.4,
+    "write_mibps": 309.6,
+    "total_mibps": 1032.0
+  },
+  {
+    "wall": "Tue Sep 29 02:18:59 2026",
+    "t_sec": 874,
+    "read_iops": 1743,
+    "write_iops": 732,
+    "total_iops": 2475,
+    "read_mibps": 261.9,
+    "write_mibps": 105.0,
+    "total_mibps": 366.8
+  },
+  {
+    "wall": "Tue Sep 29 02:19:18 2026",
+    "t_sec": 894,
+    "read_iops": 2930,
+    "write_iops": 1196,
+    "total_iops": 4126,
+    "read_mibps": 1133.2,
+    "write_mibps": 514.9,
+    "total_mibps": 1648.1
+  },
+  {
+    "wall": "Tue Sep 29 02:19:38 2026",
+    "t_sec": 914,
+    "read_iops": 2374,
+    "write_iops": 1099,
+    "total_iops": 3472,
+    "read_mibps": 672.2,
+    "write_mibps": 258.9,
+    "total_mibps": 931.1
+  },
+  {
+    "wall": "Tue Sep 29 02:19:59 2026",
+    "t_sec": 934,
+    "read_iops": 2762,
+    "write_iops": 1135,
+    "total_iops": 3897,
+    "read_mibps": 1031.2,
+    "write_mibps": 361.5,
+    "total_mibps": 1392.7
+  },
+  {
+    "wall": "Tue Sep 29 02:20:18 2026",
+    "t_sec": 954,
+    "read_iops": 2557,
+    "write_iops": 1080,
+    "total_iops": 3637,
+    "read_mibps": 672.7,
+    "write_mibps": 361.5,
+    "total_mibps": 1034.2
+  },
+  {
+    "wall": "Tue Sep 29 02:20:39 2026",
+    "t_sec": 974,
+    "read_iops": 2730,
+    "write_iops": 1167,
+    "total_iops": 3897,
+    "read_mibps": 826.7,
+    "write_mibps": 310.4,
+    "total_mibps": 1137.0
+  },
+  {
+    "wall": "Tue Sep 29 02:20:58 2026",
+    "t_sec": 994,
+    "read_iops": 2716,
+    "write_iops": 1211,
+    "total_iops": 3927,
+    "read_mibps": 979.5,
+    "write_mibps": 463.7,
+    "total_mibps": 1443.2
+  },
+  {
+    "wall": "Tue Sep 29 02:21:18 2026",
+    "t_sec": 1014,
+    "read_iops": 2753,
+    "write_iops": 1156,
+    "total_iops": 3909,
+    "read_mibps": 928.4,
+    "write_mibps": 463.7,
+    "total_mibps": 1392.1
+  },
+  {
+    "wall": "Tue Sep 29 02:21:38 2026",
+    "t_sec": 1034,
+    "read_iops": 2327,
+    "write_iops": 1047,
+    "total_iops": 3374,
+    "read_mibps": 928.0,
+    "write_mibps": 309.9,
+    "total_mibps": 1237.9
+  },
+  {
+    "wall": "Tue Sep 29 02:21:59 2026",
+    "t_sec": 1054,
+    "read_iops": 3037,
+    "write_iops": 1247,
+    "total_iops": 4284,
+    "read_mibps": 1133.3,
+    "write_mibps": 514.9,
+    "total_mibps": 1648.2
+  },
+  {
+    "wall": "Tue Sep 29 02:22:18 2026",
+    "t_sec": 1074,
+    "read_iops": 2393,
+    "write_iops": 1031,
+    "total_iops": 3423,
+    "read_mibps": 774.3,
+    "write_mibps": 361.1,
+    "total_mibps": 1135.4
+  },
+  {
+    "wall": "Tue Sep 29 02:22:39 2026",
+    "t_sec": 1094,
+    "read_iops": 2697,
+    "write_iops": 1075,
+    "total_iops": 3772,
+    "read_mibps": 775.4,
+    "write_mibps": 310.3,
+    "total_mibps": 1085.7
+  },
+  {
+    "wall": "Tue Sep 29 02:22:58 2026",
+    "t_sec": 1114,
+    "read_iops": 3242,
+    "write_iops": 1290,
+    "total_iops": 4532,
+    "read_mibps": 1083.5,
+    "write_mibps": 464.4,
+    "total_mibps": 1547.9
+  },
+  {
+    "wall": "Tue Sep 29 02:23:18 2026",
+    "t_sec": 1134,
+    "read_iops": 4894,
+    "write_iops": 2197,
+    "total_iops": 7091,
+    "read_mibps": 937.5,
+    "write_mibps": 365.2,
+    "total_mibps": 1302.7
+  },
+  {
+    "wall": "Tue Sep 29 02:23:38 2026",
+    "t_sec": 1154,
+    "read_iops": 5537,
+    "write_iops": 2460,
+    "total_iops": 7997,
+    "read_mibps": 939.8,
+    "write_mibps": 417.4,
+    "total_mibps": 1357.3
+  },
+  {
+    "wall": "Tue Sep 29 02:23:58 2026",
+    "t_sec": 1174,
+    "read_iops": 5916,
+    "write_iops": 2457,
+    "total_iops": 8374,
+    "read_mibps": 532.9,
+    "write_mibps": 265.0,
+    "total_mibps": 797.9
+  },
+  {
+    "wall": "Tue Sep 29 02:24:18 2026",
+    "t_sec": 1194,
+    "read_iops": 5475,
+    "write_iops": 2420,
+    "total_iops": 7895,
+    "read_mibps": 633.2,
+    "write_mibps": 315.2,
+    "total_mibps": 948.4
+  },
+  {
+    "wall": "Tue Sep 29 02:24:39 2026",
+    "t_sec": 1214,
+    "read_iops": 6706,
+    "write_iops": 2941,
+    "total_iops": 9647,
+    "read_mibps": 281.3,
+    "write_mibps": 113.3,
+    "total_mibps": 394.6
+  },
+  {
+    "wall": "Tue Sep 29 02:24:58 2026",
+    "t_sec": 1234,
+    "read_iops": 6822,
+    "write_iops": 2870,
+    "total_iops": 9692,
+    "read_mibps": 384.1,
+    "write_mibps": 164.6,
+    "total_mibps": 548.7
+  },
+  {
+    "wall": "Tue Sep 29 02:25:18 2026",
+    "t_sec": 1254,
+    "read_iops": 6562,
+    "write_iops": 2730,
+    "total_iops": 9292,
+    "read_mibps": 280.9,
+    "write_mibps": 61.8,
+    "total_mibps": 342.7
+  },
+  {
+    "wall": "Tue Sep 29 02:25:39 2026",
+    "t_sec": 1274,
+    "read_iops": 6093,
+    "write_iops": 2581,
+    "total_iops": 8673,
+    "read_mibps": 380.1,
+    "write_mibps": 162.8,
+    "total_mibps": 542.9
+  },
+  {
+    "wall": "Tue Sep 29 02:25:58 2026",
+    "t_sec": 1294,
+    "read_iops": 5273,
+    "write_iops": 2358,
+    "total_iops": 7631,
+    "read_mibps": 276.1,
+    "write_mibps": 162.3,
+    "total_mibps": 438.4
+  },
+  {
+    "wall": "Tue Sep 29 02:26:19 2026",
+    "t_sec": 1314,
+    "read_iops": 4806,
+    "write_iops": 2057,
+    "total_iops": 6863,
+    "read_mibps": 375.4,
+    "write_mibps": 160.8,
+    "total_mibps": 536.2
+  },
+  {
+    "wall": "Tue Sep 29 02:26:39 2026",
+    "t_sec": 1334,
+    "read_iops": 4848,
+    "write_iops": 2075,
+    "total_iops": 6923,
+    "read_mibps": 171.7,
+    "write_mibps": 110.2,
+    "total_mibps": 281.8
+  },
+  {
+    "wall": "Tue Sep 29 02:26:59 2026",
+    "t_sec": 1354,
+    "read_iops": 4348,
+    "write_iops": 1823,
+    "total_iops": 6171,
+    "read_mibps": 476.2,
+    "write_mibps": 160.3,
+    "total_mibps": 636.5
+  },
+  {
+    "wall": "Tue Sep 29 02:27:18 2026",
+    "t_sec": 1374,
+    "read_iops": 3962,
+    "write_iops": 1695,
+    "total_iops": 5657,
+    "read_mibps": 219.9,
+    "write_mibps": 57.5,
+    "total_mibps": 277.4
+  },
+  {
+    "wall": "Tue Sep 29 02:27:38 2026",
+    "t_sec": 1394,
+    "read_iops": 3767,
+    "write_iops": 1562,
+    "total_iops": 5328,
+    "read_mibps": 371.6,
+    "write_mibps": 159.3,
+    "total_mibps": 530.9
+  },
+  {
+    "wall": "Tue Sep 29 02:27:58 2026",
+    "t_sec": 1414,
+    "read_iops": 3704,
+    "write_iops": 1635,
+    "total_iops": 5339,
+    "read_mibps": 320.7,
+    "write_mibps": 159.4,
+    "total_mibps": 480.1
+  },
+  {
+    "wall": "Tue Sep 29 02:28:19 2026",
+    "t_sec": 1434,
+    "read_iops": 3495,
+    "write_iops": 1567,
+    "total_iops": 5062,
+    "read_mibps": 319.7,
+    "write_mibps": 158.8,
+    "total_mibps": 478.5
+  },
+  {
+    "wall": "Tue Sep 29 02:28:38 2026",
+    "t_sec": 1454,
+    "read_iops": 3640,
+    "write_iops": 1424,
+    "total_iops": 5064,
+    "read_mibps": 421.7,
+    "write_mibps": 210.0,
+    "total_mibps": 631.7
+  },
+  {
+    "wall": "Tue Sep 29 02:28:58 2026",
+    "t_sec": 1474,
+    "read_iops": 3202,
+    "write_iops": 1369,
+    "total_iops": 4572,
+    "read_mibps": 216.6,
+    "write_mibps": 56.3,
+    "total_mibps": 273.0
+  },
+  {
+    "wall": "Tue Sep 29 02:29:18 2026",
+    "t_sec": 1494,
+    "read_iops": 3269,
+    "write_iops": 1493,
+    "total_iops": 4762,
+    "read_mibps": 420.8,
+    "write_mibps": 209.6,
+    "total_mibps": 630.4
+  },
+  {
+    "wall": "Tue Sep 29 02:29:38 2026",
+    "t_sec": 1514,
+    "read_iops": 3112,
+    "write_iops": 1276,
+    "total_iops": 4388,
+    "read_mibps": 369.5,
+    "write_mibps": 158.3,
+    "total_mibps": 527.9
+  },
+  {
+    "wall": "Tue Sep 29 02:29:59 2026",
+    "t_sec": 1534,
+    "read_iops": 3255,
+    "write_iops": 1337,
+    "total_iops": 4592,
+    "read_mibps": 369.1,
+    "write_mibps": 158.2,
+    "total_mibps": 527.2
+  },
+  {
+    "wall": "Tue Sep 29 02:30:19 2026",
+    "t_sec": 1554,
+    "read_iops": 3016,
+    "write_iops": 1255,
+    "total_iops": 4271,
+    "read_mibps": 419.8,
+    "write_mibps": 106.7,
+    "total_mibps": 526.5
+  },
+  {
+    "wall": "Tue Sep 29 02:30:39 2026",
+    "t_sec": 1574,
+    "read_iops": 2768,
+    "write_iops": 1406,
+    "total_iops": 4174,
+    "read_mibps": 266.4,
+    "write_mibps": 158.1,
+    "total_mibps": 424.5
+  },
+  {
+    "wall": "Tue Sep 29 02:30:59 2026",
+    "t_sec": 1594,
+    "read_iops": 2989,
+    "write_iops": 1245,
+    "total_iops": 4234,
+    "read_mibps": 368.4,
+    "write_mibps": 157.9,
+    "total_mibps": 526.3
+  },
+  {
+    "wall": "Tue Sep 29 02:31:18 2026",
+    "t_sec": 1614,
+    "read_iops": 2654,
+    "write_iops": 1158,
+    "total_iops": 3812,
+    "read_mibps": 316.8,
+    "write_mibps": 157.7,
+    "total_mibps": 474.6
+  },
+  {
+    "wall": "Tue Sep 29 02:31:38 2026",
+    "t_sec": 1634,
+    "read_iops": 2961,
+    "write_iops": 1232,
+    "total_iops": 4193,
+    "read_mibps": 419.3,
+    "write_mibps": 157.7,
+    "total_mibps": 576.9
+  },
+  {
+    "wall": "Tue Sep 29 02:31:58 2026",
+    "t_sec": 1654,
+    "read_iops": 2949,
+    "write_iops": 1226,
+    "total_iops": 4175,
+    "read_mibps": 368.6,
+    "write_mibps": 106.8,
+    "total_mibps": 475.4
+  },
+  {
+    "wall": "Tue Sep 29 02:32:19 2026",
+    "t_sec": 1674,
+    "read_iops": 3104,
+    "write_iops": 1387,
+    "total_iops": 4491,
+    "read_mibps": 318.2,
+    "write_mibps": 209.4,
+    "total_mibps": 527.5
+  },
+  {
+    "wall": "Tue Sep 29 02:32:39 2026",
+    "t_sec": 1694,
+    "read_iops": 3350,
+    "write_iops": 1216,
+    "total_iops": 4566,
+    "read_mibps": 369.7,
+    "write_mibps": 107.2,
+    "total_mibps": 476.9
+  },
+  {
+    "wall": "Tue Sep 29 02:32:58 2026",
+    "t_sec": 1714,
+    "read_iops": 3006,
+    "write_iops": 1467,
+    "total_iops": 4473,
+    "read_mibps": 266.9,
+    "write_mibps": 209.5,
+    "total_mibps": 476.4
+  },
+  {
+    "wall": "Tue Sep 29 02:33:19 2026",
+    "t_sec": 1734,
+    "read_iops": 3082,
+    "write_iops": 1294,
+    "total_iops": 4376,
+    "read_mibps": 420.1,
+    "write_mibps": 106.9,
+    "total_mibps": 527.0
+  },
+  {
+    "wall": "Tue Sep 29 02:33:39 2026",
+    "t_sec": 1754,
+    "read_iops": 2987,
+    "write_iops": 1290,
+    "total_iops": 4276,
+    "read_mibps": 368.5,
+    "write_mibps": 157.9,
+    "total_mibps": 526.4
+  },
+  {
+    "wall": "Tue Sep 29 02:33:58 2026",
+    "t_sec": 1774,
+    "read_iops": 2888,
+    "write_iops": 1197,
+    "total_iops": 4085,
+    "read_mibps": 317.3,
+    "write_mibps": 209.1,
+    "total_mibps": 526.4
+  },
+  {
+    "wall": "Tue Sep 29 02:34:18 2026",
+    "t_sec": 1794,
+    "read_iops": 2696,
+    "write_iops": 1101,
+    "total_iops": 3798,
+    "read_mibps": 418.9,
+    "write_mibps": 106.4,
+    "total_mibps": 525.4
+  },
+  {
+    "wall": "Tue Sep 29 02:34:39 2026",
+    "t_sec": 1814,
+    "read_iops": 2680,
+    "write_iops": 1275,
+    "total_iops": 3955,
+    "read_mibps": 316.4,
+    "write_mibps": 106.4,
+    "total_mibps": 422.8
+  },
+  {
+    "wall": "Tue Sep 29 02:34:58 2026",
+    "t_sec": 1834,
+    "read_iops": 2573,
+    "write_iops": 1087,
+    "total_iops": 3660,
+    "read_mibps": 418.3,
+    "write_mibps": 208.5,
+    "total_mibps": 626.8
+  },
+  {
+    "wall": "Tue Sep 29 02:35:18 2026",
+    "t_sec": 1854,
+    "read_iops": 2647,
+    "write_iops": 987,
+    "total_iops": 3634,
+    "read_mibps": 367.4,
+    "write_mibps": 157.4,
+    "total_mibps": 524.8
+  },
+  {
+    "wall": "Tue Sep 29 02:35:38 2026",
+    "t_sec": 1874,
+    "read_iops": 2163,
+    "write_iops": 977,
+    "total_iops": 3139,
+    "read_mibps": 263.2,
+    "write_mibps": 105.5,
+    "total_mibps": 368.7
+  },
+  {
+    "wall": "Tue Sep 29 02:35:58 2026",
+    "t_sec": 1894,
+    "read_iops": 2610,
+    "write_iops": 1156,
+    "total_iops": 3766,
+    "read_mibps": 469.0,
+    "write_mibps": 208.3,
+    "total_mibps": 677.3
+  },
+  {
+    "wall": "Tue Sep 29 02:36:19 2026",
+    "t_sec": 1914,
+    "read_iops": 2116,
+    "write_iops": 959,
+    "total_iops": 3075,
+    "read_mibps": 263.4,
+    "write_mibps": 54.4,
+    "total_mibps": 317.8
+  },
+  {
+    "wall": "Tue Sep 29 02:36:39 2026",
+    "t_sec": 1934,
+    "read_iops": 1993,
+    "write_iops": 852,
+    "total_iops": 2845,
+    "read_mibps": 314.3,
+    "write_mibps": 207.9,
+    "total_mibps": 522.2
+  },
+  {
+    "wall": "Tue Sep 29 02:36:59 2026",
+    "t_sec": 1954,
+    "read_iops": 2258,
+    "write_iops": 938,
+    "total_iops": 3196,
+    "read_mibps": 212.3,
+    "write_mibps": 105.6,
+    "total_mibps": 317.9
+  },
+  {
+    "wall": "Tue Sep 29 02:37:18 2026",
+    "t_sec": 1974,
+    "read_iops": 2452,
+    "write_iops": 1026,
+    "total_iops": 3478,
+    "read_mibps": 366.2,
+    "write_mibps": 105.8,
+    "total_mibps": 471.9
+  },
+  {
+    "wall": "Tue Sep 29 02:37:38 2026",
+    "t_sec": 1994,
+    "read_iops": 2815,
+    "write_iops": 1118,
+    "total_iops": 3932,
+    "read_mibps": 266.2,
+    "write_mibps": 157.9,
+    "total_mibps": 424.1
+  },
+  {
+    "wall": "Tue Sep 29 02:37:58 2026",
+    "t_sec": 2014,
+    "read_iops": 2603,
+    "write_iops": 1112,
+    "total_iops": 3715,
+    "read_mibps": 417.9,
+    "write_mibps": 157.2,
+    "total_mibps": 575.1
+  },
+  {
+    "wall": "Tue Sep 29 02:38:19 2026",
+    "t_sec": 2034,
+    "read_iops": 2325,
+    "write_iops": 1004,
+    "total_iops": 3329,
+    "read_mibps": 366.4,
+    "write_mibps": 105.8,
+    "total_mibps": 472.2
+  },
+  {
+    "wall": "Tue Sep 29 02:38:38 2026",
+    "t_sec": 2054,
+    "read_iops": 2470,
+    "write_iops": 996,
+    "total_iops": 3466,
+    "read_mibps": 264.4,
+    "write_mibps": 157.3,
+    "total_mibps": 421.7
+  },
+  {
+    "wall": "Tue Sep 29 02:38:58 2026",
+    "t_sec": 2074,
+    "read_iops": 2765,
+    "write_iops": 1403,
+    "total_iops": 4168,
+    "read_mibps": 419.1,
+    "write_mibps": 157.6,
+    "total_mibps": 576.7
+  },
+  {
+    "wall": "Tue Sep 29 02:39:19 2026",
+    "t_sec": 2094,
+    "read_iops": 2440,
+    "write_iops": 880,
+    "total_iops": 3320,
+    "read_mibps": 367.1,
+    "write_mibps": 208.6,
+    "total_mibps": 575.7
+  },
+  {
+    "wall": "Tue Sep 29 02:39:39 2026",
+    "t_sec": 2114,
+    "read_iops": 2107,
+    "write_iops": 870,
+    "total_iops": 2977,
+    "read_mibps": 517.2,
+    "write_mibps": 207.1,
+    "total_mibps": 724.2
+  },
+  {
+    "wall": "Tue Sep 29 02:39:58 2026",
+    "t_sec": 2134,
+    "read_iops": 2192,
+    "write_iops": 966,
+    "total_iops": 3158,
+    "read_mibps": 263.8,
+    "write_mibps": 105.7,
+    "total_mibps": 369.6
+  },
+  {
+    "wall": "Tue Sep 29 02:40:18 2026",
+    "t_sec": 2154,
+    "read_iops": 2711,
+    "write_iops": 1174,
+    "total_iops": 3884,
+    "read_mibps": 418.9,
+    "write_mibps": 208.9,
+    "total_mibps": 627.7
+  },
+  {
+    "wall": "Tue Sep 29 02:40:38 2026",
+    "t_sec": 2174,
+    "read_iops": 2266,
+    "write_iops": 953,
+    "total_iops": 3219,
+    "read_mibps": 672.0,
+    "write_mibps": 258.7,
+    "total_mibps": 930.7
+  },
+  {
+    "wall": "Tue Sep 29 02:40:58 2026",
+    "t_sec": 2194,
+    "read_iops": 2357,
+    "write_iops": 947,
+    "total_iops": 3304,
+    "read_mibps": 1029.0,
+    "write_mibps": 463.0,
+    "total_mibps": 1491.9
+  },
+  {
+    "wall": "Tue Sep 29 02:41:18 2026",
+    "t_sec": 2214,
+    "read_iops": 2231,
+    "write_iops": 1047,
+    "total_iops": 3278,
+    "read_mibps": 978.1,
+    "write_mibps": 411.8,
+    "total_mibps": 1390.0
+  },
+  {
+    "wall": "Tue Sep 29 02:41:43 2026",
+    "t_sec": 2234,
+    "read_iops": 1319,
+    "write_iops": 488,
+    "total_iops": 1807,
+    "read_mibps": 361.6,
+    "write_mibps": 155.0,
+    "total_mibps": 516.6
+  },
+  {
+    "wall": "Tue Sep 29 02:41:58 2026",
+    "t_sec": 2254,
+    "read_iops": 947,
+    "write_iops": 477,
+    "total_iops": 1424,
+    "read_mibps": 157.0,
+    "write_mibps": 52.6,
+    "total_mibps": 209.7
+  },
+  {
+    "wall": "Tue Sep 29 02:42:18 2026",
+    "t_sec": 2274,
+    "read_iops": 1362,
+    "write_iops": 684,
+    "total_iops": 2046,
+    "read_mibps": 158.9,
+    "write_mibps": 104.7,
+    "total_mibps": 263.6
+  },
+  {
+    "wall": "Tue Sep 29 02:42:38 2026",
+    "t_sec": 2294,
+    "read_iops": 1674,
+    "write_iops": 680,
+    "total_iops": 2354,
+    "read_mibps": 158.7,
+    "write_mibps": 53.4,
+    "total_mibps": 212.0
+  },
+  {
+    "wall": "Tue Sep 29 02:42:59 2026",
+    "t_sec": 2314,
+    "read_iops": 2805,
+    "write_iops": 1117,
+    "total_iops": 3921,
+    "read_mibps": 1183.9,
+    "write_mibps": 514.7,
+    "total_mibps": 1698.6
+  },
+  {
+    "wall": "Tue Sep 29 02:43:18 2026",
+    "t_sec": 2334,
+    "read_iops": 2799,
+    "write_iops": 1229,
+    "total_iops": 4028,
+    "read_mibps": 1132.9,
+    "write_mibps": 463.5,
+    "total_mibps": 1596.5
+  },
+  {
+    "wall": "Tue Sep 29 02:43:38 2026",
+    "t_sec": 2354,
+    "read_iops": 1498,
+    "write_iops": 757,
+    "total_iops": 2255,
+    "read_mibps": 363.0,
+    "write_mibps": 155.6,
+    "total_mibps": 518.6
+  },
+  {
+    "wall": "Tue Sep 29 02:43:58 2026",
+    "t_sec": 2374,
+    "read_iops": 2064,
+    "write_iops": 876,
+    "total_iops": 2940,
+    "read_mibps": 773.8,
+    "write_mibps": 309.7,
+    "total_mibps": 1083.5
+  },
+  {
+    "wall": "Tue Sep 29 02:44:18 2026",
+    "t_sec": 2394,
+    "read_iops": 3123,
+    "write_iops": 1216,
+    "total_iops": 4339,
+    "read_mibps": 1235.9,
+    "write_mibps": 566.3,
+    "total_mibps": 1802.2
+  },
+  {
+    "wall": "Tue Sep 29 02:44:38 2026",
+    "t_sec": 2414,
+    "read_iops": 2037,
+    "write_iops": 861,
+    "total_iops": 2898,
+    "read_mibps": 517.1,
+    "write_mibps": 207.1,
+    "total_mibps": 724.2
+  },
+  {
+    "wall": "Tue Sep 29 02:44:59 2026",
+    "t_sec": 2434,
+    "read_iops": 2019,
+    "write_iops": 858,
+    "total_iops": 2877,
+    "read_mibps": 518.2,
+    "write_mibps": 207.4,
+    "total_mibps": 725.6
+  },
+  {
+    "wall": "Tue Sep 29 02:45:18 2026",
+    "t_sec": 2454,
+    "read_iops": 2860,
+    "write_iops": 1450,
+    "total_iops": 4309,
+    "read_mibps": 1235.7,
+    "write_mibps": 515.0,
+    "total_mibps": 1750.7
+  },
+  {
+    "wall": "Tue Sep 29 02:45:38 2026",
+    "t_sec": 2474,
+    "read_iops": 2485,
+    "write_iops": 1092,
+    "total_iops": 3577,
+    "read_mibps": 722.8,
+    "write_mibps": 309.8,
+    "total_mibps": 1032.6
+  },
+  {
+    "wall": "Tue Sep 29 02:45:59 2026",
+    "t_sec": 2494,
+    "read_iops": 1604,
+    "write_iops": 739,
+    "total_iops": 2343,
+    "read_mibps": 210.6,
+    "write_mibps": 156.1,
+    "total_mibps": 366.7
+  },
+  {
+    "wall": "Tue Sep 29 02:46:09 2026",
+    "t_sec": 2504,
+    "read_iops": 2845,
+    "write_iops": 570,
+    "total_iops": 3414,
+    "read_mibps": 1153.4,
+    "write_mibps": 419.9,
+    "total_mibps": 1573.4
+  }
+]
