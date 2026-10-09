@@ -2,6 +2,47 @@
 
 区域 us-east-2，2026-10-09。"实测"= 用 AWS CLI 实际调用 CreateFileSystem / UpdateFileSystem 等得到的返回；"文档"= FSx for Lustre User Guide / API Reference。
 
+## 0. 特性逐项实测对比表（2026-10-09，us-east-2，CLI 实际创建/修改）
+
+| 特性 | 测试方法 | Persistent 1 | Persistent 2 |
+|---|---|---|---|
+| SSD 存储 | 建 1200 GiB | ✅ 创建成功 | ✅ 创建成功 |
+| **HDD 存储** | 建 HDD 6000 GiB / 1800 GiB | ✅ 12 MBps/TiB + SSD 读缓存、40 MBps/TiB 无缓存均成功 | ❌ `StorageType HDD is not supported for ... PERSISTENT_2` |
+| HDD 读缓存参数 | 不填 DriveCacheType | ❌ `DriveCacheType must be provided for storage type HDD. Supported values are [NONE,READ]` | — |
+| Intelligent-Tiering | ThroughputCapacity=4000 | ❌ `DeploymentType must be PERSISTENT_2` | ✅ 创建成功（需同时带 Metadata 配置） |
+| **EFA** | EfaEnabled=true | ❌ `EFA is only supported for PERSISTENT_2 filesystems with metadata configuration`（换成自引用安全组仍失败） | ✅ 4800 GiB / 1000 MBps/TiB + Metadata + 自引用安全组 创建成功 |
+| EFA 前提 | P2 各种组合 | — | 无 Metadata 配置 ❌；安全组无自引用全通 ❌；1000 档 <4800 GiB ❌；125 档 <38400 GiB ❌ |
+| 吞吐档位 | 互用对方档位 | 50/100/200，用 125 ❌ | 125/250/500/1000，用 200 ❌ |
+| 修改吞吐 | update-file-system | SSD 可在 50/100/200 内改；**HDD 不能改**（`Throughput scaling is not supported for ... HDD`） | SSD 可在 125–1000 内改；EFA 文件系统不能改（文档） |
+| **Metadata IOPS（创建时）** | MetadataConfiguration | ❌ `Cannot specify metadata configuration for deployment type 'PERSISTENT_1'` | ✅ AUTOMATIC / USER_PROVISIONED 1500–192000（192000 实测成功；5000 非法） |
+| Metadata IOPS（创建后加） | update-file-system | ❌ | ❌ 建时没配的加不上；✅ 建时配了的可以改（1500→3000 已受理） |
+| Metadata + Lustre 版本 | P2 + 2.12 + Metadata | — | ❌ `A FileSystemTypeVersion of '2.15' is required ... when specifying a metadata configuration` |
+| CLI 默认 Lustre 版本 | 不指定版本 | **2.10** | 2.15 |
+| 可选 Lustre 版本 | — | 2.10 / 2.12 / 2.15 | 2.12 / 2.15（带 Metadata 只能 2.15） |
+| S3 关联（DRA） | create-data-repository-association | 2.10 ❌ `does not support data repository associations`；升级 2.15 后 ✅ | ✅ |
+| 旧式 S3 关联（ImportPath） | 建 FS 时指定 | ✅（文档） | ❌ `Linking a Persistent 2 file system to an S3 bucket using the LustreConfiguration is not supported` |
+| Lustre 版本升级 | 2.10 → 2.15 | ✅ 约 12 分钟 | ✅（文档） |
+| LZ4 数据压缩 | update-file-system | ✅ 成功 | ✅ 成功 |
+| 备份 | create-backup | ❌ 关联了 S3 的文件系统不能备份（P1、P2 相同报错 `Backups cannot be created on S3-linked file systems`） | 同左 |
+| 最小容量 | — | SSD 1200 GiB；HDD-12 6000 GiB；HDD-40 1800 GiB | SSD 1200 GiB；EFA 4800–38400 GiB（按档位） |
+| 创建方式 | — | 只能 CLI / API（文档） | 控制台 / CLI / API |
+| 创建耗时 | — | SSD 约 6 分钟；HDD 约 7 分钟 | SSD 约 6–7 分钟 |
+| 存储价格 SSD $/GB-月 | Price List API | 0.14 / 0.19 / 0.29 | 0.145 / 0.21 / 0.34 / 0.60 |
+| 存储价格 HDD $/GB-月 | Price List API | 12：0.025（+缓存 0.041）；40：0.083（+缓存 0.099） | — |
+
+### 性能小测（1200 GiB 或最小规格，单台 m6i.large 客户端，结果受客户端带宽限制）
+
+| 文件系统 | 顺序写 / 读（4×1 GiB，direct） | 元数据 创建 / 删除（16 并发×1250 文件） |
+|---|---|---|
+| P1 SSD 50，1200 GiB | 581 / 590 MB/s | 6,223 / 7,540 个/秒 |
+| P2 SSD 125，1200 GiB | 588 / 590 MB/s | 7,675 / 9,254 个/秒 |
+| P1 HDD 12 + SSD 读缓存，6000 GiB（4 个 OST） | 577 / 584 MB/s | 5,752 / 4,329 个/秒 |
+| P2 SSD 125 + Metadata 1500 IOPS，1200 GiB | 440 / 490 MB/s | 7,234 / 7,075 个/秒 |
+
+- 顺序吞吐都在 ~590 MB/s，接近 m6i.large 的网络上限（12.5 Gbps 突发），**看不出文件系统差别**（推测是客户端瓶颈）。
+- HDD 的删除速度明显低于 SSD（4,329 vs 7,540–9,254 个/秒）。
+- 要测出真实吞吐差别需要更大的客户端和更大的文件系统，本次未做。
+
 ## 1. 结论总表
 
 | 对比项 | Persistent 1 | Persistent 2 | 依据 |
