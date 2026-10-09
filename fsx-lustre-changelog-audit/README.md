@@ -21,14 +21,29 @@
 
 Lustre 的元数据服务器（MDT）会把每一次元数据变更按顺序记成一条日志，在客户端用 `lfs changelog` 读取。
 
-**前提：文件系统必须配置了 S3 关联（DRA）并开启自动导出。** 实测：
+**前提：文件系统必须配置了 S3 关联（DRA）并开启自动导出。**
 
-| 文件系统 | 有无 Changelog |
+实测：4 个文件系统，分别在 DRA 路径内、DRA 路径外做 新建 → 覆盖 → 改路径（mv 到子目录）→ 新建+删除 → 删除文件 / 目录，同时 `lfs changelog --follow`：
+
+| 文件系统 | 自动导入 | 自动导出 | DRA 路径内 | DRA 路径外 |
+|---|---|---|---|---|
+| fs-A 双向 | NEW,CHANGED,DELETED | NEW,CHANGED,DELETED | ✅ 10 条 | ✅ 11 条 |
+| fs-B 仅自动导出 | — | NEW,CHANGED,DELETED | ✅ 10 条 | ✅ 11 条 |
+| fs-C 仅自动导入 | NEW,CHANGED,DELETED | — | ❌ 0 条 | ❌ 0 条 |
+| fs-D 无 DRA | — | — | ❌ 0 条（无 DRA 路径，在根目录测试） | — |
+
+（路径外多 1 条是新建 `outside_dra` 目录的 MKDIR）
+
+每次操作对应的记录（fs-A / fs-B 相同）：
+
+| 操作 | 记录 |
 |---|---|
-| DRA 双向（自动导入 + 自动导出） | ✅ 有 |
-| DRA 仅自动导出 | ✅ 有 |
-| DRA 仅自动导入 | ❌ 无 |
-| 没有 DRA | ❌ 无 |
+| `mkdir clt` | `02MKDIR` |
+| `echo v1 > a.txt`（新建） | `01CREAT` |
+| `echo v2 > a.txt`（覆盖） | `13TRUNC` |
+| `mkdir sub; mv a.txt sub/a.txt`（改路径） | `02MKDIR` + `08RENME`（带原路径 `/bidir/clt_bidir/a.txt`） |
+| `echo t > b.txt; rm b.txt` | `01CREAT` + `06UNLNK` |
+| `rm sub/a.txt; rmdir sub; rmdir clt` | `06UNLNK` + `07RMDIR` + `07RMDIR` |
 
 有 Changelog 时，记录的是**整个文件系统**的变更，不只是 DRA 路径。
 
