@@ -1,0 +1,25 @@
+# ===== /etc/systemd/system/lustre-changelog@.service =====
+[Unit]
+Description=Lustre changelog collector for %i
+After=network-online.target remote-fs.target
+[Service]
+Environment=ROTATE_SEC=300
+ExecStart=/usr/bin/python3 /usr/local/bin/lustre-changelog-collector.py %i
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=multi-user.target
+
+# ===== /etc/systemd/system/lustre-changelog-upload.service =====
+[Unit]
+Description=Upload Lustre changelog files to S3
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/lustre-changelog-upload.sh <BUCKET> lustre-changelog
+
+# ===== /etc/systemd/system/lustre-changelog-upload.timer =====
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+[Install]
+WantedBy=timers.target
