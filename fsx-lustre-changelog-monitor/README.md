@@ -149,4 +149,6 @@ WantedBy=multi-user.target
 | 部署 | 需要常驻进程（root） | 无需部署客户端 |
 | 前提 | 文件系统开了自动导出 | 有 DRA + 自动导出 |
 
+定时导出到 S3 + Athena 查询见：[EXPORT_TO_S3.md](EXPORT_TO_S3.md)
+
 S3 方案见：[fsx-lustre-dra-eventbridge](../fsx-lustre-dra-eventbridge/README.md)
