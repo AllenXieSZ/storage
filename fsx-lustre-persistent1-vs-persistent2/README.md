@@ -18,6 +18,7 @@
 | Metadata IOPS（创建后加） | update-file-system | ❌ | ❌ 建时没配的加不上；✅ 建时配了的可以改（1500→3000 已受理） |
 | Metadata + Lustre 版本 | P2 + 2.12 + Metadata | — | ❌ `A FileSystemTypeVersion of '2.15' is required ... when specifying a metadata configuration` |
 | CLI 默认 Lustre 版本 | 不指定版本 | **2.10** | 2.15 |
+| 创建时指定 Lustre 版本 | `--file-system-type-version` | ✅ 2.15 / 2.12 / 2.10 均创建成功（SSD 与 HDD 都能指定 2.15）；2.15 挂载后服务端 `target_version: 2.15.8.0`；2.15 / 2.12 可建 DRA，2.10 不能 | ✅ 2.15 / 2.12 |
 | 可选 Lustre 版本 | — | 2.10 / 2.12 / 2.15 | 2.12 / 2.15（带 Metadata 只能 2.15） |
 | S3 关联（DRA） | create-data-repository-association | 2.10 ❌ `does not support data repository associations`；升级 2.15 后 ✅ | ✅ |
 | 旧式 S3 关联（ImportPath） | 建 FS 时指定 | ✅（文档） | ❌ `Linking a Persistent 2 file system to an S3 bucket using the LustreConfiguration is not supported` |
@@ -149,7 +150,7 @@ BadRequest: EFA is only supported for PERSISTENT_2 filesystems with metadata con
 - 升级后建 DRA（自动导出）成功（约 40 秒）。
 - P2 不能用 2.10；指定 2.12 可以创建。
 
-建议：P1 创建时直接加 `--file-system-type-version 2.15`。
+建议：P1 创建时直接加 `--file-system-type-version 2.15`（实测可以，不需要先建 2.10 再升级）。
 
 ### 3.4 P2 不支持旧式 S3 关联
 ```
