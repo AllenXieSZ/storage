@@ -30,6 +30,17 @@
 | 存储价格 SSD $/GB-月 | Price List API | 0.14 / 0.19 / 0.29 | 0.145 / 0.21 / 0.34 / 0.60 |
 | 存储价格 HDD $/GB-月 | Price List API | 12：0.025（+缓存 0.041）；40：0.083（+缓存 0.099） | — |
 
+
+### EFA 只支持 Persistent 2：官方文档出处
+
+[Working with EFA-enabled file systems → Considerations](https://docs.aws.amazon.com/fsx/latest/LustreGuide/efa-file-systems.html#efa-considerations)：
+
+> **Deployment type:** EFA is supported on Persistent 2 file systems with a metadata configuration specified, including file systems using the Intelligent-Tiering storage class.
+
+此外 [IP addresses for file systems](https://docs.aws.amazon.com/fsx/latest/LustreGuide/using-fsx-lustre.html#ip-addesses-for-fs) 表中只有 "Persistent 2 EFA" 一行，Persistent 1 只有 SSD / HDD，没有 EFA 选项。
+
+⚠️ 文档中的 EFA 创建示例 CLI 没有带 `MetadataConfiguration`，但实测不带会报错 `EFA is only supported for PERSISTENT_2 filesystems with metadata configuration`，与 Considerations 一节一致——示例本身不完整。
+
 ### 性能小测（1200 GiB 或最小规格，单台 m6i.large 客户端，结果受客户端带宽限制）
 
 | 文件系统 | 顺序写 / 读（4×1 GiB，direct） | 元数据 创建 / 删除（16 并发×1250 文件） |
