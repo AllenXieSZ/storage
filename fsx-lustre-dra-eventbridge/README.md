@@ -226,6 +226,9 @@ Lustre 新建目录会在 S3 生成一个以 `/` 结尾、0 字节的对象。
 8. **删除事件没有文件大小**，`etag` 是删除标记本身的值，不是原文件。
 9. **不能改用普通 S3 Event Notification**（SNS/SQS/Lambda）订阅 `ObjectCreated` / `ObjectRemoved`，会与 bucket 上已有配置冲突；只能用 EventBridge。
 10. **修改通知配置时必须保留已有的 `FSx` 配置**，否则 S3 → Lustre 自动导入会失效。
+11. **重命名不是一条事件**：表现为新名字 `Object Created`（reason=`CopyObject`）+ 旧名字 `Object Deleted`，两条无法直接关联；重命名目录时目录下每个对象各一对。
+12. **chmod / chown 产生 `Object Created`（CopyObject）**，看不出改了什么；**只改时间（touch）没有事件**。
+13. **删除目录有事件**（key 以 `/` 结尾），`rm -rf` 时每个文件、每级目录各一条。
 
 ## 6. 清理
 
