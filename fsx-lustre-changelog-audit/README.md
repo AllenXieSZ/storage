@@ -151,10 +151,12 @@ lfs fid2path /mnt/lustre '[0x200000403:0x1c:0x0]'
 | 时间精度 | 纳秒（操作发生时间） | 秒（同步到 S3 的时间） |
 | 延迟 | 毫秒级 | 约 5–10 秒 |
 | 新建文件 | ✅ | ✅ |
-| 删除文件 | ✅（带完整路径） | ✅ |
-| 删除目录 | ✅ | ❌（目录在 S3 中只是一个 `xxx/` 对象，实测 rm -rf 只看到文件删除） |
-| 重命名 | ✅ 一条记录，带旧路径 + 新名字 | ⚠️ 表现为"删除旧对象 + 创建新对象"两条事件 |
-| 改权限 / 属主 / 时间 | ✅ | ⚠️ 取决于是否同步到 S3 |
+| 删除文件 | ✅（带完整路径） | ✅ `Object Deleted` |
+| 删除目录 | ✅ `RMDIR` | ✅ `Object Deleted`（key 为 `目录/`；`rm -rf` 时目录和其中文件各一条） |
+| 重命名文件 | ✅ 一条 `RENME`，带旧路径 + 新名字 | ⚠️ 两条：新名字 `Object Created`（reason=`CopyObject`）+ 旧名字 `Object Deleted`，**无法直接关联为同一次改名** |
+| 重命名目录 | ✅ 一条 `RENME` | ⚠️ 每个对象各一对 Created(CopyObject) + Deleted，目录下文件越多事件越多 |
+| 改权限 chmod / 改属主 chown | ✅ `SATTR` | ⚠️ `Object Created`（reason=`CopyObject`，同名对象被覆盖），**看不出改了什么** |
+| 只改时间 touch | ✅ `SATTR` | ❌ 无事件 |
 | 读文件 | ❌ | ❌ |
 | 文件大小 | ❌ | ✅（创建事件中） |
 | 部署 | 客户端常驻进程（root） | 无需客户端，纯 AWS 配置 |
@@ -162,9 +164,36 @@ lfs fid2path /mnt/lustre '[0x200000403:0x1c:0x0]'
 | 官方支持 | ❌ 文档未提及 | ✅ |
 | 前提 | DRA + 自动导出 | DRA + 自动导出 |
 
-> 注：表中"删除目录""重命名"在 EventBridge 一侧的行为为推测（根据 S3 对象模型），本次未逐一实测。
+EventBridge 一侧的目录、重命名、属性变化行为见 5.3 实测。
 
-### 5.3 如何选
+### 5.3 EventBridge 补充实测：目录 / 重命名 / 属性变化
+
+双向 DRA 路径 `/bidir/ebt/` 下操作，每步间隔 45–60 秒，按时间顺序收到的事件：
+
+| Lustre 操作 | 时间 | EventBridge 事件 | key | reason |
+|---|---|---|---|---|
+| `mkdir -p d1 d2/sub emptydir` | 07:03:04 | Object Created ×5 | `ebt/` `d1/` `d2/` `d2/sub/` `emptydir/`（0 字节） | PutObject |
+| 写入 4 个文件 | 07:03:07 | Object Created ×4 | `file.txt` `d1/x.txt` `d2/sub/y.txt` … | PutObject |
+| `mv file.txt file_renamed.txt` | 07:04:04 | Object Created | `file_renamed.txt` | **CopyObject** |
+| | 07:04:04 | Object Deleted | `file.txt` | DeleteObject |
+| `chmod 600 file_renamed.txt` | 07:04:48 | Object Created | `file_renamed.txt` | **CopyObject** |
+| `chown ec2-user file_renamed.txt` | 07:05:34 | Object Created | `file_renamed.txt` | **CopyObject** |
+| `touch -d 2020-01-01 file_renamed.txt` | — | **无事件** | — | — |
+| `mv d1 d1_renamed`（含 1 个文件） | 07:07:04 | Object Created | `d1_renamed/` | PutObject |
+| | 07:07:04 | Object Created | `d1_renamed/x.txt` | CopyObject |
+| | 07:07:04 | Object Deleted | `d1/` | DeleteObject |
+| | 07:07:04 | Object Deleted | `d1/x.txt` | DeleteObject |
+| `rmdir emptydir` | 07:08:04 | Object Deleted | `emptydir/` | DeleteObject |
+| `rm -rf d2`（d2/sub/y.txt） | 07:08:47 | Object Deleted ×3 | `d2/sub/y.txt` `d2/sub/` `d2/` | DeleteObject |
+
+结论：
+- **删除目录有事件**（key 以 `/` 结尾），`rm -rf` 时每个文件、每级目录各一条。
+- **重命名 = 复制新对象 + 删除旧对象**，两条事件之间没有字段能直接关联；目录重命名时，目录下每个对象都会产生一对事件。
+- **chmod / chown 产生 `Object Created`（CopyObject）**，与内容修改无法区分，看不出改了什么。
+- **只改时间（touch）没有事件。**
+- 所有删除事件 `deletion-type` = `Delete Marker Created`（bucket 开了 Versioning）。
+
+### 5.4 如何选
 
 | 需求 | 建议 |
 |---|---|
