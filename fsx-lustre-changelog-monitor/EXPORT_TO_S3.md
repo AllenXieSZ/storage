@@ -225,7 +225,7 @@ WHERE seq - prev_seq > 1;
    - **建议：如果业务本身不需要 DRA，可以建一个"空的"自动导出 DRA，只用来开启 Changelog。**
    - **做法：新建一个空 S3 bucket（或空前缀），DRA 关联到一个业务不使用的空目录（如 `/.audit-dra` ↔ `s3://<audit-bucket>/dummy/`），只开 AutoExport（NEW / CHANGED / DELETED），不开 AutoImport。**
    - **实测 Changelog 记录的是整个文件系统的变更，不限于 DRA 路径**，所以业务目录的操作照样被审计；业务数据不会导出到 S3，基本无额外存储成本。
-   - 推测（未实测）：HSM 记录由自动导出产生，只涉及 DRA 路径下的文件，DRA 指向空目录时 HSM 噪声应基本消失。
+   - **已实测**：HSM 记录由自动导出产生，只涉及 DRA 路径下的文件，DRA 指向空目录时 HSM 噪声消失。实测同样操作（建 200 个 1MB 文件、覆盖写 50、rename 20、删除 20、mkdir 5）：DRA 外目录 HSM 0 条（CREAT 200 / RENME 20 / UNLNK 20 / MKDIR 6 照常记录）；DRA 内目录 HSM 540 条（180 个留存文件各 3 条），CREAT/RENME/UNLNK/MKDIR 条数与 DRA 外相同；S3 上只有 DRA 内的对象。
    - 仅适用于 PERSISTENT_2（支持 DRA 的部署类型）。仅导出 DRA 创建约 3 分钟。
 7. **Changelog 不是 FSx for Lustre 官方文档的功能**，行为可能变化。
 8. 数据量估算：本次每条记录压缩后约 23 字节（72 条 1679 字节）；每天 1000 万次操作约 230 MB/天。
