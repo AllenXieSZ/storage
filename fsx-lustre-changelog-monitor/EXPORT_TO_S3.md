@@ -65,10 +65,30 @@ WantedBy=timers.target
 ```
 
 ### 2.4 启动
+
+**单 MDT：**
 ```bash
 systemctl daemon-reload
 systemctl enable --now lustre-changelog@divrbb4v-MDT0000.service lustre-changelog-upload.timer
 ```
+
+**多 MDT（自动为每个 MDT 启动一个采集实例）：**
+```bash
+systemctl daemon-reload
+for m in $(lfs mdts /mnt/lustre | awk '/ACTIVE/{sub(/_UUID$/,"",$2); print $2}'); do
+  systemctl enable --now lustre-changelog@$m.service
+done
+systemctl enable --now lustre-changelog-upload.timer   # 上传 timer 只需一个，所有 MDT 的文件一起上传
+
+# 检查：每个 MDT 都应有一个 running 实例
+lfs mdts /mnt/lustre
+systemctl list-units 'lustre-changelog@*' --no-pager
+```
+
+- **一个采集实例只读一个 MDT**（`lfs changelog --follow <MDT>`），不会自动读其它 MDT。
+- **每个 MDT 的 seq 各自独立**；S3 / Athena 按 `mdt=` 分区，缺口检查需按 MDT 分别做。
+- **扩容 Metadata IOPS 后要重新执行上面的循环**：Metadata IOPS 超过 12000 时 FSx 会增加 metadata server（[官方文档](https://docs.aws.amazon.com/fsx/latest/LustreGuide/managing-metadata-performance.html)），新 MDT 不采集会漏记录，且缺口检查发现不了。
+- 多 MDT 场景尚未实测。
 
 ## 3. S3 中的数据格式
 
@@ -199,7 +219,7 @@ WHERE seq - prev_seq > 1;
 1. **只能在一台客户端上运行采集**，多台会产生重复记录（可用 `seq` 去重）。这台客户端是单点：它宕机期间的变更会丢失。
 2. **采集进程停止期间的变更无法补回**（Changelog 几秒即被清除）。可用上面的"序号缺口"查询发现缺失。
 3. **高频批量操作可能漏记录**：README 中记录过一次 2000 文件批量删除时有缺失。
-4. **多 MDT 文件系统**：每个 MDT 起一个 `lustre-changelog@<MDT>` 实例。
+4. **多 MDT 文件系统**：每个 MDT 起一个 `lustre-changelog@<MDT>` 实例（命令见 2.4）。**扩容 Metadata IOPS 后检查 `lfs mdts`，为新增 MDT 启动实例。**
 5. **CREAT/MKDIR 只有文件名没有完整路径**，可通过 `parent_fid` 在文件系统上 `lfs fid2path` 解析，或用同目录下的 UNLNK/RENME 记录关联。
 6. **只有开了自动导出 DRA 的文件系统才有 Changelog**（见 README）。
    - **建议：如果业务本身不需要 DRA，可以建一个"空的"自动导出 DRA，只用来开启 Changelog。**
