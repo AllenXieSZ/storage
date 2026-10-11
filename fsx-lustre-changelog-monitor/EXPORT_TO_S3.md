@@ -88,7 +88,7 @@ systemctl list-units 'lustre-changelog@*' --no-pager
 - **一个采集实例只读一个 MDT**（`lfs changelog --follow <MDT>`），不会自动读其它 MDT。
 - **每个 MDT 的 seq 各自独立**；S3 / Athena 按 `mdt=` 分区，缺口检查需按 MDT 分别做。
 - **扩容 Metadata IOPS 后要重新执行上面的循环**：Metadata IOPS 超过 12000 时 FSx 会增加 metadata server（[官方文档](https://docs.aws.amazon.com/fsx/latest/LustreGuide/managing-metadata-performance.html)），新 MDT 不采集会漏记录，且缺口检查发现不了。
-- 多 MDT 场景尚未实测。
+- **已实测**（3 MDT，见第 10 节）：上面的循环原文执行即为 3 个 MDT 各启动 1 个 running 实例，3 个 `mdt=` 分区都有数据，每个 MDT seq 各自连续 0 缺口。
 
 ## 3. S3 中的数据格式
 
@@ -110,9 +110,9 @@ s3://<BUCKET>/lustre-changelog/mdt=divrbb4v-MDT0000/dt=2026-10-09/divrbb4v-MDT00
 | `time` | 操作时间（UTC，纳秒） |
 | `uid` `gid` | 操作者 |
 | `client_ip` | 发起操作的客户端 IP |
-| `path` | UNLNK / RMDIR 的完整路径（相对文件系统根） |
+| `path` | UNLNK / RMDIR 的完整路径（相对文件系统根）。**多 MDT 时只有部分记录有完整路径**，其余记录只有文件名（放在 `name`），见第 10 节 |
 | `name` | CREAT / MKDIR 的文件名；RENME 的新名字 |
-| `old_path` | RENME 的原完整路径 |
+| `old_path` | RENME 的原完整路径（多 MDT 时可能只是原文件名，见第 10 节） |
 | `flags` | UNLNK/RMDIR 中 `0x1` = 文件真正被删除（最后一个链接） |
 
 ## 4. Athena 建表
@@ -135,7 +135,7 @@ TBLPROPERTIES (
   'storage.location.template'='s3://<BUCKET>/lustre-changelog/mdt=${mdt}/dt=${dt}/');
 ```
 使用分区投影：新的一天 / 新文件上传后**直接可查**，不需要 `MSCK REPAIR` 或 Glue Crawler。
-查询时必须在 WHERE 里指定 `mdt`（injected 投影要求）。
+查询时必须在 WHERE 里指定 `mdt`（injected 投影要求）。**已实测**：`mdt='...'` 和 `mdt IN ('...-MDT0000','...-MDT0001','...-MDT0002')` 都可以；不写 `mdt` 或用 `mdt LIKE` 会报 `CONSTRAINT_VIOLATION`。多 MDT 查询用 `IN` 列出全部 MDT。
 
 ## 5. 查询样例（实测结果）
 
@@ -219,7 +219,7 @@ WHERE seq - prev_seq > 1;
 1. **只能在一台客户端上运行采集**，多台会产生重复记录（可用 `seq` 去重）。这台客户端是单点：它宕机期间的变更会丢失。
 2. **采集进程停止期间的变更无法补回**（Changelog 几秒即被清除）。可用上面的"序号缺口"查询发现缺失。
 3. **高频批量操作可能漏记录**：README 中记录过一次 2000 文件批量删除时有缺失。
-4. **多 MDT 文件系统**：每个 MDT 起一个 `lustre-changelog@<MDT>` 实例（命令见 2.4）。**扩容 Metadata IOPS 后检查 `lfs mdts`，为新增 MDT 启动实例。**
+4. **多 MDT 文件系统**：每个 MDT 起一个 `lustre-changelog@<MDT>` 实例（命令见 2.4）。**扩容 Metadata IOPS 后检查 `lfs mdts`，为新增 MDT 启动实例。** **已实测**（第 10 节）：Metadata IOPS 36000 = 3 个 MDT；一个操作只记在一个 MDT 上，查询要用 `mdt IN (...)` 覆盖全部 MDT；跨 MDT rename 只记在目标目录所在 MDT。
 5. **CREAT/MKDIR 只有文件名没有完整路径**，可通过 `parent_fid` 在文件系统上 `lfs fid2path` 解析，或用同目录下的 UNLNK/RENME 记录关联。
 6. **只有开了自动导出 DRA 的文件系统才有 Changelog**（见 README）。
    - **建议：如果业务本身不需要 DRA，可以建一个"空的"自动导出 DRA，只用来开启 Changelog。**
@@ -235,7 +235,7 @@ WHERE seq - prev_seq > 1;
 
 | 文件 | 说明 |
 |---|---|
-| [scripts/lustre-changelog-collector.py](scripts/lustre-changelog-collector.py) | 采集 + 解析 + 切片 |
+| [scripts/lustre-changelog-collector.py](scripts/lustre-changelog-collector.py) | 采集 + 解析 + 切片（2026-10-11 修正读缓冲问题，见 10.3） |
 | [scripts/lustre-changelog-upload.sh](scripts/lustre-changelog-upload.sh) | 上传到 S3 |
 | [scripts/athena_ddl.sql](scripts/athena_ddl.sql) | Athena 建表 |
 | [scripts/lustre_load.py](scripts/lustre_load.py) | 规模测试负载脚本（限速混合文件操作） |
@@ -432,3 +432,171 @@ python3 scripts/scale_analyze.py ops/ cl/
 - 操作 → Athena 可查 **80 – 127 秒**（由 ROTATE_SEC 和上传周期决定）。
 - 采集端 **~1% CPU / ~12 MB 内存**，可忽略。
 - 开自动导出 DRA 后 **72% 的记录是 HSM**；压缩后 ~17 字节/条，此负载下 ~730 MB/天。
+
+## 10. 多 MDT 测试（3 MDT）
+
+按本文第 2–5 节原文命令，在 3 个 MDT 的文件系统上从头部署、操作、查询。
+
+### 10.1 环境
+
+| 项目 | 配置 |
+|---|---|
+| 文件系统 | FSx for Lustre PERSISTENT_2，**1200 GiB**，125 MB/s/TiB，Lustre 2.15，SSD |
+| Metadata | `MetadataConfiguration={Mode=USER_PROVISIONED,Iops=36000}`（1200 GiB 下直接接受） |
+| MDT 数 | **3 个**（`lfs mdts`：MDT0000 / MDT0001 / MDT0002 均 ACTIVE） |
+| DRA | `/audit-dra` ↔ `s3://<BUCKET>/dummy/`，仅自动导出 |
+| 客户端 | 1 台 m6i.large，AL2023，lustre-client 2.15.6 |
+| 采集 | 2.4「多 MDT」循环原文执行 → 3 个 `lustre-changelog@<MDT>` 实例 running，ROTATE_SEC=60 |
+
+**已实测：Metadata IOPS 36000 → 3 个 MDT**（每 12000 IOPS 一个 MDT，每个 MDT 约 1 亿 inode）。
+
+### 10.2 测试操作
+
+| 操作 | 说明 |
+|---|---|
+| 指定 MDT 建目录 | `lfs mkdir -i 0/1/2` 建 m0 / m1 / m2，`lfs getdirstripe -m` 确认分别在 MDT 0/1/2 |
+| 默认 mkdir 30 个目录 | 自动分布：**MDT0 13 个 / MDT1 8 个 / MDT2 9 个** |
+| 每个目录（共 33 个） | 建 50 文件、覆盖写 10、rename 5、删除 5、chmod 2 |
+| 跨 MDT 移动文件 | `mv m0/f30 m1/x_from_m0_f30` |
+| 跨 MDT 移动目录 | `mv m2/sub m0/sub_from_m2`（sub 含 3 个文件） |
+| 删除跨 MDT 目录 | `rm -rf m0/sub_from_m2`；`rmdir m1/empty_on_m1` |
+| 停一个采集实例 | 停 MDT0002 实例 30 秒，期间建 20 文件、删 2 个，再启动 |
+
+### 10.3 结果
+
+#### 每个 MDT 的记录（测试操作部分，与操作数逐项对上）
+
+| MDT | 目录数 | CREAT | TRUNC | RENME | UNLNK | SATTR | MKDIR | RMDIR | seq | 缺口 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| MDT0000 | 14 | 700 | 140 | 71 | 70 | 28 | 15 | 0 | 1–1024 | **0** |
+| MDT0001 | 9 | 450 | 91 | 46 | 45 | 18 | 10 | 1 | 1–661 | **0** |
+| MDT0002 | 10 | 503 | 100 | 50 | 53 | 20 | 11 | 1 | 1–738 | **0** |
+
+- 每个目录的操作只记在**该目录所在的 MDT** 上；3 个 S3 分区 `mdt=<FSNAME>-MDT000{0,1,2}/dt=...` 都有文件。
+- 每个 MDT 的 seq 从 1 开始各自独立。
+- HSM 记录 0 条（操作都在 DRA 外）。
+- MDT0001 的 TRUNC 多 1 条（seq 1，DRA 创建期间由 FSx 内部节点产生，不是测试操作）。
+
+#### 跨 MDT 操作记在哪里
+
+| 操作 | 记录 | 记在哪个 MDT |
+|---|---|---|
+| `mv m0/f30 → m1/`（文件） | 1 条 RENME（old_path=`f30`，name=`x_from_m0_f30`） | **MDT0001**（目标目录所在），MDT0000 无记录 |
+| `mv m2/sub → m0/`（目录） | 1 条 RENME（old_path=`sub`，name=`sub_from_m2`） | **MDT0000**（目标目录所在），MDT0002 无记录 |
+| 移动后的目录 | `lfs getdirstripe -m` 仍为 2（目录本体不迁移） | — |
+| `rm -rf m0/sub_from_m2` | 3 条 UNLNK + 1 条 RMDIR | **MDT0002**（目录本体所在），MDT0000 无记录 |
+| `rmdir m1/empty_on_m1` | 1 条 RMDIR | MDT0001 |
+
+结论：**按路径查某个目录的历史，必须查全部 MDT**（`mdt IN (...)`）。
+
+#### 路径字段
+
+| MDT | UNLNK 带完整路径（`path`） | RENME 的 `old_path` |
+|---|---|---|
+| MDT0000 | 70 / 70 | 完整路径（如 `/t/d25/f11`） |
+| MDT0001 / MDT0002 | **0**（只有文件名，在 `name` 里） | 只有原文件名（如 `f11`） |
+
+非 MDT0000 的记录要还原完整路径，用 `parent_fid` 在文件系统上 `lfs fid2path` 解析。
+
+#### Athena
+
+| 查询 | 结果 |
+|---|---|
+| 单个 `mdt='...'`（第 5 节全部查询） | 正常，每个 MDT 0.4–0.8 s |
+| `mdt IN ('…-MDT0000','…-MDT0001','…-MDT0002')` | **可用**，一次返回 3 个 MDT |
+| 不带 `mdt` 条件 / `mdt LIKE '…%'` | **报错** `CONSTRAINT_VIOLATION`（injected 投影要求静态等值条件） |
+| 多 MDT 缺口检查（`PARTITION BY mdt`） | 可用，3 个 MDT 均 0 缺口 |
+
+#### 停掉一个采集实例
+
+MDT0002 实例停 30 秒，期间 22 条记录（20 CREAT + 2 UNLNK）**启动后未补回**；缺口检查准确报出 `1141 → 1164，缺 22`。
+
+#### 采集脚本修正
+
+原脚本用 `select()` + `readline()`：一批记录到达后，最后几条会留在 Python 读缓冲区，**直到该 MDT 再有新记录才写出**。实测 MDT0002 的最后 3 条（14:45:25 产生）5 分钟后才被采集。多 MDT 时，单个 MDT 往往一段时间没有新操作，这个问题更容易出现。已改为直接读 fd（`os.read`）后按行切分；修改后同样操作，最后一条记录在下一个 ROTATE_SEC 内正常写出。
+
+### 10.4 复现命令
+
+```bash
+export AWS_REGION=us-east-2
+aws fsx create-file-system --region us-east-2 --file-system-type LUSTRE --storage-capacity 1200 --storage-type SSD \
+  --subnet-ids <SUBNET_ID> --security-group-ids <SG_ID> --file-system-type-version 2.15 \
+  --lustre-configuration 'DeploymentType=PERSISTENT_2,PerUnitStorageThroughput=125,MetadataConfiguration={Mode=USER_PROVISIONED,Iops=36000}'
+aws fsx create-data-repository-association --region us-east-2 --file-system-id <FS_ID> --file-system-path /audit-dra \
+  --data-repository-path s3://<BUCKET>/dummy/ --s3 'AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}'
+
+# 客户端
+dnf install -y lustre-client
+mkdir -p /mnt/lustre
+mount -t lustre -o relatime,flock <FS_ID>.fsx.us-east-2.amazonaws.com@tcp:/<MOUNT_NAME> /mnt/lustre
+lfs mdts /mnt/lustre            # 3 个 ACTIVE
+lfs df -i /mnt/lustre
+# 部署：第 2.1–2.3 节原文（ROTATE_SEC=60），然后第 2.4 节「多 MDT」循环原文
+```
+
+测试操作：
+```bash
+L=/mnt/lustre/t; mkdir -p $L
+lfs mkdir -i 0 $L/m0; lfs mkdir -i 1 $L/m1; lfs mkdir -i 2 $L/m2
+for i in $(seq -w 1 30); do mkdir $L/d$i; done
+for i in $(seq -w 1 30); do lfs getdirstripe -m $L/d$i; done | sort | uniq -c      # 默认分布
+for d in m0 m1 m2 $(cd $L; ls -d d*); do
+  D=$L/$d
+  for i in $(seq 1 50); do echo data$i > $D/f$i; done
+  for i in $(seq 1 10); do echo over$i > $D/f$i; done
+  for i in $(seq 11 15); do mv $D/f$i $D/r$i; done
+  for i in $(seq 16 20); do rm -f $D/f$i; done
+  for i in 21 22; do chmod 600 $D/f$i; done
+done
+mkdir $L/m2/sub; for i in 1 2 3; do echo s$i > $L/m2/sub/s$i; done
+mv $L/m0/f30 $L/m1/x_from_m0_f30          # 跨 MDT 移动文件
+mv $L/m2/sub $L/m0/sub_from_m2            # 跨 MDT 移动目录
+lfs getdirstripe -m $L/m0/sub_from_m2     # 仍为 2
+mkdir $L/m1/empty_on_m1
+rm -rf $L/m0/sub_from_m2
+rmdir $L/m1/empty_on_m1
+
+# 停一个实例
+systemctl stop lustre-changelog@<FSNAME>-MDT0002.service
+for i in $(seq 1 20); do echo x > $L/m2/stopped$i; done; rm -f $L/m2/stopped1 $L/m2/stopped2
+sleep 30
+systemctl start lustre-changelog@<FSNAME>-MDT0002.service
+echo y > $L/m2/after_restart
+```
+
+Athena（建表用 [scripts/athena_ddl.sql](scripts/athena_ddl.sql)）：
+```sql
+-- 各 MDT 记录数 / seq
+SELECT mdt, count(*), count(distinct seq), max(seq) FROM lustre_audit.changelog
+WHERE mdt IN ('<FSNAME>-MDT0000','<FSNAME>-MDT0001','<FSNAME>-MDT0002') AND dt='<YYYY-MM-DD>'
+GROUP BY mdt ORDER BY mdt;
+
+-- 多 MDT 缺口检查
+SELECT mdt, prev_seq, seq, seq - prev_seq - 1 AS missing FROM (
+  SELECT mdt, seq, lag(seq) OVER (PARTITION BY mdt ORDER BY seq) AS prev_seq
+  FROM lustre_audit.changelog
+  WHERE mdt IN ('<FSNAME>-MDT0000','<FSNAME>-MDT0001','<FSNAME>-MDT0002') AND dt='<YYYY-MM-DD>')
+WHERE seq - prev_seq > 1;
+
+-- 所有 MDT 的删除
+SELECT mdt, "time", uid, client_ip, type, coalesce(path, name) AS f FROM lustre_audit.changelog
+WHERE mdt IN ('<FSNAME>-MDT0000','<FSNAME>-MDT0001','<FSNAME>-MDT0002') AND dt='<YYYY-MM-DD>'
+  AND type IN ('UNLNK','RMDIR') AND flags='0x1' ORDER BY "time";
+
+-- 跨 MDT rename
+SELECT mdt, seq, "time", old_path, name, source_parent_fid, parent_fid FROM lustre_audit.changelog
+WHERE mdt IN ('<FSNAME>-MDT0000','<FSNAME>-MDT0001','<FSNAME>-MDT0002') AND dt='<YYYY-MM-DD>' AND type='RENME';
+
+-- 按用户统计
+SELECT mdt, uid, type, count(*) n FROM lustre_audit.changelog
+WHERE mdt IN ('<FSNAME>-MDT0000','<FSNAME>-MDT0001','<FSNAME>-MDT0002') AND dt='<YYYY-MM-DD>'
+GROUP BY mdt, uid, type ORDER BY mdt, uid, n DESC;
+```
+
+### 10.5 结论
+
+- 第 2.4 节多 MDT 循环原文可用：3 MDT → 3 个采集实例 → 3 个 S3 分区，每个 MDT seq 连续 **0 缺口**，记录数与操作数逐项对上。
+- Metadata IOPS **36000 = 3 个 MDT**（1200 GiB 即可配置）。
+- 一个操作只记在一个 MDT：跨 MDT rename 记在**目标目录**所在 MDT；删除记在**目录本体**所在 MDT。审计查询用 `mdt IN (...)` 覆盖全部 MDT（不写 `mdt` 会报错）。
+- 只有 MDT0000 的记录带完整路径，其它 MDT 只有文件名，需 `parent_fid` + `lfs fid2path` 还原。
+- 修正了采集脚本"最后几条记录要等下一条记录才写出"的问题。

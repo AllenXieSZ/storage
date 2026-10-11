@@ -40,7 +40,8 @@ def new_file():
     p = f"{SPOOL}/{MDT}_{HOST}_{ts}.jsonl.gz"
     return p, gzip.open(p + ".part", "wt")
 
-proc = subprocess.Popen(["lfs", "changelog", "--follow", MDT], stdout=subprocess.PIPE, text=True, bufsize=1)
+proc = subprocess.Popen(["lfs", "changelog", "--follow", MDT], stdout=subprocess.PIPE)
+fd = proc.stdout.fileno(); buf = b""
 path, fh = new_file(); start = time.time(); n = 0
 def rotate():
     global path, fh, start, n
@@ -49,12 +50,14 @@ def rotate():
     else: os.remove(path + ".part")              # 空文件不上传
     path, fh = new_file(); start = time.time(); n = 0
 while True:
-    ready, _, _ = select.select([proc.stdout], [], [], 1.0)
-    if ready:
-        line = proc.stdout.readline()
-        if not line: break                         # lfs 退出
-        r = parse(line)
-        if r: fh.write(json.dumps(r, ensure_ascii=False) + "\n"); n += 1
+    ready, _, _ = select.select([fd], [], [], 1.0)
+    if ready:                                      # 直接读 fd，避免缓冲区里残留的行要等下一条记录才被处理
+        chunk = os.read(fd, 1 << 20)
+        if not chunk: break                        # lfs 退出
+        *lines, buf = (buf + chunk).split(b"\n")
+        for line in lines:
+            r = parse(line.decode("utf-8", "replace"))
+            if r: fh.write(json.dumps(r, ensure_ascii=False) + "\n"); n += 1
     if time.time() - start >= ROTATE:
         rotate()
 rotate(); fh.close(); os.remove(path + ".part")
