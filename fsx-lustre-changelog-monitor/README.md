@@ -151,6 +151,6 @@ WantedBy=multi-user.target
 
 定时导出到 S3 + Athena 查询见：[EXPORT_TO_S3.md](EXPORT_TO_S3.md)
 
-规模测试（5 客户端 200 ops/s × 30 分钟，89.7 万条记录 0 丢失）见：[SCALE_TEST.md](SCALE_TEST.md)
+规模测试（5 客户端 200 ops/s × 30 分钟，89.7 万条记录 0 丢失）见：[EXPORT_TO_S3.md 第 9 节](EXPORT_TO_S3.md#9-大规模测试)
 
 S3 方案见：[fsx-lustre-dra-eventbridge](../fsx-lustre-dra-eventbridge/README.md)
