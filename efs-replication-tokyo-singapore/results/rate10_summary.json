@@ -1,0 +1,36 @@
+{
+ "tier": "rate10",
+ "files_written": 12000,
+ "files_seen": 12000,
+ "missing": 0,
+ "target_rate": 10,
+ "write_window_s": 1200,
+ "schedule_covered_s": 1200,
+ "actual_rate_avg": 10.0,
+ "per_sec_min": 9,
+ "per_sec_p50": 10.0,
+ "per_sec_max": 11,
+ "gib": 11.72,
+ "write_first": 1791967528.117416,
+ "write_last": 1791968727.944256,
+ "seen_last": 1791969182.194752,
+ "all_visible_after_last_write_s": 454.3,
+ "lag_min": 35.8,
+ "lag_p50": 352.2,
+ "lag_p90": 662.9,
+ "lag_p99": 770.8,
+ "lag_max": 783.3,
+ "lag_mean": 379.6,
+ "write_svc_p50_ms": 42.5,
+ "write_behind_target_p99_s": 0.0,
+ "visibility_batches": 3,
+ "batch_start_offsets_s": [
+  347.7,
+  1093.9,
+  1654.1
+ ],
+ "batch_intervals_s": [
+  746.2,
+  560.3
+ ]
+}
