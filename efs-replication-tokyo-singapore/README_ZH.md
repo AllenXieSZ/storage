@@ -23,15 +23,39 @@
 
 ## 2. 图
 
-| 档位 | 延迟随写入时间变化 | 累计写入 vs 目标端可见 |
-|---|---|---|
-| 10/s | ![](results/rate10_lag.png) | ![](results/rate10_vis.png) |
-| 100/s | ![](results/rate100_lag.png) | ![](results/rate100_vis.png) |
-| 1000/s | ![](results/rate1000_lag.png) | ![](results/rate1000_vis.png) |
+### 2.1 10 个/s
 
-CloudWatch `TimeSinceLastSync`（三档全程）：
+复制延迟随写入时间变化：
 
-![](results/time_since_last_sync.png)
+![rate10 延迟](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/rate10_lag.png)
+
+累计写入（东京）vs 目标端可见（新加坡）：
+
+![rate10 累计可见](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/rate10_vis.png)
+
+### 2.2 100 个/s
+
+复制延迟随写入时间变化：
+
+![rate100 延迟](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/rate100_lag.png)
+
+累计写入（东京）vs 目标端可见（新加坡）：
+
+![rate100 累计可见](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/rate100_vis.png)
+
+### 2.3 1000 个/s（实际 690.7 个/s）
+
+复制延迟随写入时间变化：
+
+![rate1000 延迟](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/rate1000_lag.png)
+
+累计写入（东京）vs 目标端可见（新加坡）：
+
+![rate1000 累计可见](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/rate1000_vis.png)
+
+### 2.4 CloudWatch TimeSinceLastSync（三档全程）
+
+![TimeSinceLastSync](https://raw.githubusercontent.com/AllenXieSZ/storage/main/efs-replication-tokyo-singapore/results/time_since_last_sync.png)
 
 ## 3. 时间线（UTC）与 LastReplicatedTimestamp
 
