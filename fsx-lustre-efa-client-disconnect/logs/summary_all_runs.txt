@@ -1,0 +1,44 @@
+== g48
+10:21:12 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT g48_rif8_nj96 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=0 bw=46.29 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:24:56 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT g48_rif8_nj96_r2 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=0 bw=36.20 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:29:45 PRE=[lctl set_param osc.*.max_rpcs_in_flight=16 ;] RESULT g48_rif16_nj96 rate=none broke=1 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=137 bw=FIO_FAILED dmesg_err=3 first_err_t=85 states=[      4 FULL      11 IDLE ] 
+10:33:36 PRE=[lctl set_param osc.*.max_rpcs_in_flight=16 ;] RESULT g48_rif16_nj96_r2 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=0 bw=62.10 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:38:40 PRE=[lctl set_param osc.*.max_rpcs_in_flight=32 ;] RESULT g48_rif32_nj96 rate=none broke=1 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=137 bw=FIO_FAILED dmesg_err=3 first_err_t=76 states=[     15 FULL ] 
+== g24
+10:21:11 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT g24_rif8_r2 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=25.36 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:24:51 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT g24_rif8_nj32 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=32 qd=8 sc=-1 si=-1 rc=0 bw=34.00 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:28:31 PRE=[lctl set_param osc.*.max_rpcs_in_flight=16 ;] RESULT g24_rif16 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=29.92 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:32:15 PRE=[lctl set_param osc.*.max_rpcs_in_flight=16 ;] RESULT g24_rif16_r2 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=29.89 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:36:00 PRE=[] RESULT g24_base_r3 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=2.88 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+10:38:18 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT g24_rif8_r3 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=30.94 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+== k48
+11:08:50 PRE=[] RESULT k48_c4_def_r2 rate=none broke=1 host=ip-10-0-0-174 rw=write nj=32 qd=8 sc=4 si=0 rc=137 bw=FIO_FAILED dmesg_err=8 first_err_t=30 states=[     14 CONNECTING       1 FULL ] 
+11:17:01 PRE=[] RESULT k48_c8_def_r2 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=32 qd=8 sc=8 si=0 rc=0 bw=38.15 GB/s dmesg_err=0 first_err_t=none states=[      8 FULL       7 IDLE ] 
+11:18:18 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT k48_c8_rif8 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=32 qd=8 sc=8 si=0 rc=0 bw=38.69 GB/s dmesg_err=0 first_err_t=none states=[      8 FULL       7 IDLE ] 
+11:24:04 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT k48_rif8_nj96_180 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=0 bw=52.67 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+11:27:12 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT k48_rif8_read96 rate=none broke=1 host=ip-10-0-0-174 rw=read nj=96 qd=8 sc=-1 si=-1 rc=137 bw=FIO_FAILED dmesg_err=0 first_err_t=4 states=[     15 FULL ] 
+== k24
+11:07:59 PRE=[] RESULT k24_read8_def rate=none broke=0 host=ip-10-0-0-14 rw=read nj=8 qd=8 sc=-1 si=-1 rc=0 bw=14.41 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+11:09:58 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT k24_read8_rif8 rate=none broke=0 host=ip-10-0-0-14 rw=read nj=8 qd=8 sc=-1 si=-1 rc=0 bw=37.12 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+11:13:43 PRE=[] RESULT k24_c4_def rate=none broke=0 host=ip-10-0-0-14 rw=write nj=16 qd=8 sc=4 si=0 rc=0 bw=19.83 GB/s dmesg_err=0 first_err_t=none states=[      4 FULL      11 IDLE ] 
+11:15:00 PRE=[] RESULT k24_c8_def rate=none broke=0 host=ip-10-0-0-14 rw=write nj=16 qd=8 sc=8 si=0 rc=0 bw=37.52 GB/s dmesg_err=0 first_err_t=none states=[      8 FULL       7 IDLE ] 
+== m24
+11:30:08 PRE=[] RESULT m24_excl13 rate=none broke=1 host=ip-10-0-0-14 rw=write nj=28 qd=8 sc=multi si=0,1,2,3,4,5,6,7,8,9,10,11,12,14 rc=137 bw=FIO_FAILED dmesg_err=8 first_err_t=76 states=[      7 CONNECTING       3 FULL       5 IDLE ] 
+11:42:56 PRE=[] NORESULT m24_excl13_r2 === <INSTANCE_ID> [TimedOut] 	 
+11:51:02 PRE=[] RESULT m24_only13 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=32 qd=8 sc=1 si=13 rc=0 bw=4.99 GB/s dmesg_err=0 first_err_t=none states=[      1 FULL      14 IDLE ] 
+11:52:19 PRE=[] RESULT m24_base_r4 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=8.99 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+== p24
+11:57:27 PRE=[] RESULT p24_4oss_w8 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=20.15 GB/s dmesg_err=0 first_err_t=none states=[      4 FULL ] 
+11:58:45 PRE=[] RESULT p24_4oss_w32 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=32 qd=8 sc=-1 si=-1 rc=0 bw=20.02 GB/s dmesg_err=0 first_err_t=none states=[      4 FULL ] 
+12:00:02 PRE=[] RESULT p24_4oss_w8_r2 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=8 qd=8 sc=-1 si=-1 rc=0 bw=19.96 GB/s dmesg_err=0 first_err_t=none states=[      4 FULL ] 
+12:01:20 PRE=[] RESULT p24_4oss_w32_r2 rate=none broke=0 host=ip-10-0-0-14 rw=write nj=32 qd=8 sc=-1 si=-1 rc=0 bw=20.07 GB/s dmesg_err=0 first_err_t=none states=[      4 FULL ] 
+== f48
+09:58:51 PRE=[] RESULT f48_numa_unl broke=1 nj/node=8 rate=none FIO_FAILED dmesg_err=0 before[efa_0 tx_GB=5127 retrans=123442 efa_1 tx_GB=8400 retrans=120331 ] after[efa_0 tx_GB=5333 retrans=125951 efa_1 tx_GB=8564 retrans=121484 ]
+10:02:51 PRE=[] RESULT f48_numa_r28 broke=0 nj/node=16 rate=875m n0=14.68 n1=14.68 total=29.37 GB/s dmesg_err=0 before[efa_0 tx_GB=5333 retrans=125965 efa_1 tx_GB=8566 retrans=121556 ] after[efa_0 tx_GB=6215 retrans=283678 efa_1 tx_GB=9447 retrans=174427 ]
+10:04:09 PRE=[] RESULT f48_numa_r34 broke=0 nj/node=16 rate=1062m n0=17.82 n1=17.82 total=35.64 GB/s dmesg_err=0 before[efa_0 tx_GB=6215 retrans=283678 efa_1 tx_GB=9447 retrans=174427 ] after[efa_0 tx_GB=7285 retrans=380426 efa_1 tx_GB=10517 retrans=259237 ]
+10:08:55 PRE=[] RESULT f48_base_nj8 rate=none broke=1 host=ip-10-0-0-174 rw=write nj=8 qd=8 sc=-1 si=-1 rc=137 bw=FIO_FAILED dmesg_err=0 first_err_t=stall25 states=[     15 FULL ] 
+== n48
+11:47:10 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT n48_rif8_read96_r2 rate=none broke=0 host=ip-10-0-0-174 rw=read nj=96 qd=8 sc=-1 si=-1 rc=124 bw=FIO_FAILED dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+11:50:13 PRE=[] RESULT n48_def_read32 rate=none broke=1 host=ip-10-0-0-174 rw=read nj=32 qd=8 sc=-1 si=-1 rc=137 bw=FIO_FAILED dmesg_err=0 first_err_t=4 states=[     15 FULL ] 
+11:56:04 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT n48_rif8_read32 rate=none broke=0 host=ip-10-0-0-174 rw=read nj=32 qd=8 sc=-1 si=-1 rc=124 bw=FIO_FAILED dmesg_err=0 first_err_t=none states=[     15 FULL ] 
+11:59:53 PRE=[lctl set_param osc.*.max_rpcs_in_flight=8 ;] RESULT n48_rif8_w96_r3 rate=none broke=0 host=ip-10-0-0-174 rw=write nj=96 qd=8 sc=-1 si=-1 rc=0 bw=63.61 GB/s dmesg_err=0 first_err_t=none states=[     15 FULL ] 

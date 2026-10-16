@@ -1,0 +1,21 @@
+# 48xl 默认配置断连时 timeline（每 5s：OST 连接状态 / EFA tx_bytes / 重传）
+t=5 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=10 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=15 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=21 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=26 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=31 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=36 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=41 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=46 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=51 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=56 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=61 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=66 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=71 states=[     15 FULL ] dmesg_err=0 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=76 states=[     15 CONNECTING ] dmesg_err=2 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=81 states=[     15 CONNECTING ] dmesg_err=2 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=86 states=[     15 CONNECTING ] dmesg_err=2 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=91 states=[     15 CONNECTING ] dmesg_err=2 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=96 states=[     15 CONNECTING ] dmesg_err=3 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 
+t=101 states=[     15 CONNECTING ] dmesg_err=3 efa: efa_0 tx_bytes=2577932440 retrans=0 rto=0; efa_1 tx_bytes=29785617075 retrans=94 rto=4; 

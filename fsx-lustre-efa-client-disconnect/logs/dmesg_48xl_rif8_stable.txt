@@ -1,0 +1,7 @@
+# 48xl max_rpcs_in_flight=8，nj=96 写 180s，稳定 52.67 GB/s；dmesg 全部内容（仅 finv_complete 提示，无 lost/timeout）
+fio --name=k48_rif8_nj96_180 --directory=/fsx/brc/ip-10-0-0-174/k48_rif8_nj96_180 --rw=write --bs=16M --size=8G --numjobs=96 --ioengine=libaio --iodepth=8 --direct=1 --time_based --runtime=180 --group_reporting --output-format=json --output=/root/res/k48_rif8_nj96_180/fio.json 
+
+[Fri Oct 16 11:22:00 2026] LNet: 14552:0:(efalnd.c:1601:kefalnd_finv_complete()) Device[efa_0] QP[6] received FINV[0x804f8e] completion with err[4] vendor[5]
+[Fri Oct 16 11:22:00 2026] LNet: 14552:0:(efalnd.c:1601:kefalnd_finv_complete()) Skipped 105 previous similar messages
+[Fri Oct 16 11:22:01 2026] LNet: 14552:0:(efalnd.c:1601:kefalnd_finv_complete()) Device[efa_0] QP[3] received FINV[0x90285a] completion with err[4] vendor[5]
+[Fri Oct 16 11:22:01 2026] LNet: 14552:0:(efalnd.c:1601:kefalnd_finv_complete()) Skipped 220 previous similar messages

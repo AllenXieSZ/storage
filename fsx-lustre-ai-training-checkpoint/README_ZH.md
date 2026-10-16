@@ -3,7 +3,7 @@
 测试日期：2026-10-15（us-east-2）
 目的：从 FSx for Lustre 的角度量化预训练中 **checkpoint 写入、训练启动（元数据风暴）、故障恢复读放大** 三类负载，并验证 EFA 对单客户端吞吐的影响，作为存储容量 / 吞吐档位 / 元数据 IOPS 规划依据。
 
-> 说明：第 2 项（单客户端链路）中"ENA 单 OST 吞吐"与"多 EFA 网卡机型"两条结论正在复核，复核完成后补充，本文暂不包含。GPUDirect Storage（GDS）尚未测试。
+> 说明：2026-10-16 复核后更正第 4 节 ENA 结论（单客户端 ↔ 单 OSS 实测约 9.5 Gbps，不是 5 Gbps）；多 EFA 网卡机型在多 OSS FS 上高并发写入断连的问题，根因与规避见 [`../fsx-lustre-efa-client-disconnect/`](../fsx-lustre-efa-client-disconnect/README_ZH.md)。GPUDirect Storage（GDS）尚未测试。
 
 ## 1. 结论速览
 
@@ -12,7 +12,7 @@
 | **Checkpoint 写入** | 512 个分片并发写，DCP 同步保存跑到 **22.5 GB/s = FS 基线的 94%**，瓶颈是 FS 预置吞吐（容量 × 档位），不是客户端 |
 | **条带** | 多分片（每 rank 一个文件）时，默认 PFL / 全条带 / 单条带相差 < 8%，**默认 PFL 即可**；少分片（每节点一个 48 GiB 大文件）吞吐下降约 25% |
 | **异步保存** | `dcp.async_save` 把训练阻塞时间从 **37 s 降到 0.43 s（−98.8%）**，总落盘时间不变 |
-| **EFA vs ENA** | 同一客户端、同一 FS：EFA 读 **182 Gbps**（200 Gbps 网卡的 91%），ENA（TCP）**74.4 Gbps** ≈ 15 OSS × 5 Gbps，**EFA 约 2.4 倍** |
+| **EFA vs ENA** | 同一客户端、同一 FS：EFA 读 **182 Gbps**（200 Gbps 网卡的 91%），ENA（TCP）**74.4 Gbps**，**EFA 约 2.4 倍**；ENA 单客户端 ↔ 单 OSS 实测约 9.5 Gbps |
 | **元数据风暴** | 1600 进程同时 `import torch` 等：环境放 Lustre P50 **19.2 s**，放本地盘 **7.7 s**（Lustre 慢 2.5 倍）；MDS CPU 仅 22%，瓶颈是逐文件元数据往返延迟 |
 | **扩元数据 IOPS** | 12k → 24k 在线完成（约 12 分钟），**只对扩容后新建的目录生效**：重新复制的 venv P50 降到 14.9 s（快 23%），旧目录不变 |
 | **大目录** | 16 客户端同时 `ls -l` 同一个 20 万文件目录：平均 39 s、最慢 54 s；拆成 20 × 1 万文件目录：平均 1.6 s。`statahead_xattr=1` 使 `ls -l` 快约 31% |
@@ -59,11 +59,15 @@ FS：72 TiB / 15 OSS（基线 72 GB/s），避免单客户端先被 FS 卡住。
 | 客户端 / 链路 | 写 | 读 | 文档上限 |
 |---|---|---|---|
 | **c8gn.16xlarge + EFA**（numjobs 16/32/64） | 20.2 / 21.7 / **21.8 GB/s（175 Gbps）** | 20.3 / **22.7** / 22.1 GB/s（**182 Gbps**） | EFA 700 Gbps；本机网卡 200 Gbps，已达网卡 91% |
-| **c8gn.16xlarge + ENA（TCP）**，同一台机器、同一 FS | 8.6 / 8.5 GB/s（68 Gbps） | **9.3 GB/s（74.4 Gbps）** | ENA 100 Gbps；单客户端 ↔ 单 OSS 5 Gbps |
+| **c8gn.16xlarge + ENA（TCP）**，同一台机器、同一 FS | 8.6 / 8.5 GB/s（68 Gbps） | **9.3 GB/s（74.4 Gbps）** | ENA 100 Gbps；文档写单客户端 ↔ 单 OSS 5 Gbps（实测约 9.5 Gbps，见下） |
 
 **结论**
 1. **EFA 比 ENA 高约 2.4 倍**（读 182 vs 74 Gbps），唯一变量是 LNet 走 efa 还是 tcp。
-2. **ENA 路径受"单客户端 ↔ 单 OSS 5 Gbps"约束**（文档 performance.html#throughput-clients）：15 个 OSS 时读 74.4 Gbps，平均每 OSS 4.96 Gbps。即 **ENA 客户端单机吞吐 ≈ min(100 Gbps, 5 Gbps × OSS 数)**。例如 24 TiB @1000 的 EFA FS 只有 5 个 OSS，ENA 单机理论只有约 25 Gbps——**OSS 少的 FS 尤其需要 EFA**。
+2. **ENA 单机吞吐 ≈ min(约 9.5 Gbps × OSS 数, 约 74 Gbps)**（2026-10-16 复核，c8gn.16xlarge，lustre 2.15.6）：
+   - 单 OST / 单 OSS 读写都是 **9.53 Gbps**（numjobs 1/8/32 相同，两个 FS 各复现一次；网卡计数 9.2–9.3 Gbps）。数据只走 1 条 TCP 连接，`conns_per_peer=4` 无变化。
+   - 2 OSS = 19.06 Gbps（线性）；15 OSS = 74.4 Gbps（单客户端饱和，客户端 CPU 93% 空闲、ENA allowance 计数为 0，瓶颈未定位）。
+   - 对照：同子网 EC2 ↔ EC2 iperf3 单流 4.97 Gbps，符合 EC2 单流 5 Gbps 限制；客户端 ↔ FSx OSS 不受该限制。文档"单客户端 ↔ 单 OSS 5 Gbps"可作保守值。
+   - ⚠️ 本文初版写"15 OSS × 5 Gbps ≈ 74.4 Gbps，即每 OSS 限 5 Gbps"是数字巧合，已更正。
 
 ## 5. 元数据风暴（训练启动）
 
@@ -131,7 +135,7 @@ FS：72 TiB / 15 OSS（基线 72 GB/s），避免单客户端先被 FS 卡住。
 | 吞吐档位 / 容量 | checkpoint 写入可达 FS 基线的 ~94%：**所需容量（TiB）≈ checkpoint 大小 ÷ 允许写入时间 ÷ 档位**；再与"保留 N 份 checkpoint + 数据集"所需容量取大 |
 | 同步 vs 异步 | 推动使用异步保存：训练阻塞降到秒级以下，存储只需在保存间隔内写完 |
 | 分片 | 保持每 rank 一个分片（DCP 默认）；默认 PFL 即可，避免"每节点一个大文件" |
-| EFA | 总吞吐 > 10 GBps 建议开（官方建议）；OSS 数少时 ENA 单机仅 5 Gbps × OSS 数，EFA 尤为重要；EFA 只能在创建时开 |
+| EFA | 总吞吐 > 10 GBps 建议开（官方建议）；OSS 数少时 ENA 单机仅约 9.5 Gbps × OSS 数，EFA 尤为重要；EFA 只能在创建时开；多 OSS FS + 大机型 EFA 客户端需设 `osc.*.max_rpcs_in_flight=8`（见 fsx-lustre-efa-client-disconnect） |
 | 训练环境 | 放本地盘 / 容器镜像，不要把 venv/conda 直接放 Lustre |
 | 元数据 IOPS | 创建时必须带 MetadataConfiguration；扩容后重新复制热点目录 |
 | 目录 | 每目录 < 100K 文件；客户端开 `statahead_xattr=1`（开机脚本持久化） |
@@ -173,7 +177,7 @@ aws fsx update-file-system --file-system-id <FS_ID> --lustre-configuration '{"Me
 
 ## 9. 限制
 
-- GPUDirect Storage 未测（无 p5 容量）；多 EFA 网卡机型、ENA 单 OST 吞吐两条结论在复核中，未纳入本文。
+- GPUDirect Storage 未测（无 p5 容量）。ENA 单客户端约 74 Gbps 饱和的原因未定位。
 - 客户端为 Graviton4 CPU 机型（gloo），异步保存的 pinned memory 路径未测；第 6 节 Megatron 相关两行为模拟。
 - CloudWatch 为 1 分钟粒度，单次写入约 36 s，利用率类指标被平均摊低。
 - 每项只测 1–2 次。

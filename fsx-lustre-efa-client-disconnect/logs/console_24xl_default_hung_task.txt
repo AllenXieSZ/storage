@@ -1,0 +1,44 @@
+# 24xl 默认 max_rpcs_in_flight=32，nj=8 写，断连后 fio 进入 D 状态（串口控制台原文节选）
+581:[  185.441406] Lustre: 8919:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for sent delay: [sent 1792147597/real 0]  req@000000006aaaddc6 x1879202875524224/t0(0) o4-><MOUNT_NAME>-OST0006-osc-ffff0003cfb7b000@10.0.0.23@tcp:6/4 lens 488/448 e 0 to 1 dl 1792147669 ref 3 fl Rpc:Xr/0/ffffffff rc 0/-1 job:''
+582:[  185.445214] Lustre: <MOUNT_NAME>-OST0006-osc-ffff0003cfb7b000: Connection to <MOUNT_NAME>-OST0006 (at 10.0.0.23@tcp) was lost; in progress operations using this service will wait for recovery to complete
+583:[  186.081417] Lustre: 8871:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for sent delay: [sent 1792147597/real 0]  req@0000000057582164 x1879202875551808/t0(0) o4-><MOUNT_NAME>-OST0006-osc-ffff0003cfb7b000@10.0.0.23@tcp:6/4 lens 488/448 e 0 to 1 dl 1792147669 ref 3 fl Rpc:Xr/0/ffffffff rc 0/-1 job:''
+585:[  186.481433] Lustre: <MOUNT_NAME>-OST0000-osc-ffff0003cfb7b000: Connection to <MOUNT_NAME>-OST0000 (at 10.0.0.77@tcp) was lost; in progress operations using this service will wait for recovery to complete
+586:[  187.121443] Lustre: 8871:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for sent delay: [sent 1792147598/real 0]  req@00000000b1567efd x1879202875605376/t0(0) o4-><MOUNT_NAME>-OST0006-osc-ffff0003cfb7b000@10.0.0.23@tcp:6/4 lens 488/448 e 0 to 1 dl 1792147670 ref 3 fl Rpc:Xr/0/ffffffff rc 0/-1 job:''
+588:[  192.161603] Lustre: 8926:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for sent delay: [sent 1792147604/real 0]  req@00000000a4b839b0 x1879202875649280/t0(0) o400-><MOUNT_NAME>-OST0006-osc-ffff0003cfb7b000@10.0.0.23@tcp:28/4 lens 224/224 e 0 to 1 dl 1792147676 ref 2 fl Rpc:XNr/0/ffffffff rc 0/-1 job:''
+590:[  217.762380] Lustre: 8908:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for sent delay: [sent 1792147629/real 0]  req@0000000036ec8510 x1879202875650944/t0(0) o400-><MOUNT_NAME>-OST0006-osc-ffff0003cfb7b000@10.0.0.23@tcp:28/4 lens 224/224 e 0 to 1 dl 1792147701 ref 2 fl Rpc:XNr/0/ffffffff rc 0/-1 job:''
+592:[  242.803142] Lustre: 8861:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for sent delay: [sent 1792147654/real 0]  req@00000000152bd74f x1879202875652032/t0(0) o400-><MOUNT_NAME>-OST0000-osc-ffff0003cfb7b000@10.0.0.77@tcp:28/4 lens 224/224 e 0 to 1 dl 1792147726 ref 2 fl Rpc:XNr/0/ffffffff rc 0/-1 job:''
+594:[  317.525430] LNet: 8737:0:(efalnd.c:949:kefalnd_force_cancel_tx()) Device[efa_0] canceling TX type[IMMEDIATE] to peer NI[<OSS_EFA_NID>@efa]
+596:[  366.887032] INFO: task fio:9491 blocked for more than 122 seconds.
+619:[  366.899711] INFO: task fio:9492 blocked for more than 122 seconds.
+642:[  366.912519] INFO: task fio:9493 blocked for more than 122 seconds.
+665:[  366.925331] INFO: task fio:9496 blocked for more than 122 seconds.
+688:[  366.938140] INFO: task fio:9497 blocked for more than 122 seconds.
+711:[  366.950944] INFO: task fio:9498 blocked for more than 122 seconds.
+734:[  489.770787] INFO: task fio:9491 blocked for more than 245 seconds.
+757:[  489.783476] INFO: task fio:9492 blocked for more than 245 seconds.
+780:[  489.796280] INFO: task fio:9493 blocked for more than 245 seconds.
+803:[  489.809099] INFO: task fio:9496 blocked for more than 245 seconds.
+827:[  581.293476] Lustre: 8944:0:(client.c:2313:ptlrpc_expire_one_request()) @@@ Request sent has timed out for slow reply: [sent 1792147814/real 1792147814]  req@000000007da021f3 x1879202875572352/t0(0) o4-><MOUNT_NAME>-OST0000-osc-ffff0003cfb7b000@10.0.0.77@tcp:6/4 lens 488/448 e 7 to 1 dl 1792148065 ref 2 fl Rpc:XQr/2/ffffffff rc -11/-1 job:''
+[  366.887032] INFO: task fio:9491 blocked for more than 122 seconds.
+[  366.887739]       Not tainted 6.12.111-136.204.amzn2023.aarch64 #1
+[  366.888554] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[  366.889605] task:fio             state:D stack:0     pid:9491  tgid:9491  ppid:1      flags:0x0000060d
+[  366.890861] Call trace:
+[  366.891187]  __switch_to+0xf0/0x160 (T)
+[  366.891697]  __schedule+0x29c/0x678
+[  366.892163]  schedule+0x30/0xf0
+[  366.892577]  schedule_timeout+0x150/0x168
+[  366.893120]  __wait_for_common+0xe0/0x2c8
+[  366.893656]  wait_for_completion+0x28/0x40
+[  366.894214]  exit_aio+0x130/0x388
+[  366.894653]  __mmput+0x24/0x178
+[  366.895060]  mmput+0x58/0x70
+[  366.895456]  exit_mm+0xe8/0x178
+[  366.895876]  do_exit+0x178/0x3f8
+[  366.896302]  do_group_exit+0x3c/0xa8
+[  366.896784]  get_signal+0x82c/0x838
+[  366.897261]  do_signal+0x98/0x280
+[  366.897689]  do_notify_resume+0x11c/0x1b0
+[  366.898232]  el0_svc+0x128/0x180
+[  366.898666]  el0t_64_sync_handler+0xc8/0xe0
+[  366.899229]  el0t_64_sync+0x1b0/0x1b8

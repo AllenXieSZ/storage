@@ -1,0 +1,81 @@
+# 断连时 lnetctl peer show -v（EFA peer min_tx_credits 为负）
+              send_count: 98
+              recv_count: 99
+              drop_count: 0
+        - nid: <OSS_EFA_NID>@efa
+          state: NA
+          max_ni_tx_credits: 32
+          available_tx_credits: 32
+          min_tx_credits: -33
+          tx_q_num_of_buf: 0
+          available_rtr_credits: 32
+          min_rtr_credits: 32
+          refcount: 1
+          statistics:
+              send_count: 2555
+              recv_count: 4875
+              drop_count: 0
+--
+              send_count: 98
+              recv_count: 99
+              drop_count: 0
+        - nid: <OSS_EFA_NID>@efa
+          state: NA
+          max_ni_tx_credits: 32
+          available_tx_credits: 32
+          min_tx_credits: -27
+          tx_q_num_of_buf: 0
+          available_rtr_credits: 32
+          min_rtr_credits: 32
+          refcount: 1
+          statistics:
+              send_count: 2581
+              recv_count: 4923
+              drop_count: 0
+--
+              send_count: 98
+              recv_count: 99
+              drop_count: 0
+        - nid: <OSS_EFA_NID>@efa
+          state: NA
+          max_ni_tx_credits: 32
+          available_tx_credits: 32
+          min_tx_credits: -37
+          tx_q_num_of_buf: 0
+          available_rtr_credits: 32
+          min_rtr_credits: 32
+          refcount: 1
+          statistics:
+              send_count: 2557
+              recv_count: 4812
+              drop_count: 0
+--
+              send_count: 98
+              recv_count: 99
+              drop_count: 0
+        - nid: <OSS_EFA_NID>@efa
+          state: NA
+          max_ni_tx_credits: 32
+          available_tx_credits: 32
+          min_tx_credits: -48
+          tx_q_num_of_buf: 0
+          available_rtr_credits: 32
+          min_rtr_credits: 32
+          refcount: 1
+          statistics:
+              send_count: 2573
+              recv_count: 4912
+              drop_count: 0
+--
+              send_count: 98
+              recv_count: 99
+              drop_count: 0
+        - nid: <OSS_EFA_NID>@efa
+          state: NA
+          max_ni_tx_credits: 32
+          available_tx_credits: 32
+          min_tx_credits: -37
+          tx_q_num_of_buf: 0
+          available_rtr_credits: 32
+          min_rtr_credits: 32
+          refcount: 1
