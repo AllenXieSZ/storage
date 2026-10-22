@@ -1,0 +1,41 @@
+{
+  "Role": "arn:aws:iam::<ACCOUNT_ID>:role/s3crr-repl-<E>",
+  "Rules": [
+    {
+      "ID": "rule0",
+      "Priority": 1,
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "g0/"
+      },
+      "DeleteMarkerReplication": {
+        "Status": "Disabled"
+      },
+      "Destination": {
+        "Bucket": "arn:aws:s3:::s3-crr-dst-b-<E>",
+        "StorageClass": "STANDARD",
+        "Metrics": {
+          "Status": "Enabled"
+        }
+      }
+    },
+    {
+      "ID": "rule1",
+      "Priority": 2,
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "g1/"
+      },
+      "DeleteMarkerReplication": {
+        "Status": "Disabled"
+      },
+      "Destination": {
+        "Bucket": "arn:aws:s3:::s3-crr-dst-b-<E>",
+        "StorageClass": "STANDARD",
+        "Metrics": {
+          "Status": "Enabled"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"S3JobManifestGenerator":{"ExpectedBucketOwner":"<ACCOUNT_ID>","SourceBucket":"arn:aws:s3:::s3-crr-src-<E>","EnableManifestOutput":false,"Filter":{"EligibleForReplication":true,"KeyNameConstraint":{"MatchAnyPrefix":["g0/p0/"]}}}}

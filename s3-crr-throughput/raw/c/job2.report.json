@@ -1,0 +1,1 @@
+{"Bucket":"arn:aws:s3:::s3-crr-src-<E>","Prefix":"reports/c/job2","Format":"Report_CSV_20180820","Enabled":true,"ReportScope":"FailedTasksOnly"}

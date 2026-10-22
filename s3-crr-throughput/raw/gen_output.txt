@@ -1,0 +1,12 @@
+0
+131072 cmds.txt
+cp /dev/shm/src.bin s3://s3-crr-src-<E>/g0/p0/c7/obj_00000
+-rw-r--r--. 1 root root 16777216 Oct 22 09:20 /dev/shm/src.bin
+ab5dbacc095c81ba0a47b07aa86f3af1  /dev/shm/src.bin
+2026-10-22T09:22:54Z
+2026-10-22T09:25:04Z
+131072
+0
+131072
+2199023255552 bytes in 131072 objects: s3://s3-crr-src-<E>/*
+
