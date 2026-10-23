@@ -1,0 +1,21 @@
+16+0 records in
+16+0 records out
+16777216 bytes (17 MB, 16 MiB) copied, 0.0343624 s, 488 MB/s
+import hashlib
+with open('\''/root/cmds.txt'\'','\''w'\'') as f:
+  for p in range(4):
+    g=p//2
+    for i in range(32768):
+      h=hashlib.md5(f'\''{p}-{i}'\''.encode()).hexdigest()[:2]
+      f.write(f'\''cp /dev/shm/src.bin s3://s3-crr-src-sg-<E>/g{g}/p{p}/{h}/obj_{i:05d}\n'\'')
+'
+131072 cmds.txt
+29a4c7fea2bc41052c9153cc46a08131  /dev/shm/src.bin
+2026-10-22T23:57:28Z
+2026-10-22T23:59:30Z
+131072
+0
+131072
+2199023255552 bytes in 131072 objects: s3://s3-crr-src-sg-<E>/*
+0
+
