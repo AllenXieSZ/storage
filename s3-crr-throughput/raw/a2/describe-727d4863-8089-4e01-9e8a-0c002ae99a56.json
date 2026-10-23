@@ -1,0 +1,42 @@
+{
+    "Job": {
+        "JobId": "727d4863-8089-4e01-9e8a-0c002ae99a56",
+        "ConfirmationRequired": false,
+        "Description": "crr-r2-a2-job0",
+        "JobArn": "arn:aws:s3:us-east-2:<ACCOUNT_ID>:job/727d4863-8089-4e01-9e8a-0c002ae99a56",
+        "Status": "Complete",
+        "Operation": {
+            "S3ReplicateObject": {}
+        },
+        "Priority": 10,
+        "ProgressSummary": {
+            "TotalNumberOfTasks": 131135,
+            "NumberOfTasksSucceeded": 131135,
+            "NumberOfTasksFailed": 0,
+            "Timers": {
+                "ElapsedTimeInActiveSeconds": 278
+            }
+        },
+        "FailureReasons": [],
+        "Report": {
+            "Bucket": "arn:aws:s3:::s3-crr-src-1792758433",
+            "Format": "Report_CSV_20180820",
+            "Enabled": true,
+            "Prefix": "reports/a2/job0",
+            "ReportScope": "FailedTasksOnly"
+        },
+        "CreationTime": "2026-10-23T14:15:26.597000+00:00",
+        "TerminationDate": "2026-10-23T14:21:00.238000+00:00",
+        "RoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/s3crr-batch-1792758433",
+        "ManifestGenerator": {
+            "S3JobManifestGenerator": {
+                "ExpectedBucketOwner": "<ACCOUNT_ID>",
+                "SourceBucket": "arn:aws:s3:::s3-crr-src-1792758433",
+                "Filter": {
+                    "EligibleForReplication": true
+                },
+                "EnableManifestOutput": false
+            }
+        }
+    }
+}

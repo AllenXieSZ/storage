@@ -1,0 +1,7 @@
+created s3-crr-dst-a1-1792758433 2026-10-23T12:36:29Z
+replication applied 2026-10-23T12:36:32Z
+propagation wait done 2026-10-23T12:41:32Z (300s)
+7de34c29-3ba1-4c72-83f7-3af17ef3b53f ALL 2026-10-23T12:41:34Z
+T1 1792759642 2026-10-23T12:47:22Z wall=348s
+failed_tasks=0
+RUN_DONE a1 abort=0

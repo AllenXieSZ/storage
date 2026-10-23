@@ -1,0 +1,12 @@
+created s3-crr-dst-b2-1792758433 2026-10-23T13:30:51Z
+replication applied 2026-10-23T13:30:54Z
+deleted s3-crr-dst-d1-0-1792758433 (left_before_delete=0) 2026-10-23T13:31:18Z
+deleted s3-crr-dst-d1-1-1792758433 (left_before_delete=0) 2026-10-23T13:31:41Z
+deleted s3-crr-dst-d1-2-1792758433 (left_before_delete=0) 2026-10-23T13:32:08Z
+deleted s3-crr-dst-d1-3-1792758433 (left_before_delete=0) 2026-10-23T13:32:35Z
+propagation wait done 2026-10-23T13:35:54Z (300s)
+006dbb15-7905-42ec-bffe-9c41ebdcb4be g0/ 2026-10-23T13:35:55Z
+604386d1-b567-40b0-9575-5e101dae2fbd g1/ 2026-10-23T13:35:57Z
+T1 1792762856 2026-10-23T13:40:56Z wall=299s
+failed_tasks=0
+RUN_DONE b2 abort=0

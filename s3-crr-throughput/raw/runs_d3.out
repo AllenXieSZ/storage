@@ -1,0 +1,34 @@
+{
+    "BucketArn": "arn:aws:s3:::s3-crr-dst-d3-0-1792758433",
+    "BucketRegion": "us-west-2",
+    "AccessPointAlias": false
+}
+precreated s3-crr-dst-d3-0-1792758433 (exists)
+{
+    "BucketArn": "arn:aws:s3:::s3-crr-dst-d3-1-1792758433",
+    "BucketRegion": "us-west-2",
+    "AccessPointAlias": false
+}
+precreated s3-crr-dst-d3-1-1792758433 (exists)
+{
+    "BucketArn": "arn:aws:s3:::s3-crr-dst-d3-2-1792758433",
+    "BucketRegion": "us-west-2",
+    "AccessPointAlias": false
+}
+precreated s3-crr-dst-d3-2-1792758433 (exists)
+{
+    "BucketArn": "arn:aws:s3:::s3-crr-dst-d3-3-1792758433",
+    "BucketRegion": "us-west-2",
+    "AccessPointAlias": false
+}
+precreated s3-crr-dst-d3-3-1792758433 (exists)
+replication applied 2026-10-23T14:37:43Z
+deleted s3-crr-dst-c3-1792758433 (left_before_delete=0) 2026-10-23T14:39:18Z
+propagation wait done 2026-10-23T14:42:43Z (300s)
+ba5e2c5e-ff28-4dd6-b46d-f27bba7d8239 g0/p0/ 2026-10-23T14:42:44Z
+a816b71e-3447-451b-bd60-f4a390e76c48 g0/p1/ 2026-10-23T14:42:46Z
+f5cfa85e-c2e5-4833-8922-3becf3e297ad g1/p2/ 2026-10-23T14:42:47Z
+da6e23ad-113d-41fd-b7eb-33023e616a84 g1/p3/ 2026-10-23T14:42:49Z
+T1 1792766897 2026-10-23T14:48:17Z wall=328s
+failed_tasks=0
+RUN_DONE d3 abort=0

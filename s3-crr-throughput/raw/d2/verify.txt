@@ -1,0 +1,1 @@
+verify d2: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0

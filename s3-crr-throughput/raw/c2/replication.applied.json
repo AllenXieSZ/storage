@@ -1,0 +1,79 @@
+{
+    "ReplicationConfiguration": {
+        "Role": "arn:aws:iam::<ACCOUNT_ID>:role/s3crr-repl-1792758433",
+        "Rules": [
+            {
+                "ID": "rule0",
+                "Priority": 1,
+                "Filter": {
+                    "Prefix": "g0/p0/"
+                },
+                "Status": "Enabled",
+                "Destination": {
+                    "Bucket": "arn:aws:s3:::s3-crr-dst-c2-1792758433",
+                    "StorageClass": "STANDARD",
+                    "Metrics": {
+                        "Status": "Enabled"
+                    }
+                },
+                "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                }
+            },
+            {
+                "ID": "rule1",
+                "Priority": 2,
+                "Filter": {
+                    "Prefix": "g0/p1/"
+                },
+                "Status": "Enabled",
+                "Destination": {
+                    "Bucket": "arn:aws:s3:::s3-crr-dst-c2-1792758433",
+                    "StorageClass": "STANDARD",
+                    "Metrics": {
+                        "Status": "Enabled"
+                    }
+                },
+                "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                }
+            },
+            {
+                "ID": "rule2",
+                "Priority": 3,
+                "Filter": {
+                    "Prefix": "g1/p2/"
+                },
+                "Status": "Enabled",
+                "Destination": {
+                    "Bucket": "arn:aws:s3:::s3-crr-dst-c2-1792758433",
+                    "StorageClass": "STANDARD",
+                    "Metrics": {
+                        "Status": "Enabled"
+                    }
+                },
+                "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                }
+            },
+            {
+                "ID": "rule3",
+                "Priority": 4,
+                "Filter": {
+                    "Prefix": "g1/p3/"
+                },
+                "Status": "Enabled",
+                "Destination": {
+                    "Bucket": "arn:aws:s3:::s3-crr-dst-c2-1792758433",
+                    "StorageClass": "STANDARD",
+                    "Metrics": {
+                        "Status": "Enabled"
+                    }
+                },
+                "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                }
+            }
+        ]
+    }
+}

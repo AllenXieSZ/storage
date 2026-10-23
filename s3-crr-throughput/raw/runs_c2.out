@@ -1,0 +1,16 @@
+{
+    "BucketArn": "arn:aws:s3:::s3-crr-dst-c2-1792758433",
+    "BucketRegion": "us-west-2",
+    "AccessPointAlias": false
+}
+precreated s3-crr-dst-c2-1792758433 (exists)
+replication applied 2026-10-23T13:43:45Z
+deleted s3-crr-dst-b2-1792758433 (left_before_delete=0) 2026-10-23T13:45:10Z
+propagation wait done 2026-10-23T13:48:45Z (300s)
+4f56ac13-c7d4-4182-8e7f-54eb3df3151f g0/p0/ 2026-10-23T13:48:47Z
+4b7ffffe-465e-496b-b0ed-3919134adfd0 g0/p1/ 2026-10-23T13:48:48Z
+85bd7aa6-287c-4f39-990d-295fe0618de6 g1/p2/ 2026-10-23T13:48:50Z
+9c6f5c22-eea9-41be-8a53-d4592201e72a g1/p3/ 2026-10-23T13:48:51Z
+T1 1792763624 2026-10-23T13:53:44Z wall=293s
+failed_tasks=0
+RUN_DONE c2 abort=0

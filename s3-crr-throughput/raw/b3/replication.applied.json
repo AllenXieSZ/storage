@@ -1,0 +1,43 @@
+{
+    "ReplicationConfiguration": {
+        "Role": "arn:aws:iam::<ACCOUNT_ID>:role/s3crr-repl-1792758433",
+        "Rules": [
+            {
+                "ID": "rule0",
+                "Priority": 1,
+                "Filter": {
+                    "Prefix": "g0/"
+                },
+                "Status": "Enabled",
+                "Destination": {
+                    "Bucket": "arn:aws:s3:::s3-crr-dst-b3-1792758433",
+                    "StorageClass": "STANDARD",
+                    "Metrics": {
+                        "Status": "Enabled"
+                    }
+                },
+                "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                }
+            },
+            {
+                "ID": "rule1",
+                "Priority": 2,
+                "Filter": {
+                    "Prefix": "g1/"
+                },
+                "Status": "Enabled",
+                "Destination": {
+                    "Bucket": "arn:aws:s3:::s3-crr-dst-b3-1792758433",
+                    "StorageClass": "STANDARD",
+                    "Metrics": {
+                        "Status": "Enabled"
+                    }
+                },
+                "DeleteMarkerReplication": {
+                    "Status": "Disabled"
+                }
+            }
+        ]
+    }
+}

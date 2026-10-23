@@ -1,0 +1,94 @@
+=== START a1 2026-10-23T12:36:23Z cum_before=$2.0
+T1 1792759642 2026-10-23T12:47:22Z wall=348s
+failed_tasks=0
+RUN_DONE a1 abort=0
+cum_cost_est=$44.0 after a1
+verify a1: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=2
+2026-10-23T12:44:00+00:00	41174.0 2026-10-23T12:45:00+00:00	58144.0 2026-10-23T12:46:00+00:00	28781.0  <- recent PUT/min s3-crr-dst-a1-1792758433
+=== START b1 2026-10-23T12:50:02Z cum_before=$44.0
+T1 1792760448 2026-10-23T13:00:48Z wall=333s
+failed_tasks=0
+RUN_DONE b1 abort=0
+cum_cost_est=$86.25 after b1
+verify b1: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T12:57:00+00:00	36391.0 2026-10-23T12:58:00+00:00	36119.0 2026-10-23T12:59:00+00:00	30353.0 2026-10-23T13:00:00+00:00	3068.0  <- recent PUT/min s3-crr-dst-b1-1792758433
+=== START c1 2026-10-23T13:03:26Z cum_before=$86.25
+T1 1792761250 2026-10-23T13:14:10Z wall=328s
+failed_tasks=0
+RUN_DONE c1 abort=0
+cum_cost_est=$129.0 after c1
+verify c1: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T13:10:00+00:00	21808.0 2026-10-23T13:11:00+00:00	29438.0 2026-10-23T13:12:00+00:00	59681.0 2026-10-23T13:13:00+00:00	11983.0  <- recent PUT/min s3-crr-dst-c1-1792758433
+=== START d1 2026-10-23T13:16:56Z cum_before=$129.0
+T1 1792762075 2026-10-23T13:27:55Z wall=329s
+failed_tasks=0
+RUN_DONE d1 abort=0
+cum_cost_est=$171.75 after d1
+verify d1: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T13:24:00+00:00	12776.0 2026-10-23T13:25:00+00:00	4040.0 2026-10-23T13:26:00+00:00	178.0  <- recent PUT/min s3-crr-dst-d1-0-1792758433
+2026-10-23T13:24:00+00:00	5285.0 2026-10-23T13:25:00+00:00	9628.0 2026-10-23T13:26:00+00:00	14802.0 2026-10-23T13:27:00+00:00	618.0  <- recent PUT/min s3-crr-dst-d1-1-1792758433
+2026-10-23T13:24:00+00:00	13338.0 2026-10-23T13:25:00+00:00	11902.0 2026-10-23T13:26:00+00:00	4929.0 2026-10-23T13:27:00+00:00	5.0  <- recent PUT/min s3-crr-dst-d1-2-1792758433
+2026-10-23T13:24:00+00:00	8271.0 2026-10-23T13:25:00+00:00	13556.0 2026-10-23T13:26:00+00:00	8356.0 2026-10-23T13:27:00+00:00	62.0  <- recent PUT/min s3-crr-dst-d1-3-1792758433
+=== START b2 2026-10-23T13:30:44Z cum_before=$171.75
+T1 1792762856 2026-10-23T13:40:56Z wall=299s
+failed_tasks=0
+RUN_DONE b2 abort=0
+cum_cost_est=$214.0 after b2
+verify b2: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T13:39:00+00:00	38965.0 2026-10-23T13:40:00+00:00	7933.0  <- recent PUT/min s3-crr-dst-b2-1792758433
+=== START c2 2026-10-23T13:43:36Z cum_before=$214.0
+T1 1792763624 2026-10-23T13:53:44Z wall=293s
+failed_tasks=0
+RUN_DONE c2 abort=0
+cum_cost_est=$256.75 after c2
+verify c2: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T13:50:00+00:00	45046.0 2026-10-23T13:51:00+00:00	49121.0 2026-10-23T13:52:00+00:00	26760.0 2026-10-23T13:53:00+00:00	80.0  <- recent PUT/min s3-crr-dst-c2-1792758433
+=== START d2 2026-10-23T13:56:29Z cum_before=$256.75
+T1 1792764445 2026-10-23T14:07:25Z wall=329s
+failed_tasks=0
+RUN_DONE d2 abort=0
+cum_cost_est=$299.5 after d2
+verify d2: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T14:04:00+00:00	14841.0 2026-10-23T14:05:00+00:00	8425.0 2026-10-23T14:06:00+00:00	1164.0  <- recent PUT/min s3-crr-dst-d2-0-1792758433
+2026-10-23T14:04:00+00:00	7567.0 2026-10-23T14:05:00+00:00	3366.0 2026-10-23T14:06:00+00:00	161.0  <- recent PUT/min s3-crr-dst-d2-1-1792758433
+2026-10-23T14:04:00+00:00	10655.0 2026-10-23T14:05:00+00:00	12988.0 2026-10-23T14:06:00+00:00	3158.0  <- recent PUT/min s3-crr-dst-d2-2-1792758433
+2026-10-23T14:04:00+00:00	3960.0 2026-10-23T14:05:00+00:00	13043.0 2026-10-23T14:06:00+00:00	10199.0  <- recent PUT/min s3-crr-dst-d2-3-1792758433
+=== START a2 2026-10-23T14:10:16Z cum_before=$299.5
+T1 1792765274 2026-10-23T14:21:14Z wall=348s
+failed_tasks=0
+RUN_DONE a2 abort=0
+cum_cost_est=$341.5 after a2
+verify a2: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=44
+2026-10-23T14:17:00+00:00	36066.0 2026-10-23T14:18:00+00:00	35495.0 2026-10-23T14:19:00+00:00	34729.0 2026-10-23T14:20:00+00:00	10483.0  <- recent PUT/min s3-crr-dst-a2-1792758433
+=== START c3 2026-10-23T14:23:52Z cum_before=$341.5
+T1 1792766076 2026-10-23T14:34:36Z wall=328s
+failed_tasks=0
+RUN_DONE c3 abort=0
+cum_cost_est=$384.25 after c3
+verify c3: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T14:31:00+00:00	38088.0 2026-10-23T14:32:00+00:00	37537.0 2026-10-23T14:33:00+00:00	18879.0  <- recent PUT/min s3-crr-dst-c3-1792758433
+=== START d3 2026-10-23T14:37:21Z cum_before=$384.25
+T1 1792766897 2026-10-23T14:48:17Z wall=328s
+failed_tasks=0
+RUN_DONE d3 abort=0
+cum_cost_est=$427.0 after d3
+verify d3: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T14:45:00+00:00	7810.0 2026-10-23T14:46:00+00:00	127.0 2026-10-23T14:47:00+00:00	1.0  <- recent PUT/min s3-crr-dst-d3-0-1792758433
+2026-10-23T14:45:00+00:00	12882.0 2026-10-23T14:46:00+00:00	9029.0 2026-10-23T14:47:00+00:00	113.0  <- recent PUT/min s3-crr-dst-d3-1-1792758433
+2026-10-23T14:45:00+00:00	14822.0 2026-10-23T14:46:00+00:00	8024.0 2026-10-23T14:47:00+00:00	39.0  <- recent PUT/min s3-crr-dst-d3-2-1792758433
+2026-10-23T14:45:00+00:00	13351.0 2026-10-23T14:46:00+00:00	11171.0 2026-10-23T14:47:00+00:00	231.0  <- recent PUT/min s3-crr-dst-d3-3-1792758433
+=== START a3 2026-10-23T14:51:09Z cum_before=$427.0
+T1 1792767696 2026-10-23T15:01:36Z wall=316s
+failed_tasks=0
+RUN_DONE a3 abort=0
+cum_cost_est=$469.0 after a3
+verify a3: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=62
+2026-10-23T14:58:00+00:00	41474.0 2026-10-23T14:59:00+00:00	50723.0 2026-10-23T15:00:00+00:00	21002.0  <- recent PUT/min s3-crr-dst-a3-1792758433
+=== START b3 2026-10-23T15:04:15Z cum_before=$469.0
+T1 1792768466 2026-10-23T15:14:26Z wall=299s
+failed_tasks=0
+RUN_DONE b3 abort=0
+cum_cost_est=$511.25 after b3
+verify b3: dst_g_objs=131072 missing=0 extra_g=0 non_g(reports etc)=0
+2026-10-23T15:11:00+00:00	40416.0 2026-10-23T15:12:00+00:00	45858.0 2026-10-23T15:13:00+00:00	23191.0  <- recent PUT/min s3-crr-dst-b3-1792758433
+=== ORCH END 2026-10-23T15:17:06Z cum_cost_est=$511.25 last=runs/b3/dst_buckets.txt
