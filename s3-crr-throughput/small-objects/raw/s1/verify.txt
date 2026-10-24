@@ -1,0 +1,11 @@
+verify s1: dst_obj=1024000 missing=0 extra_obj=0 non_obj(reports etc)=4
+head 20b/obj_0712454 524288	REPLICA	"13f3cafec38ac2cff05e54cfce651303"	AES256
+  src  524288	COMPLETED	"13f3cafec38ac2cff05e54cfce651303"
+head 214/obj_0853057 524288	REPLICA	"13f3cafec38ac2cff05e54cfce651303"	AES256
+  src  524288	COMPLETED	"13f3cafec38ac2cff05e54cfce651303"
+head f7e/obj_0823206 524288	REPLICA	"13f3cafec38ac2cff05e54cfce651303"	AES256
+  src  524288	COMPLETED	"13f3cafec38ac2cff05e54cfce651303"
+head 67f/obj_0856114 524288	REPLICA	"13f3cafec38ac2cff05e54cfce651303"	AES256
+  src  524288	COMPLETED	"13f3cafec38ac2cff05e54cfce651303"
+head 141/obj_0025317 524288	REPLICA	"13f3cafec38ac2cff05e54cfce651303"	AES256
+  src  524288	COMPLETED	"13f3cafec38ac2cff05e54cfce651303"

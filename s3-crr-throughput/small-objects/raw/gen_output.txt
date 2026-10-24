@@ -1,0 +1,16 @@
++ cat upload_start upload_end retry_end
+2026-10-23T15:56:50Z
+2026-10-23T16:02:03Z
+2026-10-23T16:03:19Z
++ grep -c '^cp' upload.out
+1024000
++ wc -l
+0
++ head -5 upload.err
+++ wc -l
++ echo missing_after_pass1=5
+missing_after_pass1=5
++ md5sum /dev/shm/src.bin
+13f3cafec38ac2cff05e54cfce651303  /dev/shm/src.bin
++ ./s5cmd du 's3://s3-crr-src-small-1792770913/*'
+536868290560 bytes in 1023995 objects: s3://s3-crr-src-small-1792770913/*

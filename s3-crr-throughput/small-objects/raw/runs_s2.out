@@ -1,0 +1,17 @@
+{
+    "BucketArn": "arn:aws:s3:::s3-crr-dst-s2-1792770913",
+    "BucketRegion": "us-west-2",
+    "AccessPointAlias": false
+}
+precreated s3-crr-dst-s2-1792770913 (exists)
+{
+    "MetricsConfiguration": {
+        "Id": "all"
+    }
+}
+replication applied 2026-10-23T17:13:08Z
+propagation wait done 2026-10-23T17:18:08Z
+884c21ff-9afe-4385-ac14-439befc26dec ALL 2026-10-23T17:18:09Z
+T1 1792777685 2026-10-23T17:48:05Z wall=1796s
+failed_tasks=0
+RUN_DONE s2 abort=0

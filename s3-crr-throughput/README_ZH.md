@@ -2,7 +2,7 @@
 
 > 实测日期：2026-10-23（UTC 12:26～15:35）。源 us-east-2，目标 us-west-2。AWS CLI + s5cmd v2.3.0。
 > 口径：MB = 10^6 字节，GB = 10^9 字节；费用按 GiB 计。
-> 脚本在 [`scripts/`](scripts/)，每次运行的原始数据在 [`raw/`](raw/)。新加坡 → 东京的单独测试见 [`sg-tokyo/RESULTS_ZH.md`](sg-tokyo/RESULTS_ZH.md)。
+> 脚本在 [`scripts/`](scripts/)，每次运行的原始数据在 [`raw/`](raw/)。新加坡 → 东京的单独测试见 [`sg-tokyo/RESULTS_ZH.md`](sg-tokyo/RESULTS_ZH.md)。小文件（512 KiB × 102.4 万，500 GiB）测试见 [`small-objects/README_ZH.md`](small-objects/README_ZH.md)。
 
 ## 1. 结论速览
 
