@@ -472,8 +472,110 @@ done
 
 5. **Recommendation:** For random small-I/O workloads on FSx Lustre, either (a) keep the working set within the OSS cache, (b) use I/O sizes ≥256KB, or (c) accept reduced effective throughput and provision accordingly.
 
+## Comparison: FSx ONTAP Has No 256KB Read Amplification
+
+**Tested: 2026-10-28** — FSx ONTAP Gen2 SA2 with identical 4K random read cache-bypass methodology.
+
+### ONTAP Disk I/O Granularity (CloudWatch Measured)
+
+| Client I/O Size | Lustre Disk I/O per Op | **ONTAP Disk I/O per Op** | Lustre Amplification | **ONTAP Amplification** |
+|---|---|---|---|---|
+| 4K | 256 KB | **~4 KB** (low load) / **~16 KB** (high load) | 64× | **1×–4×** |
+| 8K | 256 KB | ~8 KB | 32× | ~1× |
+| 16K | 256 KB | ~16 KB | 16× | ~1× |
+| 32K | 256 KB | ~30 KB | 8× | ~1× |
+| 256K | 256 KB | ~58–97 KB | 1× | ~1× |
+
+**Key difference:** Lustre's disk I/O granularity is a **constant 256KB** regardless of client request size. ONTAP's WAFL reads from disk at approximately the client request size (with 4× read-ahead at high IOPS, reading 16KB per 4K request).
+
+### ONTAP 200K Provisioned IOPS Test (6144 MBps, 5 TiB SSD)
+
+To verify whether ONTAP can deliver high 4K IOPS without read amplification bottlenecks, we tested a top-tier ONTAP configuration:
+
+| Configuration | Value |
+|---|---|
+| FSx ONTAP | Gen2 SINGLE_AZ_2, 6144 MBps, 5 TiB SSD |
+| SSD IOPS | **200,000 (User-Provisioned)** |
+| Clients | 4 × c6i.8xlarge (32 vCPU, 25 Gbps) |
+| NFS mount | vers=3, nconnect=16 (actual: 6 TCP connections) |
+
+**Cache-Hit Results (8GB working set, all in server cache):**
+
+| Clients | Aggregate IOPS | DiskIopsUtilization |
+|---|---|---|
+| 1 | **188,692** | ~0% |
+| 2 | **385,188** | ~0% |
+| 4 | **776,024** | ~0% |
+
+**Cache-Bypass Results (2TB working set, exceeds ~1–2 TB server cache):**
+
+| Clients | Working Set | Aggregate Client IOPS | CW Disk IOPS | **DiskIopsUtilization** |
+|---|---|---|---|---|
+| 1 | 500 GB | 190,182 | ~13 | ~0% (still cached!) |
+| 2 | 1 TB | 381,103 | ~670 | ~0% (still cached!) |
+| 4 | 1 TB | 526,387 | 126,885 | **63.4%** |
+| **4** | **2 TB** | **520,387** | **200,260** | **🔴 100.1% (IOPS ceiling hit!)** |
+
+**ONTAP findings:**
+1. **200K provisioned IOPS confirmed** — DiskIopsUtilization hit exactly 100.1% with 2 TB working set
+2. **Server cache is ~1–2 TB** at 6144 MBps tier (500 GB fully cached by single client)
+3. **Disk I/O granularity under heavy load = ~16 KB** (WAFL 4×4K read-ahead), confirmed by CW DiskReadBytes / DiskReadOps
+4. **Cache-hit IOPS of 776K** (4 clients) — near-linear scaling, limited only by NFS connections
+5. **Bottleneck is IOPS (100%), not throughput (52.6%) or network (17.4%)**
+
+### Side-by-Side: Lustre vs ONTAP Architecture for 4K Random Reads
+
+| Metric | FSx Lustre (P2-500, 4.8 TiB) | FSx ONTAP (6144 MBps, 5 TiB, 200K IOPS) |
+|---|---|---|
+| Disk I/O granularity | **256 KB** (constant) | **~16 KB** (under load) |
+| Read amplification (4K) | **64×** | **4×** |
+| 4K IOPS (cache hit, 4 clients) | ~252K (single client) | **776K** |
+| 4K IOPS (cache bypass) | **~23,500** | **~200,000** (disk) / **~520,000** (client, partial cache) |
+| Server cache size | ~66 GB | **~1–2 TB** |
+| Bottleneck (cache bypass) | Disk **throughput** (256KB × IOPS saturates bandwidth) | Disk **IOPS** (provisioned IOPS ceiling) |
+| Monthly cost | **~$696** | **~$9,000+** |
+
+### How Much Lustre Would You Need for 200K 4K IOPS?
+
+Because of Lustre's 256KB read amplification, achieving 200K 4K random read IOPS requires provisioning enormous disk throughput:
+
+```
+200,000 IOPS × 256 KB/IO = 51,200 MB/s = 50 GB/s disk throughput needed
+```
+
+| Lustre Tier | Disk Throughput per TiB | Capacity Needed | SSD Cost/month | Approx. Total |
+|---|---|---|---|---|
+| P2-125 | 125 MB/s | **400 TiB** | ~$43,000 | ~$43,000 |
+| P2-250 | 250 MB/s | **200 TiB** | ~$24,576 | ~$24,576 |
+| **P2-500** | **500 MB/s** | **100 TiB** | **~$14,848** | **~$14,848** |
+| P2-1000 | 1000 MB/s | **50 TiB** | ~$14,848 | ~$14,848 |
+
+**To match ONTAP's 200K 4K IOPS, Lustre needs 50–100 TiB at $14,848/month — 1.7× more expensive than ONTAP ($9,000).**
+
+However, that 50 TiB of Lustre at P2-1000 delivers **50 GB/s of sequential throughput** (vs ONTAP's ~6 GB/s), which is valuable for large-file workloads. The cost comparison depends entirely on the workload mix.
+
+### Cost Efficiency Summary (4K Random Read, Cache-Bypass)
+
+| Configuration | 4K IOPS (disk) | Monthly Cost | $/1000 IOPS |
+|---|---|---|---|
+| **Lustre P2-500, 4.8 TiB** | 23,500 | $696 | **$29.6** |
+| ONTAP 3072 MBps, 1 TiB (auto IOPS) | 3,062 | $1,618 | $528.7 |
+| ONTAP 1536 MBps, 1 TiB (auto IOPS) | ~3,062 | $850 | $277.6 |
+| **ONTAP 6144 MBps, 5 TiB, 200K IOPS** | **200,000** | **~$9,000** | **$45.0** |
+| Lustre P2-500, 100 TiB (to match 200K) | ~200,000 | ~$14,848 | $74.2 |
+| Lustre P2-1000, 50 TiB (to match 200K) | ~200,000 | ~$14,848 | $74.2 |
+
+**Key takeaways:**
+- At small scale (< 50K IOPS), **Lustre is cheapest** ($29.6/K IOPS) despite read amplification
+- At large scale (200K IOPS), **ONTAP is cheaper** ($45/K IOPS vs $74/K IOPS) because it doesn't waste throughput on read amplification
+- ONTAP's server cache (1–2 TB at 6144 tier) can serve 776K+ IOPS for hot data — **if the working set fits in cache, ONTAP is the clear winner**
+- Lustre's advantage is sequential throughput: 50 TiB P2-1000 delivers 50 GB/s for large I/O workloads
+
 ## Resources Cleaned
 
 All test resources have been deleted:
 - FSx Lustre: fs-0abb08606bd0a8f3e (deleted)
 - EC2: i-06f6e18f680453866 (terminated)
+- FSx ONTAP (multi-BS test): fs-097010cd426a22b53 (deleted)
+- FSx ONTAP (multi-client test): fs-08ce59bb8878f921b (deleted)
+- FSx ONTAP (6144/200K test): fs-003626e0d19ef75e1 (deleted)
