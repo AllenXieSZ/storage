@@ -153,13 +153,86 @@ Batched 模式 (iodepth=1024) 让 3FS 将 1024 个 4K 读请求打包成一次 R
 
 ## 适用场景
 
+### 哪些 AI 训练最适合 3FS Native Batched 的大文件随机 4K 读
+
+3FS Native Batched 模式的 173K 4K IOPS 正好命中一类特殊的 AI 训练 IO 模式：**大文件（数百 MB ~ TB）+ 随机 4K 小读**。这和普通 DataLoader（大量小文件顺序读）完全不同。
+
+#### 1. Embedding Table 训练（推荐系统/广告模型）— 最典型
+
+```
+Embedding Table (500MB ~ TB级)
+┌─────────────────────────────────────┐
+│ user_id=0:    [128-dim float32]     │  ← 512 bytes
+│ user_id=1:    [128-dim float32]     │
+│ ...                                  │
+│ user_id=999999: [128-dim float32]   │
+└─────────────────────────────────────┘
+            ↑ 每个 mini-batch 随机读一批 embedding ≈ 4KB
+```
+
+- **模型**：DLRM (Meta)、DeepFM、Wide & Deep、DCN 等推荐/广告模型
+- **IO 原因**：Embedding table 存了几百万~几亿个用户/物品的向量，太大放不进 GPU 显存 → 存在 SSD 上，训练时按需随机读
+- **IO 特征**：几乎 100% 随机读，每次 0.5-4KB，延迟敏感，读写比极高
+- **规模**：Meta DLRM 的 embedding table 可达 TB 级，500MB 只是一个 shard
+
+#### 2. GNN 图神经网络训练（邻居采样）
+
+```
+图结构文件 (数百MB ~ 数GB)
+┌─────────────────────────┐
+│ node_0: [邻居列表+特征]  │
+│ node_1: [邻居列表+特征]  │
+│ ...                      │
+│ node_N: [邻居列表+特征]  │
+└─────────────────────────┘
+     ↑ 随机采样邻居节点 → 随机 4K 读
+```
+
+- **模型**：GraphSAGE、GAT、GCN、PinSage
+- **IO 原因**：训练时对每个节点做 neighbor sampling，采到的邻居在文件中的位置是随机的
+- **典型场景**：社交网络推荐、金融欺诈检测、知识图谱
+
+#### 3. 向量搜索 / ANN 索引训练与查询
+
+```
+向量索引文件 (IVF/HNSW, 数百MB ~ 数十GB)
+┌──────────────────────────┐
+│ cluster_0: [向量列表]     │
+│ cluster_1: [向量列表]     │
+│ ...                       │
+│ cluster_N: [向量列表]     │
+└──────────────────────────┘
+     ↑ 训练/查询时随机访问聚类中心和候选向量
+```
+
+- **模型/系统**：FAISS IVF 训练、ScaNN、DiskANN
+- **IO 原因**：DiskANN 专门为"大索引存 SSD + 随机 4K 读"设计
+
+#### 4. MoE 大模型（推测：3FS 的设计驱动力）
+
+DeepSeek 自家的 MoE 模型 (DeepSeek-V3/V4) 有大量 expert 参数。推理时只激活部分 expert → 需要从存储随机读取被选中的 expert 权重。3FS 的 KVCache 功能（实测单客户端 40 GiB/s 读）很可能就是为这个场景设计的。
+
+#### IO 模式对比
+
+| 场景 | 文件大小 | 单次读 | 读模式 | 关键指标 | 最佳存储 |
+|------|---------|--------|--------|---------|---------|
+| **Embedding Table** | 500MB ~ TB | 0.5-4KB | 纯随机 | **IOPS** | 3FS Native Batched / 本地 NVMe |
+| **GNN 邻居采样** | 数百MB ~ GB | 1-8KB | 纯随机 | **IOPS** | 3FS Native Batched / 本地 NVMe |
+| **ANN 索引 (DiskANN)** | 数百MB ~ 数十GB | 4KB 对齐 | 纯随机 | **IOPS** | 3FS Native Batched / 本地 NVMe |
+| **MoE Expert 加载** | GB ~ 数十GB | KB ~ MB | 随机 | IOPS + BW | 3FS KVCache |
+| 普通图片 DataLoader | 大量小文件 | 几KB~几MB/文件 | 随机选文件 | 元数据 + BW | FSx Lustre / 3FS FUSE |
+| Checkpoint 写回 | 单次 GB~TB | 大块顺序写 | 顺序 | **BW** | FSx Lustre |
+
+### 通用场景推荐
+
 | 场景 | 推荐 | 原因 |
 |------|------|------|
-| **AI 训练 DataLoader (读密集)** | 3FS (Native Batched) | 173K 4K IOPS，海量小样本随机读的绝对优势 |
-| **AI Checkpoint (写密集)** | FSx Lustre | 3FS 写路径慢，Lustre 突发写吞吐更高 |
-| **推理 KVCache** | 3FS | 低成本 SSD 替代 DRAM，高吞吐读 |
-| **AWS 云原生工作负载** | FSx Lustre | 全托管 + S3 DRA + 数据持久 |
-| **自建 IDC + IB 网络** | 3FS | 线性扩展到 TiB/s 级，开源免授权费 |
+| **Embedding/GNN/ANN 随机读 (改造 DataLoader)** | **3FS Native Batched** | 173K 4K IOPS，碾压传统文件系统 |
+| **普通 DataLoader (不改代码)** | FSx Lustre ≈ 3FS FUSE | 不改代码 3FS 无优势 |
+| **Checkpoint 写** | FSx Lustre | 3FS CRAQ 写路径慢 |
+| **推理 KVCache** | 3FS | SSD 替代 DRAM，高吞吐读，容量大成本低 |
+| **AWS 云原生** | FSx Lustre | 全托管 + S3 DRA + 持久化 |
+| **自建 IDC + InfiniBand** | 3FS | 线性扩展到 TiB/s，开源免授权费 |
 
 ## 参考
 
