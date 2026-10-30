@@ -1,0 +1,127 @@
+# DeepSeek 3FS vs FSx Lustre — 随机 IO 性能对比
+
+## 测试环境
+
+### DeepSeek 3FS
+| 项 | 配置 |
+|---|---|
+| 版本 | 3FS commit `22fca045` (2026-05-07) |
+| 存储节点 | 2 × i3en.xlarge (4 vCPU, 32GB RAM, 1 × 2.5TB NVMe) |
+| 元数据节点 | 1 × i3en.xlarge (FoundationDB 7.1.61 + ClickHouse) |
+| 客户端 | 同 meta 节点 (FUSE + Native Client) |
+| RDMA | SoftRoCE (rdma_rxe 内核模块，软件模拟 RoCE) |
+| 网络 | 25 Gbps ENA (Cluster Placement Group) |
+| 数据复制 | replication_factor=2, 3 chains, stripe=3, chunk=1MB |
+| 区域 | AWS us-east-2 (Ohio) |
+
+### FSx Lustre
+| 项 | 配置 |
+|---|---|
+| 文件系统 | fs-0d45ce2da127d0028 |
+| 部署类型 | PERSISTENT_2, Lustre 2.15 |
+| 容量 | 1,200 GiB |
+| 吞吐档 | 125 MB/s/TiB (合同吞吐 ~146.5 MB/s) |
+| 客户端 | MySQL-Master EC2 (单客户端，TCP/ENA) |
+| 元数据 IOPS | 未指定 MetadataConfiguration (默认) |
+| 区域 | AWS us-east-2 (Ohio) |
+
+### fio 参数
+- numjobs=4, direct=1, time_based, runtime=60s, group_reporting
+- FUSE / FSx Lustre: ioengine=psync, iodepth=1
+- Native Client: ioengine=external:hf3fs_usrbio.so, iodepth=32
+- Native Batched: ioengine=external:hf3fs_usrbio.so, iodepth=1024, iodepth_batch_submit/complete=1024
+
+## 随机读性能
+
+| Block Size | 3FS FUSE | 3FS Native (iodepth=32) | 3FS Native Batched (iodepth=1024) | FSx Lustre |
+|-----------|----------|------------------------|----------------------------------|------------|
+| **4K IOPS** | 3,577 | 5,742 | **173,000** | 5,754 |
+| **4K BW** | 14.0 MiB/s | 22.4 MiB/s | **678 MiB/s** | 22.5 MiB/s |
+| **8K IOPS** | 3,332 | 5,322 | **149,000** | 7,042 |
+| **8K BW** | 26.0 MiB/s | 41.6 MiB/s | **1,164 MiB/s** | 55.0 MiB/s |
+
+## 随机写性能
+
+| Block Size | 3FS FUSE | 3FS Native (iodepth=32) | FSx Lustre |
+|-----------|----------|------------------------|------------|
+| **4K IOPS** | 386 | 313 | **1,360** |
+| **4K BW** | 1.5 MiB/s | 1.2 MiB/s | **5.3 MiB/s** |
+| **8K IOPS** | 385 | 313 | **1,401** |
+| **8K BW** | 3.0 MiB/s | 2.4 MiB/s | **10.9 MiB/s** |
+
+## 顺序 IO 性能 (bs=1M)
+
+| 测试 | 3FS FUSE | FSx Lustre |
+|------|----------|------------|
+| **顺序写 BW** | 309 MiB/s | ~146.5 MiB/s (合同) / ~450 MiB/s (突发) |
+| **顺序读 BW** | 643 MiB/s | ~146.5 MiB/s (合同) / ~450 MiB/s (突发) |
+
+## 成本对比
+
+| 项 | 3FS (本次测试集群) | FSx Lustre |
+|---|---|---|
+| 配置 | 3 × i3en.xlarge | PERSISTENT_2, 1.2TiB, 125MB/s/TiB |
+| 有效存储容量 | ~2.5TB (replication=2) | 1.2 TiB |
+| 小时成本 | $1.36 × 3 = **$4.08/hr** | **~$0.24/hr** ($174/月) |
+| 月成本 | **~$2,938** | **~$174** |
+| 数据持久性 | ❌ Instance store (停机即丢) | ✅ AWS 托管 |
+| 运维复杂度 | 高 (FoundationDB + 5 组件自建) | 低 (全托管) |
+| S3 集成 | 无 | ✅ DRA 自动导入导出 |
+| RDMA | SoftRoCE (软件模拟) | ENA/TCP (可选 EFA) |
+
+### 读 IOPS 性价比
+
+| | 3FS Native Batched | FSx Lustre |
+|---|---|---|
+| 4K 随机读 IOPS | 173,000 | 5,754 |
+| 每 1K IOPS 小时成本 | $4.08 ÷ 173 = **$0.024** | $0.24 ÷ 5.75 = **$0.042** |
+| 每 IOPS 成本 (相对) | **1×** (基准) | **1.8×** |
+
+> 在读密集场景下，3FS Native Batched 模式的每 IOPS 成本比 FSx Lustre 更优。
+
+## 分析
+
+### 3FS Native Batched 读为什么这么快
+
+3FS 的 Native Client 采用类 io_uring 的异步零拷贝架构，绕过了 FUSE 内核模块的三大瓶颈：
+1. **内核锁**：FUSE 使用单一自旋锁的共享队列，约 400K 4K reads/s 即饱和
+2. **内存拷贝**：FUSE 需要在内核空间和用户空间之间拷贝数据
+3. **RPC 开销**：Native Client 将大量小 IO 合并成批量 RPC，显著降低每次请求的固定开销
+
+Batched 模式 (iodepth=1024) 让 3FS 将 1024 个 4K 读请求打包成一次 RDMA 批量操作，即使在 SoftRoCE 上也跑出了 173K IOPS。
+
+### 3FS 写为什么慢
+
+1. **CRAQ 链式复制**：每次写必须写链头 → 传播到链尾 → 确认返回，延迟 = 链长 × 单跳延迟
+2. **Copy-on-Write**：写操作需要读旧 chunk → 内存合并 → 写新 chunk → 更新 RocksDB 元数据
+3. **SoftRoCE 延迟**：软件模拟 RDMA 的延迟远高于硬件 RDMA，写路径的多次往返放大了延迟影响
+4. **设计取舍**：3FS 的 CRAQ 协议本身是 write-all-read-any，读优化 >> 写优化
+
+### 公平性说明
+
+⚠️ **这个对比对 3FS 不完全公平**：
+- **SoftRoCE ≠ 真 RDMA**：3FS 设计核心是 InfiniBand/RoCE 硬件 RDMA，SoftRoCE 延迟高一个数量级
+- **只有 2 个存储节点 / 1 块 NVMe**：生产环境 180 节点 × 16 NVMe，性能线性扩展
+- **3FS 生产环境实测峰值**：6.6 TiB/s 聚合读吞吐 (180 节点 + 2×200Gbps IB)
+
+⚠️ **对 FSx Lustre 也不完全公平**：
+- 使用了最低吞吐档 (125 MB/s/TiB)，更高档位性能更好
+- 单客户端测试，多客户端聚合性能更高
+- 未启用 EFA (RDMA)，启用后性能更好
+
+## 适用场景
+
+| 场景 | 推荐 | 原因 |
+|------|------|------|
+| **AI 训练 DataLoader (读密集)** | 3FS (Native Batched) | 173K 4K IOPS，海量小样本随机读的绝对优势 |
+| **AI Checkpoint (写密集)** | FSx Lustre | 3FS 写路径慢，Lustre 突发写吞吐更高 |
+| **推理 KVCache** | 3FS | 低成本 SSD 替代 DRAM，高吞吐读 |
+| **AWS 云原生工作负载** | FSx Lustre | 全托管 + S3 DRA + 数据持久 |
+| **自建 IDC + IB 网络** | 3FS | 线性扩展到 TiB/s 级，开源免授权费 |
+
+## 参考
+
+- [3FS GitHub](https://github.com/deepseek-ai/3FS)
+- [3FS Design Notes](https://github.com/deepseek-ai/3FS/blob/main/docs/design_notes.md)
+- [Fire-Flyer AI-HPC 论文 (arXiv:2408.14158)](https://arxiv.org/abs/2408.14158)
+- [FSx Lustre 文档](https://docs.aws.amazon.com/fsx/latest/LustreGuide/)
