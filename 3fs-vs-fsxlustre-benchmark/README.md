@@ -90,6 +90,48 @@
 
 Batched 模式 (iodepth=1024) 让 3FS 将 1024 个 4K 读请求打包成一次 RDMA 批量操作，即使在 SoftRoCE 上也跑出了 173K IOPS。
 
+### ⚠️ Native Batched 173K IOPS 与真实 DataLoader 的差距
+
+**fio batched 的 173K IOPS 不能直接代表 AI 训练 DataLoader 的真实性能。** 原因如下：
+
+典型的 PyTorch DataLoader 每个 worker 是逐个同步读样本的 (iodepth=1)，即使 32 个 worker 并发，等效并发度也只有 32——远低于 fio batched 的 4 jobs × 1024 = 4096。
+
+| | fio Native Batched | 真实 PyTorch DataLoader |
+|---|---|---|
+| 单次提交 IO 数 | **1024** | **1** (每 worker) |
+| 并发来源 | 单进程高 iodepth | 多 worker 进程 |
+| 等效并发度 | 4 × 1024 = **4096** | 32 workers × 1 = **32** |
+| IO 模式 | 纯异步批量 | 同步逐个读 |
+
+**不改代码用 FUSE 挂载时**，DataLoader 更接近 Native iodepth=32 那组结果：
+
+| | 3FS Native (iodepth=32) | FSx Lustre |
+|---|---|---|
+| 4K 随机读 IOPS | 5,742 | 5,754 |
+| 8K 随机读 IOPS | 5,322 | 7,042 |
+
+在这个更现实的并发度下，3FS (SoftRoCE) 和 FSx Lustre **基本打平**。
+
+**要吃到 batched 的 173K IOPS，必须改造 DataLoader：**
+
+```
+传统 DataLoader (iodepth=1, 同步):
+  worker → read(sample_1) → 等完成 → read(sample_2) → ...
+
+改造后 DataLoader (3FS USRBIO API, 异步批量):
+  worker → 预取下 N 个 batch 的 sample 列表
+         → 用 USRBIO Ior ring 一次提交 N 个读请求
+         → 异步等待全部完成
+         → 拿到 N 个 sample
+```
+
+这需要用 3FS 的 USRBIO Native API 重写数据加载逻辑（替换标准 POSIX read），PyTorch 原生 DataLoader 无法开箱即用。**DeepSeek 内部正是做了全栈改造（文件系统 + 训练框架 + DataLoader），才能发挥 Native Batched 的全部优势。**
+
+总结：
+- **不改代码 (FUSE)**：3FS ≈ FSx Lustre，无明显优势
+- **改 DataLoader 用 Native Batched**：3FS 173K IOPS >> FSx Lustre 5.7K IOPS，但需要代码改造投入
+- **这也是 3FS 的核心门槛**：不只是部署一个文件系统的问题，而是需要整个 AI 训练栈的配合
+
 ### 3FS 写为什么慢
 
 1. **CRAQ 链式复制**：每次写必须写链头 → 传播到链尾 → 确认返回，延迟 = 链长 × 单跳延迟
