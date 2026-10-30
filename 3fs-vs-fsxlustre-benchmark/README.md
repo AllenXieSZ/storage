@@ -240,3 +240,61 @@ DeepSeek 自家的 MoE 模型 (DeepSeek-V3/V4) 有大量 expert 参数。推理�
 - [3FS Design Notes](https://github.com/deepseek-ai/3FS/blob/main/docs/design_notes.md)
 - [Fire-Flyer AI-HPC 论文 (arXiv:2408.14158)](https://arxiv.org/abs/2408.14158)
 - [FSx Lustre 文档](https://docs.aws.amazon.com/fsx/latest/LustreGuide/)
+
+## 附录：分布式训练并行策略 — DP / TP / PP
+
+![DP vs TP vs PP](dp_tp_pp_parallelism.png)
+
+### Data Parallelism（数据并行，DP）
+
+**核心思想**：模型不动，数据切分。每个 GPU 持有完整模型副本，数据分片到不同 GPU，梯度通过 AllReduce 同步。
+
+- **通信**：每个 training step 结束时一次 AllReduce，通信量 = 模型参数量
+- **优势**：实现最简单（PyTorch DDP 几行代码），线性加速比接近理想，对模型代码无侵入
+- **劣势**：模型必须放进单 GPU 显存；AllReduce 通信量 = 模型大小；N 份模型副本浪费显存
+- **适合**：模型小于单 GPU 显存（ResNet, BERT-base, ViT），数据量大
+
+### Tensor Parallelism（张量并行，TP）
+
+**核心思想**：把每一层的权重矩阵"竖着切"分给不同 GPU，每 GPU 算一部分，AllGather/ReduceScatter 合并。
+
+- **通信**：**每一层**前向和反向各 2 次通信，频率极高
+- **优势**：每 GPU 只存 1/N 参数，突破单 GPU 显存限制；Attention/MLP 矩阵天然适合切分
+- **劣势**：每层都通信，必须 NVLink（900 GB/s）；通常限 2-8 GPU（单节点内）
+- **适合**：单层超大（GPT-3 hidden=12288），节点内 NVLink 互联
+
+### Pipeline Parallelism（流水线并行，PP）
+
+**核心思想**：模型按层"横着切"成几段分给不同 GPU，micro-batch 流水线执行。
+
+- **通信**：只在 stage 边界传激活值，频率低，每次量小
+- **优势**：每 GPU 只存几段层；段间通信量小，适合跨节点；对网络带宽要求最低
+- **劣势**：Pipeline bubble（GPU 空闲等待）；调度复杂（GPipe/1F1B/ZBP）
+- **适合**：模型极深（GPT-3 96层, LLaMA-70B 80层），跨节点扩展
+
+### 三者组合：3D Parallelism
+
+大模型训练通常同时使用三种并行策略：
+
+```
+1024 GPU = TP=8 × PP=4 × DP=32
+
+TP=8 : 节点内 8 GPU (NVLink 高带宽)，切分 Attention/MLP 权重矩阵
+PP=4 : 4 个节点串成流水线，每节点负责几段层，通信量小
+DP=32: 最外层 32 组数据并行，复制多份 TP×PP 模型组，各组处理不同数据
+```
+
+| 维度 | 切什么 | 通信量 | 通信频率 | 带宽要求 | 范围 |
+|------|--------|--------|---------|---------|------|
+| **TP** | 层内权重矩阵 | 大 | 极高（每层） | NVLink 900GB/s | 节点内 |
+| **PP** | 层间（几段层） | 小（激活值） | 低（段间边界） | ~100Gbps 够用 | 跨节点 |
+| **DP** | 数据 | 大（梯度） | 低（每step一次） | ~100Gbps | 最外层 |
+
+### 从存储 IO 角度
+
+| 并行策略 | 对存储 IO 的影响 |
+|---------|----------------|
+| **DP** | 每组读不同数据分片 → N 个进程并发读 DataLoader，总读取量 = 数据集大小 |
+| **TP** | 不影响数据读取；Checkpoint 时每 GPU 只写 1/N 参数 → 单文件小但文件数多 |
+| **PP** | 不影响数据读取；各 stage 独立写 Checkpoint → 文件数 = stage 数 |
+| **3D** | Checkpoint = TP×PP 个分片 × DP 组；DataLoader = DP 组数个并发读流 |
