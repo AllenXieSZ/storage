@@ -435,17 +435,44 @@ Lustre: 64 个分片文件并发写入不同 OST
 
 ### 同步 vs 异步 Checkpoint
 
-| 方式 | 阻塞训练 | 写入时间 | 优势 |
+> **⚠️ 重要澄清**：异步 checkpoint **不是默认行为**，是需要显式开启的优化选项。大多数训练框架默认使用同步写入。
+
+| 方式 | 阻塞训练 | 写入时间 | 优势 | 限制 |
+|---|---|---|---|---|
+| **同步**（默认） | 全程阻塞（~19s） | 直接写 | 简单可靠，写完即一致 | GPU 空闲等待 |
+| **异步** | 仅 CPU 拷贝阻塞（~0.4-14s） | 后台写 | GPU 几乎不停 | CPU 内存翻倍、需单独进程组、框架支持有限 |
+
+**各框架异步 checkpoint 支持现状**（官方文档确认）：
+
+| 框架 | 异步支持 | 默认值 | 备注 |
 |---|---|---|---|
-| **同步** | 全程阻塞（~19s） | 直接写 | 简单可靠 |
-| **异步** | 仅 CPU 拷贝阻塞（~0.4s） | 后台写 | GPU 几乎不停 |
+| **PyTorch DCP** | `dcp.async_save()` (2.4+) | 默认同步 `dcp.save()` | IBM 实测 7B：同步 148.8s→异步 6.3s（23.6×） |
+| **Megatron-LM** | `async_save=True` | **默认 False** | 仅 torch_dist 格式支持，zarr/fsdp_dtensor 不支持 |
+| **DeepSpeed** | ❌ 无原生支持 | 同步 | 需用户自行包装后台线程 |
+| **torchtitan** | `async_mode="async"` | 需显式配置 | Meta 的 LLaMA 训练参考实现 |
+
+> **来源**：
+> - PyTorch 官方博客 [Reducing Model Checkpointing Times by Over 10x](https://pytorch.org/blog/reducing-checkpointing-times/) (2024-11-13)
+> - NVIDIA Megatron Bridge 文档 [Checkpointing - Asynchronous Saving](https://docs.nvidia.com/nemo/megatron-bridge/latest/training/checkpointing.html)
+> - PyTorch DCP 教程 [Asynchronous Saving with DCP](https://docs.pytorch.org/tutorials/recipes/distributed_async_checkpoint_recipe.html)
+
+**异步模式的额外要求和限制**（PyTorch 官方教程原文）：
+- **CPU 内存翻倍**：每个 rank 需要在 CPU 维持 checkpoint 完整拷贝直到写盘完成（`checkpoint_size_per_rank × number_of_ranks`）
+- **需要独立进程组**：异步写盘的 collective 通信必须用单独的 Gloo 进程组，否则会与训练的 NCCL 通信死锁
+- **pinned memory**：可选优化（`cache_staged_state_dict=True`），进一步加速 GPU→CPU 拷贝，但 page-lock memory 持续占用直到下次 checkpoint
+
+**实际使用情况**：
+- **大厂前沿训练**（405B/Gemini 级别）：大概率使用异步，因为同步写 2.4TB 阻塞几分钟，成本损失达数百万美元
+- **大多数训练任务**（7B-70B，学术/创业公司）：仍然使用同步，够简单可靠，阻塞时间可接受
+- PyTorch 团队仍在研发下一代"零开销 checkpoint"（反向传播时流式拷贝权重到 CPU，彻底消除阻塞，尚未发布）
 
 异步 checkpoint 流程：
 ```
 训练 step N 完成
-    → GPU 显存 snapshot → 拷贝到 CPU pinned memory (阻塞 ~0.4s)
+    → GPU 显存 snapshot → 拷贝到 CPU pinned memory (阻塞 ~0.4-14s，取决于模型大小)
     → GPU 立即继续 step N+1
-    → 后台线程: CPU memory → 写 Lustre (不阻塞训练)
+    → 后台线程 (独立 Gloo 进程组): CPU memory → 写 Lustre (不阻塞训练)
+    → 写盘完成后释放 CPU 缓冲区（或保持 pinned buffer 供下次复用）
 ```
 
 ### Checkpoint 保留策略
@@ -498,22 +525,32 @@ Step 0 ─── 1K ─── 2K ─── 3K ─── ... ─── 3900K
 
 ### Checkpoint 写入是 FSx Lustre 在 AI 训练中的 #1 存储场景
 
+**存储吞吐直接影响 GPU 利用率**——无论同步还是异步模式：
+
 ```
 GPU 利用率公式:
+GPU 利用率 = 训练计算时间 / (训练计算时间 + checkpoint 阻塞时间 + 通信等待时间)
 
-GPU 利用率 = 训练计算时间 / (训练计算时间 + checkpoint 写入时间 + 通信等待时间)
+场景 A: 同步 checkpoint，存储慢（~120s 写完 420GB）
+  效率损失 = 120 / (300 + 120) ≈ 29%
 
-同步 checkpoint 19s / 每 1000 步(~每 5 分钟):
+场景 B: 同步 checkpoint，Lustre 高吞吐（~19s 写完 420GB）
   效率损失 = 19 / (300 + 19) ≈ 6%
 
-异步 checkpoint 0.4s:
-  效率损失 = 0.4 / (300 + 0.4) ≈ 0.13%
+场景 C: 异步 checkpoint（需显式开启 + CPU 内存翻倍）
+  阻塞时间 = GPU→CPU 拷贝 ~6-14s（7B-13B，IBM 实测）
+  效率损失 = 6 / (300 + 6) ≈ 2%
 
-405B 模型 3000 万 GPU 小时:
-  6% 浪费 = 180 万 GPU 小时 = ~$600 万
-  0.13% 浪费 = 3.9 万 GPU 小时 = ~$13 万
-  差额: ~$590 万 —— 这就是高性能存储的 ROI
+405B 模型 3000 万 GPU 小时（$2/GPU·hr）:
+  场景 A (29%): 870 万 GPU 小时浪费 = $1740 万
+  场景 B (6%):  180 万 GPU 小时浪费 = $360 万
+  场景 C (2%):  60 万 GPU 小时浪费 = $120 万
+
+  → 从慢存储(A)换成 Lustre 高吞吐(B) = 节省 $1380 万
+  → 再开异步(C) = 额外节省 $240 万（但需要 2× CPU 内存 + 工程复杂度）
 ```
+
+**关键结论**：即使不用异步 checkpoint，**存储本身的吞吐能力**也决定了同步写入的阻塞时间。Lustre 多 OST 并行写入（聚合 20+ GB/s）vs 单机 EBS（~500 MB/s）的差距，在大模型训练中直接转化为数百万美元的 GPU 成本差。
 
 ---
 
