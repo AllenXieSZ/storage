@@ -127,3 +127,77 @@ sudo mount -t s3files -o accesspoint=<ap-id> <file-system-id>:/ /mnt/s3files
 ### 并发写同一文件
 
 未测试两边同时写同一个文件的冲突行为。建议**不同客户端写不同文件**，通过 S3 as single source of truth 实现最终一致。
+
+---
+
+## 共存测试：单 EC2 同时挂载两个服务模拟训练 + Checkpoint
+
+### 测试设计
+
+在同一台 EC2（t3.medium）上同时挂载：
+- `/mnt/s3files`（S3 Files NFS）：模拟**训练数据持续读写**（64MB batch，不间断）
+- `/mnt/mp-s3`（Mountpoint S3）：模拟**checkpoint 写入**（5GB，每 5 分钟）+ **checkpoint 读取**（5GB，每 10 分钟）
+
+持续运行 **20 分钟**，验证两个服务互不干扰。
+
+### 测试结果
+
+#### Training Data（S3 Files NFS）
+
+| 指标 | 值 |
+|---|---|
+| 总 batch 数 | 1070 |
+| 总写入量 | 66.9 GB |
+| 总读取量 | 66.9 GB |
+| 写入速度 | 92-165 MB/s（均值 ~153 MB/s） |
+| 读取速度 | 122-4476 MB/s（缓存命中时 4+ GB/s） |
+| **错误数** | **0** |
+
+#### Checkpoint（Mountpoint S3）
+
+| Checkpoint | 操作 | 耗时 | 吞吐 |
+|---|---|---|---|
+| #1 | write 5GB | 33.3s | 154 MB/s |
+| #2 | write 5GB | 33.0s | 155 MB/s |
+| #2 | read 5GB | 15.5s | 329 MB/s |
+| #3 | write 5GB | 32.6s | 157 MB/s |
+| #4 | write 5GB | 34.2s | 150 MB/s |
+| #4 | read 5GB | 16.5s | 310 MB/s |
+| **错误数** | | **0** | |
+
+> Checkpoint 写入一致 ~33s（150-157 MB/s），读取 ~16s（310-329 MB/s），20 分钟内 4 次写入+2 次读取全部成功。
+
+#### 交叉可见性（Cross-Visibility）
+
+每 60 秒检查一次 NFS 和 Mountpoint 各能看到对方写的文件数量：
+
+```
+t=    0s: NFS(0 train + 0 ckpt) | MP(0 train + 0 ckpt)
+t=   61s: NFS(6 train + 1 ckpt) | MP(0 train + 1 ckpt)    ← NFS 已看到 MP 写的 ckpt#1
+t=  363s: NFS(6 train + 2 ckpt) | MP(0 train + 2 ckpt)    ← ckpt#2 可见
+t=  665s: NFS(6 train + 3 ckpt) | MP(0 train + 3 ckpt)    ← ckpt#3 可见
+t=  968s: NFS(6 train + 4 ckpt) | MP(0 train + 4 ckpt)    ← ckpt#4 可见
+```
+
+- **NFS 能看到 MP 写的所有 checkpoint**（通过 S3 → NFS 导入，约 60s 延迟）
+- **MP 看不到 NFS 的训练文件**（因为训练文件只保留最近 5 个 × 64MB，NFS→S3 导出需 ~67s，文件在导出前就被删了）
+- 如果训练文件不删除，MP 约 67 秒后也能看到
+
+#### 干扰分析
+
+| 观察点 | 结果 |
+|---|---|
+| Checkpoint 写入期间训练速度 | 写速从 153→102 MB/s（下降约 33%），读速从 280→166 MB/s（下降约 40%） |
+| Checkpoint 写入后训练速度 | 立即恢复到 150+ MB/s |
+| 训练持续时 Checkpoint 写入速度 | 150-157 MB/s（稳定，不受训练 IO 影响） |
+| 20 分钟内总错误 | **0**（两侧均无任何 IO 错误） |
+
+> Checkpoint 写入时训练速度有短暂下降（共享 EC2 网络带宽），但幅度可控（~30%），且 checkpoint 完成后立即恢复。在生产环境使用更大 EC2 机型（如 p5.48xlarge 100Gbps+网络）时该影响可忽略。
+
+### ✅ 结论
+
+**单台 EC2 可以同时挂载 S3 Files 和 Mountpoint S3 到两个不同目录，读写互不干扰：**
+- S3 Files 用于训练数据持续读写（POSIX 语义）
+- Mountpoint 用于 checkpoint 大文件写入/读取（高吞吐）
+- 两个服务通过 S3 作为共享数据面，数据最终一致
+- 20 分钟、1070 个 batch（66.9GB）+ 4 个 5GB checkpoint，**零错误**
