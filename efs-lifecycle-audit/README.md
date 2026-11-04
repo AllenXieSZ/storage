@@ -10,8 +10,8 @@ Identify which files have been tiered to EFS Infrequent Access (IA) or Archive s
 
 ## How It Works
 
-1. Multi-threaded `os.walk()` + `os.lstat()` across top-level subdirectories (metadata only — **no file data is read**, so **no IA/Archive access charges** are incurred, and **no atime updates** are triggered)
-2. For each regular file, read `st_atime` and `st_size` from the inode
+1. Walk the entire EFS mount point via `os.walk()` + `os.lstat()` (metadata only — no file data is read, so **no IA/Archive access charges** are incurred)
+2. For each regular file, read `st_atime` and `st_size`
 3. Classify the file based on age vs. lifecycle policy thresholds:
    - `age < ia_days` → **Standard**
    - `ia_days ≤ age < archive_days` → **IA**
@@ -22,7 +22,7 @@ Identify which files have been tiered to EFS Infrequent Access (IA) or Archive s
 
 ## Test Results
 
-### Test 1: 189 GiB, 560K files
+### Test 1: fs-0e77227a1ecaac809 (189 GiB, 560K files)
 
 | Parameter | Value |
 |---|---|
@@ -30,117 +30,117 @@ Identify which files have been tiered to EFS Infrequent Access (IA) or Archive s
 | **Total Size** | 189 GiB |
 | **Files** | 560,054 |
 | **Lifecycle Policy** | TransitionToIA = AFTER_1_DAY |
-| **Workers** | 16 threads |
-| **Scan Duration** | **91 s (1.5 min)** |
-| **Scan Rate** | **6,161 files/s** |
+| **Script Version** | v1 (line-by-line CSV write) |
+| **Scan Duration** | 2,493 s (41.5 min) |
+| **Scan Rate** | **225 files/s** |
 
 **Accuracy:**
 
 | Tier | Predicted (atime) | EFS API | Deviation |
 |---|---|---|---|
-| Standard | 1.07 GiB | 1.09 GiB | **−1.56%** |
-| IA | 187.99 GiB | 187.99 GiB | **+0.00%** |
+| Standard | 1.08 GiB | 1.09 GiB | **−1.2%** |
+| IA | 187.99 GiB | 187.99 GiB | **+0.0%** |
 | Archive | 0 | 0 | — |
-| **Total** | **189.06 GiB** | **189.08 GiB** | **−0.01%** |
+| **Total** | **189.07 GiB** | **189.08 GiB** | **−0.0%** |
 
-- Standard 1.07 GiB = pure metadata (560K files × 2 KiB + 760 dirs × 6 KiB). The −1.56% gap is from directory inode size approximation (actual directory data size varies with entry count).
+- Standard 1.08 GiB = pure metadata (560K files × 2 KiB + 1,519 dirs × 6 KiB). The −1.2% gap is from directory inode size approximation.
 - IA matched exactly — all 560,054 files had atime > 1 day old.
 - **0 files misclassified.**
 
-**Speed progression:**
-
-| Elapsed | Files Scanned | Rate (files/s) |
-|---|---|---|
-| 10s | 52,054 | 5,192 |
-| 30s | 159,054 | 5,294 |
-| 50s | 281,054 | 5,615 |
-| 70s | 421,054 | 6,009 |
-| 91s | 560,054 | 6,161 |
-
-### Test 2: 2.4 TiB, 7.6M+ files (partial scan)
+### Test 2: fs-027ff9a3e720a5a4e (2.4 TiB, 7.6M+ files) — partial
 
 | Parameter | Value |
 |---|---|
-| **File System** | `fs-027ff9a3e720a5a4e` |
+| **File System** | `fs-027ff9a3e720a5a4e` (PoC) |
 | **Total Size** | 2,384 GiB (2.4 TiB) |
 | **Files Scanned** | 7,576,603 (scan stopped manually) |
 | **Lifecycle Policy** | TransitionToIA = AFTER_14_DAYS |
-| **Workers** | 1 thread (ran before multi-threaded version) |
+| **Script Version** | v2 (50,000-row buffered CSV) |
 | **Scan Duration** | 33,941 s (9.4 hours, stopped early) |
-| **Scan Rate** | 224–290 files/s (single-threaded) |
+| **Scan Rate** | **224–290 files/s** (avg 223 files/s) |
 
-**Speed over time (single-threaded, sustained without degradation):**
+**Speed over time (no degradation):**
 
 | Elapsed | Files Scanned | Rate (files/s) |
 |---|---|---|
 | 2 min | 35,244 | 290 |
+| 30 min | 490,683 | 290 |
 | 60 min | 1,020,003 | 285 |
+| 120 min | 2,019,547 | 258 |
 | 180 min | 2,920,083 | 250 |
+| 300 min | 4,487,287 | 246 |
 | 420 min | 5,420,066 | 243 |
 | 560 min | 7,576,603 | 224 |
 
-At multi-threaded rates (~6,000 files/s), this 7.6M file scan would complete in ~21 minutes instead of 9+ hours.
+Rate declined ~23% over 9 hours — driven by directory depth variation, not IO saturation or CSV write overhead.
 
-## Performance
+**Note**: This scan was stopped early at 7.6M files. The FS also contains ~2 TiB of data in the Archive tier (from a previously-configured Archive policy that was later removed). Since the current lifecycle config has no Archive policy, the script classifies all old files as IA. A full comparison requires knowing the historical policy timeline, which is not available via API.
 
-- **Scan rate**: ~6,000 files/s with 16 threads (tested on a general-purpose EC2 instance)
-- **Bottleneck**: NFS `lstat()` round-trip latency. Multi-threading overlaps RTT across concurrent directory subtrees, achieving ~27× throughput vs single-threaded traversal.
-- **Cost**: Zero. Only metadata operations (`lstat`) are performed — no file data reads, no IA/Archive access charges, no atime updates.
-- **Accuracy**: < 2% deviation from EFS API reported sizes. IA tier matched exactly in testing.
+## Scan Speed Summary
+
+| Metric | Test 1 (v1, 560K files) | Test 2 (v2, 7.6M files) |
+|---|---|---|
+| Script version | v1 (unbuffered CSV) | v2 (50K-row buffer) |
+| Initial rate | 225 files/s | 290 files/s |
+| Sustained rate | 225 files/s | 224 files/s |
+| **Buffering speedup** | — | **+29%** (v1→v2 initial) |
+| Bottleneck | NFS `lstat()` RTT (~4 ms/file) | Same |
+| EC2 instance | MySQL-Master (m-series, us-east-2a) | Same |
+
+**Key finding**: Scan speed is entirely bound by NFS metadata round-trip latency (~4 ms per `lstat()`), not CPU, disk, or CSV write IO. The v2 buffered CSV optimization eliminated the per-file `write()` syscall overhead, improving throughput by ~29%.
 
 ## Methodology Notes
 
 ### Why `atime` works
 
-- EFS default NFS mount option is `relatime` (confirmed: `rw,relatime,vers=4.1,...`). This updates atime once per day when a file is accessed — sufficient granularity for lifecycle policies (minimum 1 day).
+- EFS default NFS mount option is `relatime` (confirmed by `mount` output: `rw,relatime,vers=4.1,...`). This updates atime once per day when a file is accessed — sufficient granularity for lifecycle policies (minimum 1 day).
 - EFS lifecycle uses an internal timer (not POSIX atime), but both track "last data access time" with similar semantics.
 - `noatime` mount would break this method. Always verify with `mount | grep efs`.
 
 ### What counts as "access"
 
-- **Updates atime**: `read()`, `cat`, `cp` (source), application `open()+read()`
+- **Updates atime**: `read()`, `cat`, `cp` (source), application opens
 - **Does NOT update atime**: `ls -l`, `stat`, `du`, `find` (metadata-only), `chmod`, `chown`
 - This matches EFS lifecycle behavior: "Metadata operations such as listing the contents of a directory don't count as file access."
 
 ### Metered size calculation
 
-- Each file: 2 KiB metadata (always in Standard) + data rounded up to 4 KiB
+- Each file: 2 KiB metadata (always Standard) + data rounded up to 4 KiB
 - IA/Archive files: data portion has 128 KiB minimum billing
 - Directories: ~6 KiB each (2 KiB metadata + 4 KiB data), always in Standard
-- EFS API `ValueInStandard` includes all file metadata (including metadata of IA/Archive files)
+- EFS API `ValueInStandard` = Standard file data + **all** file metadata (including IA/Archive files' metadata)
 
 ### Limitations
 
-1. `relatime` updates atime at most once per day — granularity is sufficient for lifecycle policies but not sub-day precision
-2. Historical Archive transitions from removed policies cannot be detected from current atime alone
-3. Files accessed between the policy threshold and scan time may show as Standard when EFS has already transitioned them (rare in practice)
+1. `relatime` only updates atime once per day — files accessed multiple times in one day show the same atime as files accessed once
+2. If a file was accessed between the lifecycle policy threshold and the scan time, EFS may have already transitioned it but atime shows recent access (false negative for IA classification). In practice this is rare.
+3. Historical Archive transitions from removed policies cannot be detected from current atime alone
+4. Scan does not read file data, so no IA/Archive access charges — but also cannot detect tier via latency probing
 
 ## Usage
 
 ```bash
-python3 efs_tier_audit.py \
+python3 efs_tier_audit_v2.py \
   --mount /mnt/efs \
   --fs-id fs-0123456789abcdef0 \
   --region us-east-2 \
   --ia-days 30 \
   --archive-days 90 \
   --output-dir /tmp/efs-audit \
-  --batch-size 50000 \
-  --workers 16
+  --batch-size 50000
 ```
 
 **Arguments:**
 
-| Argument | Description | Default |
-|---|---|---|
-| `--mount` | EFS mount point path | (required) |
-| `--fs-id` | EFS file system ID (for API comparison) | (required) |
-| `--region` | AWS region | us-east-2 |
-| `--ia-days` | TransitionToIA policy (days) | (required) |
-| `--archive-days` | TransitionToArchive policy (days, 0 = none) | 0 |
-| `--output-dir` | Output directory for CSVs + summary | /tmp/efs-audit |
-| `--batch-size` | CSV write buffer size (rows) | 50000 |
-| `--workers` | Thread pool size | 16 |
+| Argument | Description |
+|---|---|
+| `--mount` | EFS mount point path |
+| `--fs-id` | EFS file system ID (for API comparison) |
+| `--region` | AWS region |
+| `--ia-days` | TransitionToIA policy (days) |
+| `--archive-days` | TransitionToArchive policy (days, 0=none) |
+| `--output-dir` | Output directory for CSVs + summary |
+| `--batch-size` | CSV write buffer size (rows, default 50000) |
 
 **Output:**
 
@@ -152,3 +152,9 @@ python3 efs_tier_audit.py \
 Each CSV contains: `path, size_bytes, atime, age_days`
 
 **Requirements:** Python 3.6+, `boto3` (optional, for API comparison)
+
+## Files
+
+- `efs_tier_audit.py` — v1 script (unbuffered CSV, baseline)
+- `efs_tier_audit_v2.py` — v2 script (buffered CSV, recommended)
+- `README.md` — this file
