@@ -1,269 +1,314 @@
 #!/usr/bin/env python3
 """
-EFS Lifecycle Tier Audit
-========================
-遍历 EFS 挂载点所有文件，根据 atime 和生命周期策略推断每个文件的存储层
-（Standard / IA / Archive），与 EFS API 报告的各层总量交叉对比。
+EFS Lifecycle Tier Audit v3 — Multi-threaded
+=============================================
+v2 基础上加多线程并发遍历：对顶层目录的每个子目录分配线程池并发 os.walk+lstat。
+NFS lstat 瓶颈是 RTT（~4ms），多线程可重叠往返延迟。
 
-输出：
-  - standard_files.csv  (推断为 Standard 层的文件清单)
-  - ia_files.csv        (推断为 IA 层的文件清单)
-  - archive_files.csv   (推断为 Archive 层的文件清单)
-  - summary.txt         (汇总 + 对比 API 数据)
-
-用法:
-  python3 efs_tier_audit.py \
-    --mount /mnt/efs-lifecycle-test \
-    --fs-id fs-0e77227a1ecaac809 \
-    --region us-east-2 \
-    --ia-days 1 \
-    [--archive-days 90] \
-    [--output-dir /tmp/efs-audit]
-
-依赖: boto3 (可选，用于拉 API 对比数据；没有则跳过对比)
+用法同 v2，新增 --workers 参数控制线程数（默认 16）。
 """
 
-import argparse
-import csv
-import os
-import sys
-import time
-from datetime import datetime, timezone, timedelta
+import argparse, csv, io, os, sys, time, threading
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 
+BATCH_SIZE_DEFAULT = 50000
+
 def parse_args():
-    p = argparse.ArgumentParser(description="EFS lifecycle tier audit by atime")
-    p.add_argument("--mount", required=True, help="EFS mount point path")
-    p.add_argument("--fs-id", required=True, help="EFS file system ID")
-    p.add_argument("--region", default="us-east-2", help="AWS region")
-    p.add_argument("--ia-days", type=int, required=True,
-                   help="TransitionToIA days (e.g. 1, 7, 30)")
-    p.add_argument("--archive-days", type=int, default=0,
-                   help="TransitionToArchive days (0 = no archive policy)")
-    p.add_argument("--output-dir", default="/tmp/efs-audit",
-                   help="Output directory for CSV and summary")
+    p = argparse.ArgumentParser(description="EFS lifecycle tier audit v3 (multi-threaded)")
+    p.add_argument("--mount", required=True)
+    p.add_argument("--fs-id", required=True)
+    p.add_argument("--region", default="us-east-2")
+    p.add_argument("--ia-days", type=int, required=True)
+    p.add_argument("--archive-days", type=int, default=0)
+    p.add_argument("--output-dir", default="/tmp/efs-audit")
+    p.add_argument("--batch-size", type=int, default=BATCH_SIZE_DEFAULT)
+    p.add_argument("--workers", type=int, default=16, help="Thread pool size")
     return p.parse_args()
 
 def get_efs_api_sizes(fs_id, region):
-    """Fetch ValueInStandard/ValueInIA/ValueInArchive from EFS API."""
     try:
         import boto3
         client = boto3.client("efs", region_name=region)
         resp = client.describe_file_systems(FileSystemId=fs_id)
-        fs = resp["FileSystems"][0]
-        sib = fs["SizeInBytes"]
+        sib = resp["FileSystems"][0]["SizeInBytes"]
         return {
-            "Total":    sib.get("Value", 0),
+            "Total": sib.get("Value", 0),
             "Standard": sib.get("ValueInStandard", 0),
-            "IA":       sib.get("ValueInIA", 0),
-            "Archive":  sib.get("ValueInArchive", 0),
+            "IA": sib.get("ValueInIA", 0),
+            "Archive": sib.get("ValueInArchive", 0),
         }
-    except ImportError:
-        print("[WARN] boto3 not available, skipping API comparison", file=sys.stderr)
-        return None
     except Exception as e:
-        print(f"[WARN] Failed to query EFS API: {e}", file=sys.stderr)
+        print(f"[WARN] EFS API failed: {e}", file=sys.stderr)
         return None
 
 def efs_metered_size(file_size):
-    """
-    Approximate EFS metered size for a regular file.
-    EFS meters: 2 KiB metadata + data rounded up to 4 KiB.
-    For IA/Archive, files < 128 KiB are billed as 128 KiB (data portion).
-    We return (standard_metered, ia_metered) to allow comparison.
-    """
-    metadata = 2 * 1024  # 2 KiB inode metadata (always in Standard)
-    if file_size == 0:
-        data_metered = 4 * 1024  # empty file still 4 KiB
-    else:
-        data_metered = ((file_size + 4095) // 4096) * 4096  # round up to 4 KiB
+    metadata = 2048
+    data_metered = 4096 if file_size == 0 else ((file_size + 4095) // 4096) * 4096
     return metadata, data_metered
 
-def classify_file(atime_epoch, now_epoch, ia_days, archive_days):
-    """
-    Classify a file based on its atime and lifecycle policy.
-    Returns: "Standard", "IA", or "Archive"
-    """
-    age_days = (now_epoch - atime_epoch) / 86400.0
-
+def classify_file(age_days, ia_days, archive_days):
     if archive_days > 0 and age_days >= archive_days:
-        return "Archive"
+        return "archive"
     if ia_days > 0 and age_days >= ia_days:
-        return "IA"
-    return "Standard"
+        return "ia"
+    return "standard"
 
 def human_bytes(n):
-    for unit in ["B", "KiB", "MiB", "GiB", "TiB"]:
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
         if abs(n) < 1024:
             return f"{n:.2f} {unit}"
         n /= 1024
     return f"{n:.2f} PiB"
+
+class TierCollector:
+    """Thread-safe collector for file stats and CSV rows."""
+    def __init__(self, output_dir, batch_size):
+        self.lock = threading.Lock()
+        self.stats = {
+            "standard": {"count": 0, "raw_size": 0, "metered_data": 0, "metered_metadata": 0},
+            "ia":       {"count": 0, "raw_size": 0, "metered_data": 0, "metered_metadata": 0},
+            "archive":  {"count": 0, "raw_size": 0, "metered_data": 0, "metered_metadata": 0},
+        }
+        self.file_count = 0
+        self.error_count = 0
+        self.dir_count = 0
+
+        # Per-tier row buffers (flush to disk under lock)
+        self.batch_size = batch_size
+        self.output_dir = output_dir
+        self._bufs = {t: [] for t in ("standard", "ia", "archive")}
+        self._fhs = {}
+        header = "path,size_bytes,atime,age_days\n"
+        for t in ("standard", "ia", "archive"):
+            path = os.path.join(output_dir, f"{t}_files.csv")
+            fh = open(path, "w", buffering=1 << 20)
+            fh.write(header)
+            self._fhs[t] = fh
+
+    def add(self, tier, fpath, file_size, atime_epoch, age_days, metadata, data_metered):
+        if tier in ("ia", "archive"):
+            tier_data = max(data_metered, 128 * 1024)
+        else:
+            tier_data = data_metered
+
+        atime_str = datetime.fromtimestamp(atime_epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        row = f"{fpath},{file_size},{atime_str},{age_days:.1f}\n"
+
+        with self.lock:
+            s = self.stats[tier]
+            s["count"] += 1
+            s["raw_size"] += file_size
+            s["metered_data"] += tier_data
+            s["metered_metadata"] += metadata
+            self.file_count += 1
+
+            self._bufs[tier].append(row)
+            if len(self._bufs[tier]) >= self.batch_size:
+                self._flush_tier(tier)
+
+    def add_error(self):
+        with self.lock:
+            self.error_count += 1
+
+    def add_dirs(self, n):
+        with self.lock:
+            self.dir_count += n
+
+    def _flush_tier(self, tier):
+        # Caller must hold self.lock
+        if self._bufs[tier]:
+            self._fhs[tier].write("".join(self._bufs[tier]))
+            self._bufs[tier] = []
+
+    def close(self):
+        with self.lock:
+            for t in ("standard", "ia", "archive"):
+                self._flush_tier(t)
+                self._fhs[t].close()
+
+    def get_file_count(self):
+        with self.lock:
+            return self.file_count
+
+def scan_subtree(root, now, ia_days, archive_days, collector):
+    """Walk a subtree, lstat every file, classify and collect."""
+    local_dirs = 0
+    for dirpath, dirnames, filenames in os.walk(root):
+        local_dirs += 1
+        for fname in filenames:
+            fpath = os.path.join(dirpath, fname)
+            try:
+                st = os.lstat(fpath)
+            except (OSError, PermissionError):
+                collector.add_error()
+                continue
+            if not (st.st_mode & 0o100000):  # S_IFREG
+                continue
+            file_size = st.st_size
+            atime_epoch = st.st_atime
+            metadata, data_metered = efs_metered_size(file_size)
+            age_days = (now - atime_epoch) / 86400.0
+            tier = classify_file(age_days, ia_days, archive_days)
+            collector.add(tier, fpath, file_size, atime_epoch, age_days, metadata, data_metered)
+    collector.add_dirs(local_dirs)
 
 def main():
     args = parse_args()
     mount = args.mount
     ia_days = args.ia_days
     archive_days = args.archive_days
+    workers = args.workers
     output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)
-
     now = time.time()
     now_dt = datetime.fromtimestamp(now, tz=timezone.utc)
 
-    print(f"EFS Tier Audit")
-    print(f"  Mount:        {mount}")
-    print(f"  FS ID:        {args.fs_id}")
-    print(f"  IA policy:    AFTER_{ia_days}_DAY{'S' if ia_days>1 else ''}")
-    if archive_days:
-        print(f"  Archive policy: AFTER_{archive_days}_DAYS")
-    else:
-        print(f"  Archive policy: None")
-    print(f"  Now (UTC):    {now_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"  Output:       {output_dir}")
-    print()
+    print(f"EFS Tier Audit v3 (multi-threaded, workers={workers}, batch={args.batch_size})")
+    print(f"  Mount:    {mount}")
+    print(f"  FS:       {args.fs_id}")
+    print(f"  IA:       AFTER_{ia_days}_DAYS")
+    print(f"  Archive:  {'AFTER_'+str(archive_days)+'_DAYS' if archive_days else 'None'}")
+    print(f"  Now:      {now_dt.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    print(flush=True)
 
-    # Open CSV writers
-    csv_files = {}
-    csv_writers = {}
-    for tier in ["standard", "ia", "archive"]:
-        path = os.path.join(output_dir, f"{tier}_files.csv")
-        f = open(path, "w", newline="", buffering=1)
-        w = csv.writer(f)
-        w.writerow(["path", "size_bytes", "atime", "age_days"])
-        csv_files[tier] = f
-        csv_writers[tier] = w
-
-    # Stats accumulators
-    # For comparison with API: Standard counts metadata + data for Standard files,
-    # plus metadata (2K) for IA/Archive files (metadata always in Standard).
-    # IA/Archive counts only the data portion (with 128K minimum).
-    stats = defaultdict(lambda: {"count": 0, "raw_size": 0, "metered_data": 0, "metered_metadata": 0})
-
-    file_count = 0
-    error_count = 0
+    collector = TierCollector(output_dir, args.batch_size)
     t0 = time.time()
-    last_progress = t0
 
-    for dirpath, dirnames, filenames in os.walk(mount):
-        for fname in filenames:
-            fpath = os.path.join(dirpath, fname)
+    # Phase 1: Scan root directory to find top-level entries
+    root_files = []
+    root_dirs = []
+    try:
+        for entry in os.scandir(mount):
+            if entry.is_dir(follow_symlinks=False):
+                root_dirs.append(entry.path)
+            elif entry.is_file(follow_symlinks=False):
+                root_files.append(entry.path)
+    except (OSError, PermissionError) as e:
+        print(f"[ERROR] Cannot scan root: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"  Root: {len(root_dirs)} dirs, {len(root_files)} files")
+    print(f"  Dispatching {len(root_dirs)} subtrees to {workers} workers...", flush=True)
+
+    # Phase 2: Process root-level files in main thread
+    collector.add_dirs(1)  # root dir itself
+    for fpath in root_files:
+        try:
+            st = os.lstat(fpath)
+        except (OSError, PermissionError):
+            collector.add_error()
+            continue
+        if not (st.st_mode & 0o100000):
+            continue
+        file_size = st.st_size
+        atime_epoch = st.st_atime
+        metadata, data_metered = efs_metered_size(file_size)
+        age_days = (now - atime_epoch) / 86400.0
+        tier = classify_file(age_days, ia_days, archive_days)
+        collector.add(tier, fpath, file_size, atime_epoch, age_days, metadata, data_metered)
+
+    # Phase 3: Fan out subtrees to thread pool
+    last_progress = time.time()
+    completed = 0
+
+    def progress_monitor():
+        """Print progress every 10 seconds."""
+        nonlocal last_progress
+        while True:
+            time.sleep(10)
+            t_now = time.time()
+            elapsed = t_now - t0
+            fc = collector.get_file_count()
+            rate = fc / elapsed if elapsed > 0 else 0
+            s = collector.stats
+            print(f"  [{elapsed:.0f}s] {fc:,} files ({rate:.0f}/s) "
+                  f"Std={s['standard']['count']:,} IA={s['ia']['count']:,} "
+                  f"Arc={s['archive']['count']:,} "
+                  f"threads_done={completed}/{len(root_dirs)}", flush=True)
+
+    monitor = threading.Thread(target=progress_monitor, daemon=True)
+    monitor.start()
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(scan_subtree, d, now, ia_days, archive_days, collector): d
+                   for d in root_dirs}
+        for future in as_completed(futures):
+            completed += 1
             try:
-                st = os.lstat(fpath)  # lstat to not follow symlinks
-            except (OSError, PermissionError) as e:
-                error_count += 1
-                continue
-
-            # Skip non-regular files (symlinks, sockets, etc.)
-            if not (st.st_mode & 0o100000):  # S_IFREG
-                continue
-
-            file_size = st.st_size
-            atime_epoch = st.st_atime
-            metadata, data_metered = efs_metered_size(file_size)
-
-            tier = classify_file(atime_epoch, now, ia_days, archive_days)
-
-            # For IA/Archive, data portion has 128 KiB minimum billing
-            if tier in ("IA", "Archive"):
-                ia_data = max(data_metered, 128 * 1024)
-            else:
-                ia_data = data_metered
-
-            tier_key = tier.lower()
-            stats[tier_key]["count"] += 1
-            stats[tier_key]["raw_size"] += file_size
-            stats[tier_key]["metered_data"] += ia_data if tier != "Standard" else data_metered
-            stats[tier_key]["metered_metadata"] += metadata
-
-            atime_str = datetime.fromtimestamp(atime_epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            age_d = (now - atime_epoch) / 86400.0
-            csv_writers[tier_key].writerow([fpath, file_size, atime_str, f"{age_d:.1f}"])
-
-            file_count += 1
-            if time.time() - last_progress > 10:
-                elapsed = time.time() - t0
-                rate = file_count / elapsed if elapsed > 0 else 0
-                print(f"  ... scanned {file_count:,} files ({rate:.0f}/s) ...", flush=True)
-                last_progress = time.time()
+                future.result()
+            except Exception as e:
+                print(f"[ERROR] subtree {futures[future]}: {e}", file=sys.stderr)
 
     elapsed = time.time() - t0
+    collector.close()
 
-    # Close CSV files
-    for f in csv_files.values():
-        f.close()
+    file_count = collector.file_count
+    dir_count = collector.dir_count
+    error_count = collector.error_count
+    stats = collector.stats
 
-    # Build comparison
-    # EFS API ValueInStandard = Standard data + ALL metadata (Standard + IA + Archive)
-    # EFS API ValueInIA = IA data only (with 128K min rounding)
-    # EFS API ValueInArchive = Archive data only (with 128K min rounding)
+    dir_overhead = dir_count * 6 * 1024
     predicted_standard = (
         stats["standard"]["metered_data"] +
         stats["standard"]["metered_metadata"] +
         stats["ia"]["metered_metadata"] +
-        stats["archive"]["metered_metadata"]
+        stats["archive"]["metered_metadata"] +
+        dir_overhead
     )
     predicted_ia = stats["ia"]["metered_data"]
     predicted_archive = stats["archive"]["metered_data"]
     predicted_total = predicted_standard + predicted_ia + predicted_archive
 
-    # Also account for directory inodes (approximate)
-    # Each dir = 2 KiB metadata + at least 4 KiB data, always in Standard
-    dir_count = 0
-    for dirpath, dirnames, _ in os.walk(mount):
-        dir_count += 1 + len(dirnames)
-    dir_overhead = dir_count * 6 * 1024  # 6 KiB per dir (2 meta + 4 data)
-    predicted_standard += dir_overhead
-    predicted_total += dir_overhead
-
-    # Get API data
     api = get_efs_api_sizes(args.fs_id, args.region)
+    rate_total = file_count / elapsed if elapsed > 0 else 0
 
-    # Write summary
-    summary_path = os.path.join(output_dir, "summary.txt")
     lines = []
     lines.append("=" * 70)
-    lines.append("EFS Lifecycle Tier Audit Summary")
+    lines.append("EFS Lifecycle Tier Audit v3 Summary (multi-threaded)")
     lines.append("=" * 70)
     lines.append(f"File System:    {args.fs_id}")
     lines.append(f"Mount:          {mount}")
-    lines.append(f"IA Policy:      AFTER_{ia_days}_DAY{'S' if ia_days>1 else ''}")
+    lines.append(f"IA Policy:      AFTER_{ia_days}_DAYS")
     lines.append(f"Archive Policy: {'AFTER_'+str(archive_days)+'_DAYS' if archive_days else 'None'}")
+    lines.append(f"Workers:        {workers}")
     lines.append(f"Scan Time:      {now_dt.strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    lines.append(f"Scan Duration:  {elapsed:.1f}s")
-    lines.append(f"Files Scanned:  {file_count:,}")
-    lines.append(f"Dirs Found:     {dir_count:,}")
+    lines.append(f"Duration:       {elapsed:.1f}s ({elapsed/60:.1f}min)")
+    lines.append(f"Files:          {file_count:,}")
+    lines.append(f"Dirs:           {dir_count:,}")
     lines.append(f"Errors:         {error_count:,}")
+    lines.append(f"Scan Rate:      {rate_total:.0f} files/s")
     lines.append("")
     lines.append("-" * 70)
     lines.append("Predicted Tier Distribution (by atime)")
     lines.append("-" * 70)
-    lines.append(f"{'Tier':<10} {'Files':>10} {'Raw Size':>14} {'Metered Size':>14}")
-    for tier_key, label in [("standard", "Standard"), ("ia", "IA"), ("archive", "Archive")]:
-        s = stats[tier_key]
-        if tier_key == "standard":
+    lines.append(f"{'Tier':<10} {'Files':>12} {'Raw Size':>14} {'Metered':>14}")
+    for tk, label in [("standard","Standard"),("ia","IA"),("archive","Archive")]:
+        s = stats[tk]
+        if tk == "standard":
             metered = (s["metered_data"] + s["metered_metadata"] +
                        stats["ia"]["metered_metadata"] +
                        stats["archive"]["metered_metadata"] +
                        dir_overhead)
         else:
             metered = s["metered_data"]
-        lines.append(f"{label:<10} {s['count']:>10,} {human_bytes(s['raw_size']):>14} {human_bytes(metered):>14}")
-    lines.append(f"{'TOTAL':<10} {file_count:>10,} {human_bytes(sum(s['raw_size'] for s in stats.values())):>14} {human_bytes(predicted_total):>14}")
+        lines.append(f"{label:<10} {s['count']:>12,} {human_bytes(s['raw_size']):>14} {human_bytes(metered):>14}")
+    lines.append(f"{'TOTAL':<10} {file_count:>12,} "
+                 f"{human_bytes(sum(s['raw_size'] for s in stats.values())):>14} "
+                 f"{human_bytes(predicted_total):>14}")
 
     if api:
         lines.append("")
         lines.append("-" * 70)
-        lines.append("EFS API Reported Sizes")
+        lines.append("EFS API Reported")
         lines.append("-" * 70)
-        lines.append(f"  Standard:  {human_bytes(api['Standard']):>14}  ({api['Standard']:,} bytes)")
-        lines.append(f"  IA:        {human_bytes(api['IA']):>14}  ({api['IA']:,} bytes)")
-        lines.append(f"  Archive:   {human_bytes(api['Archive']):>14}  ({api['Archive']:,} bytes)")
-        lines.append(f"  Total:     {human_bytes(api['Total']):>14}  ({api['Total']:,} bytes)")
-
+        for k in ("Standard","IA","Archive","Total"):
+            lines.append(f"  {k:<10} {human_bytes(api[k]):>14}  ({api[k]:,} bytes)")
         lines.append("")
         lines.append("-" * 70)
-        lines.append("Comparison: Predicted vs API")
+        lines.append("Predicted vs API")
         lines.append("-" * 70)
         for label, pred, actual in [
             ("Standard", predicted_standard, api["Standard"]),
@@ -274,22 +319,18 @@ def main():
             if actual > 0:
                 diff_pct = (pred - actual) / actual * 100
             else:
-                diff_pct = 0 if pred == 0 else float('inf')
-            lines.append(f"  {label:<10} Predicted: {human_bytes(pred):>14}  API: {human_bytes(actual):>14}  Diff: {diff_pct:+.1f}%")
+                diff_pct = 0.0 if pred == 0 else float('inf')
+            lines.append(f"  {label:<10} Pred: {human_bytes(pred):>14}  "
+                         f"API: {human_bytes(actual):>14}  Diff: {diff_pct:+.2f}%")
 
     lines.append("")
-    lines.append("=" * 70)
-    lines.append("CSV Files:")
-    lines.append(f"  {os.path.join(output_dir, 'standard_files.csv')}")
-    lines.append(f"  {os.path.join(output_dir, 'ia_files.csv')}")
-    lines.append(f"  {os.path.join(output_dir, 'archive_files.csv')}")
+    lines.append(f"CSV: {output_dir}/{{standard,ia,archive}}_files.csv")
     lines.append("=" * 70)
 
-    summary_text = "\n".join(lines)
-    with open(summary_path, "w") as f:
-        f.write(summary_text + "\n")
-
-    print(summary_text)
+    summary = "\n".join(lines)
+    with open(os.path.join(output_dir, "summary.txt"), "w") as f:
+        f.write(summary + "\n")
+    print(summary)
 
 if __name__ == "__main__":
     main()
