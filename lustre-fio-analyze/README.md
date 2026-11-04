@@ -110,16 +110,16 @@ LISTEN  0      128      0.0.0.0:22          0.0.0.0:*          sshd
 
 ```
 > lctl list_nids
-172.31.41.55@tcp            ← 客户端自己的 LNet 网络标识
+172.31.x.x@tcp            ← 客户端自己的 LNet 网络标识
 
-172.31.45.171@tcp:/foebrb4v on /mnt/lustre type lustre
+172.31.x.x@tcp:/foebrb4v on /mnt/lustre type lustre
   (rw,relatime,seclabel,checksum,flock,nouser_xattr,lruresize,
    lazystatfs,nouser_fid2path,verbose,encrypt)
 ```
 
 **逐项解读**：
-- **NID（Network Identifier）`172.31.41.55@tcp`** = Lustre 给客户端的网络地址标识，格式 `IP@网络类型`。`@tcp`=走 TCP（socknal）；高性能场景可能是 `@o2ib`（InfiniBand）。
-- **挂载源 `172.31.45.171@tcp:/foebrb4v`** = 服务端 NID + 文件系统名（MountName）。
+- **NID（Network Identifier）`172.31.x.x@tcp`** = Lustre 给客户端的网络地址标识，格式 `IP@网络类型`。`@tcp`=走 TCP（socknal）；高性能场景可能是 `@o2ib`（InfiniBand）。
+- **挂载源 `172.31.x.x@tcp:/foebrb4v`** = 服务端 NID + 文件系统名（MountName）。
 - 挂载选项：
   - `checksum` — 开启数据传输校验和（防网络错误损坏，略有 CPU 开销）
   - `flock` — 支持文件锁

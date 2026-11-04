@@ -1,7 +1,7 @@
 # RETRY_AFTER_DELETE_BACKUP — 删 FSx Backup 后能否转 FlexGroup？（闭环验证）
 
 > 实验日期：2026-08-30（承接同目录 REPORT.md 的 H1 实验，资源全部保留复用）
-> 区域：us-east-2 | ONTAP 9.18.1P5 | Gen2 SINGLE_AZ_2 | FSxN fs-0184d1e4b81ce12a8 / SVM bkpfgsvm
+> 区域：us-east-2 | ONTAP 9.18.1P5 | Gen2 SINGLE_AZ_2 | FSxN fs-0123456789abcdef0 / SVM bkpfgsvm
 > **本结论仅代表本次测试环境实测结果，不代表官方结论。**
 
 ---
@@ -114,7 +114,7 @@ snapmirror show / list-destinations → 空
 
 ## 五、资源（全部保留，删除前先问小帅）
 
-复用 REPORT.md 的资源：FSxN `fs-0184d1e4b81ce12a8`，SVM `bkpfgsvm`，bkpvol `fsvol-0b96244abc8fcb7bd`（现已 flexgroup），cleanvol `fsvol-0ff9b92f659a38ed5`，EC2 `i-0e64df080d1d36235`。
+复用 REPORT.md 的资源：FSxN `fs-0123456789abcdef0`，SVM `bkpfgsvm`，bkpvol `fsvol-0123456789abcdef`（现已 flexgroup），cleanvol `fsvol-0123456789abcdef`，EC2 `i-0e64df080d1d36235`。
 **本次已删除的仅一个对象**：FSx 卷级备份 `backup-01aaa29249100f88b`（实验必需，已删）。其余资源默认保留。
 
 逐字 log 见 `logs/`：`baseline_conv_checkonly_before_delete.txt`、`delete_backup.txt`、`after_delete_snap_and_sm_t0.txt`、`after_delete_snap_delete_attempt_t0.txt`、`after_delete_conv_checkonly_t0.txt`、`release_poll.txt`、`after_delete_conv_start.txt`、`after_delete_final_state.txt`。

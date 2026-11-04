@@ -24,10 +24,10 @@
 | 起始容量 | 1200 GiB (1.2 TiB) | 同 |
 | 目标容量 | 2400 GiB (2.4 TiB) | 同 |
 | Region / AZ | us-east-2 / us-east-2c | 同 |
-| Subnet / SG | subnet-0c551a33e366d52d4 / sg-08f2883d5c47ced16 | 同 |
+| Subnet / SG | subnet-0123456789abcdef / sg-0123456789abcdef0 | 同 |
 | 灌数据 EC2 | c6in.2xlarge, AL2023, lustre-client 2.15.6 | 同 |
 | **灌数据量** | **~900 GB（79% 满）** | **~1.05 TB（92% 满）** ← 唯一变量 |
-| FileSystemId | fs-01d83babb9999c2ad | **fs-0f29a383fee84742e** |
+| FileSystemId | fs-0123456789abcdef0 | **fs-0123456789abcdef0** |
 | MountName | spxr3b4v | **7tsb3b4v** |
 
 > 说明：本次 AL2023（kernel 6.18.41）默认 repo **未**自带 lustre-client 用户态工具（`lfs`/`mount.lustre` 缺失，仅内核模块内置），需按 AWS FSx repo 安装 `lustre-client 2.15.6`。（v1 报告曾称"默认已含"，本次实测需手动安装，已修正。）
@@ -140,9 +140,9 @@ summary            2.2T    used 1.1T    48%
 ## 清理结果
 
 - ✅ **terminate 灌数据 EC2** `i-099d95e58e85c3d79`
-- ✅ **delete 本次新建 FSx Lustre** `fs-0f29a383fee84742e`
-- ✅ SG `sg-08f2883d5c47ced16`（lustre-learn，复用）**未删**
-- ✅ 小帅保留的 learn Lustre `fs-026825936499d3bdb`（4800）**未动**
+- ✅ **delete 本次新建 FSx Lustre** `fs-0123456789abcdef0`
+- ✅ SG `sg-0123456789abcdef0`（lustre-learn，复用）**未删**
+- ✅ 小帅保留的 learn Lustre `fs-0123456789abcdef0`（4800）**未动**
 
 （清理命令与返回见报告末尾 / GitHub 提交记录。）
 
@@ -153,7 +153,7 @@ summary            2.2T    used 1.1T    48%
 ```bash
 # 1. 创建 1.2 TiB Lustre
 aws fsx create-file-system --file-system-type LUSTRE --storage-capacity 1200 \
-  --subnet-ids subnet-0c551a33e366d52d4 --security-group-ids sg-08f2883d5c47ced16 \
+  --subnet-ids subnet-0123456789abcdef --security-group-ids sg-0123456789abcdef0 \
   --lustre-configuration DeploymentType=PERSISTENT_2,PerUnitStorageThroughput=500 \
   --region us-east-2
 

@@ -111,5 +111,5 @@
 ---
 
 ## 附录
-- 原始逐查询逐轮结果：`s3://tpcds-iceberg-bench-20260811/results/sf2000/bench_{a,b,c}.csv`
+- 原始逐查询逐轮结果：`s3://my-tpcds-bench-bucket/results/sf2000/bench_{a,b,c}.csv`
 - 汇总表：`tpcds_results/sf2000/summary_sf2000.csv`

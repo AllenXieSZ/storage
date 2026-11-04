@@ -11,12 +11,12 @@
 | 项目 | 值 |
 |---|---|
 | 文件系统 | FSxN **Gen2 / SINGLE_AZ_2**，1 HA pair |
-| FileSystemId | `fs-0a1bf6a382dc76343` |
+| FileSystemId | `fs-0123456789abcdef0` |
 | 存储容量 | 1024 GiB SSD |
-| SVM | `svm-023b0ef9483889a55`，NFS IP `172.31.33.250` |
-| Volume | `fsvol-062bcc45eb084f209`（vol1，512 GiB，junction `/vol1`，UNIX，SE 关闭） |
-| 子网 / AZ | `subnet-0c551a33e366d52d4` / us-east-2c |
-| SG | `sg-02326ca1dc0af5246`（复用 RUN1 的 SG） |
+| SVM | `svm-01234567890abcdef`，NFS IP `172.31.x.x` |
+| Volume | `fsvol-0123456789abcdef`（vol1，512 GiB，junction `/vol1`，UNIX，SE 关闭） |
+| 子网 / AZ | `subnet-0123456789abcdef` / us-east-2c |
+| SG | `sg-0123456789abcdef0`（复用 RUN1 的 SG） |
 | 挂载/压测机 | `i-0dffb881b2a90daa2`（SSM 驱动） |
 | 挂载参数 | `nfsvers=3`（rsize/wsize=64K） |
 | fio 参数 | bs=16k sync direct=1 numjobs=1 iodepth=1 runtime=8 time_based，read+write 各一轮 |
@@ -59,10 +59,10 @@
 
 ## 6. 资源（默认保留）
 ```
-FileSystem : fs-0a1bf6a382dc76343   (SINGLE_AZ_2, 现 3072 MBps, 1024 GiB)
-SVM        : svm-023b0ef9483889a55
-Volume     : fsvol-062bcc45eb084f209
-SG         : sg-02326ca1dc0af5246 (复用)
+FileSystem : fs-0123456789abcdef0   (SINGLE_AZ_2, 现 3072 MBps, 1024 GiB)
+SVM        : svm-01234567890abcdef
+Volume     : fsvol-0123456789abcdef
+SG         : sg-0123456789abcdef0 (复用)
 ```
 清理命令见 `../REPORT_COMPARISON.md` 第 4 节。
 

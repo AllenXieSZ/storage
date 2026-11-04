@@ -9,11 +9,11 @@
 | 项目 | 配置 |
 |---|---|
 | Region | us-east-2 (Ohio) |
-| S3 Bucket | s3lambdatest2 |
-| S3 Files FS | fs-0f4bd4f4454ac8a25, prefix=`checkpoint/` |
+| S3 Bucket | my-test-bucket |
+| S3 Files FS | fs-0123456789abcdef0, prefix=`checkpoint/` |
 | EC2-A (S3 Files) | i-02de90a70603a6593, t3.medium, AL2023, us-east-2c |
 | EC2-B (Mountpoint) | i-0a6a7721b3ea24402, t3.medium, AL2023, us-east-2c |
-| 挂载方式 | EC2-A: `mount -t s3files fs-xxx:/ /mnt/s3files`<br>EC2-B: `mount-s3 s3lambdatest2 /mnt/mp-s3 --prefix checkpoint/` |
+| 挂载方式 | EC2-A: `mount -t s3files fs-xxx:/ /mnt/s3files`<br>EC2-B: `mount-s3 my-test-bucket /mnt/mp-s3 --prefix checkpoint/` |
 | 文件大小 | 1GB (`dd if=/dev/urandom bs=1M count=1024`) |
 | 每方向测试轮次 | 3 轮 |
 | 最大等待时间 | 180 秒 |

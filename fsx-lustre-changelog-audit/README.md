@@ -71,8 +71,8 @@ lfs changelog --follow divrbb4v-MDT0000
 
 | 操作 | 记录 |
 |---|---|
-| `mkdir cl8` | `12955 02MKDIR 05:55:15.024429670 2026.10.09 0x0 t=[0x200000403:0x1928:0x0] ef=0xf u=0:0 nid=172.31.39.207@tcp p=[0x200000007:0x1:0x0] cl8` |
-| `echo a > a.txt` | `12957 01CREAT 05:55:18.028357979 2026.10.09 0x0 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.39.207@tcp p=[0x200000403:0x1928:0x0] a.txt` |
+| `mkdir cl8` | `12955 02MKDIR 05:55:15.024429670 2026.10.09 0x0 t=[0x200000403:0x1928:0x0] ef=0xf u=0:0 nid=172.31.x.x@tcp p=[0x200000007:0x1:0x0] cl8` |
+| `echo a > a.txt` | `12957 01CREAT 05:55:18.028357979 2026.10.09 0x0 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.x.x@tcp p=[0x200000403:0x1928:0x0] a.txt` |
 | `echo more >> a.txt` | `12958 12LYOUT ...` |
 | `truncate -s 1 a.txt` | `12959 13TRUNC ...` |
 | `chmod` / `chown` / `touch` | `12960 14SATTR ...`、`12961 14SATTR ...` |
@@ -80,9 +80,9 @@ lfs changelog --follow divrbb4v-MDT0000
 | `ln a.txt hard` | `12963 03HLINK ... hard` |
 | `mv a.txt b.txt` | `12964 08RENME ... b.txt s=[0x200000403:0x1929:0x0] sp=[...] /cl8/a.txt` |
 | `cat b.txt` | **无记录** |
-| `rm b.txt` | `12967 06UNLNK 05:55:21.970213014 2026.10.09 0x1 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.39.207@tcp p=[...] /cl8/b.txt` |
+| `rm b.txt` | `12967 06UNLNK 05:55:21.970213014 2026.10.09 0x1 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.x.x@tcp p=[...] /cl8/b.txt` |
 | `rmdir cl8` | `12968 07RMDIR ... /cl8` |
-| 普通用户（uid 1000）删除 | `4148 06UNLNK 05:51:36.321249230 2026.10.09 0x1 ... u=1000:1000 nid=172.31.39.207@tcp ... /cl5/user_slow.txt` |
+| 普通用户（uid 1000）删除 | `4148 06UNLNK 05:51:36.321249230 2026.10.09 0x1 ... u=1000:1000 nid=172.31.x.x@tcp ... /cl5/user_slow.txt` |
 
 ### 4.2 字段
 
@@ -93,7 +93,7 @@ lfs changelog --follow divrbb4v-MDT0000
 | 时间 | `05:55:21.970213014 2026.10.09` | UTC，纳秒精度 |
 | 标志 | `0x1` | 删除记录中 `0x1` = 文件真正被删除；`0x0` = 只删了一个硬链接 |
 | `u=` | `1000:1000` | **操作者 uid:gid** |
-| `nid=` | `172.31.39.207@tcp` | **发起操作的客户端 IP** |
+| `nid=` | `172.31.x.x@tcp` | **发起操作的客户端 IP** |
 | `t=` | `[0x200000403:0x1929:0x0]` | 文件 ID（FID） |
 | `p=` | `[0x200000403:0x1928:0x0]` | 父目录 FID |
 | 名称 / 路径 | `a.txt` / `/cl8/b.txt` | 创建类只有文件名；**删除、删目录、重命名带完整路径** |
@@ -136,7 +136,7 @@ lfs fid2path /mnt/lustre '[0x200000403:0x1c:0x0]'
 
 **Changelog：**
 ```
-12967 06UNLNK 05:55:21.970213014 2026.10.09 0x1 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.39.207@tcp p=[0x200000403:0x1928:0x0] /cl8/b.txt
+12967 06UNLNK 05:55:21.970213014 2026.10.09 0x1 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.x.x@tcp p=[0x200000403:0x1928:0x0] /cl8/b.txt
 ```
 
 **S3 EventBridge：**
@@ -266,8 +266,8 @@ systemctl enable --now lustre-changelog@divrbb4v-MDT0000.service lustre-changelo
 ### 6.3 S3 中的数据（每行一条 JSON，实测）
 
 ```json
-{"mdt":"divrbb4v-MDT0000","seq":13134,"type":"UNLNK","type_code":"06UNLNK","time":"2026-10-09T06:18:30.919731382Z","flags":"0x1","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0x200000403:0x1995:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.39.207@tcp","client_ip":"172.31.39.207","parent_fid":"[0x200000403:0x1962:0x0]","path":"/clarch/user2.txt"}
-{"mdt":"divrbb4v-MDT0000","seq":13133,"type":"RENME","type_code":"08RENME","time":"2026-10-09T06:18:30.918221737Z","flags":"0x0","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0:0x0:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.39.207@tcp","client_ip":"172.31.39.207","parent_fid":"[0x200000403:0x1962:0x0]","name":"user2.txt","source_fid":"[0x200000403:0x1995:0x0]","source_parent_fid":"[0x200000403:0x1962:0x0]","old_path":"/clarch/user.txt"}
+{"mdt":"divrbb4v-MDT0000","seq":13134,"type":"UNLNK","type_code":"06UNLNK","time":"2026-10-09T06:18:30.919731382Z","flags":"0x1","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0x200000403:0x1995:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.x.x@tcp","client_ip":"172.31.x.x","parent_fid":"[0x200000403:0x1962:0x0]","path":"/clarch/user2.txt"}
+{"mdt":"divrbb4v-MDT0000","seq":13133,"type":"RENME","type_code":"08RENME","time":"2026-10-09T06:18:30.918221737Z","flags":"0x0","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0:0x0:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.x.x@tcp","client_ip":"172.31.x.x","parent_fid":"[0x200000403:0x1962:0x0]","name":"user2.txt","source_fid":"[0x200000403:0x1995:0x0]","source_parent_fid":"[0x200000403:0x1962:0x0]","old_path":"/clarch/user.txt"}
 ```
 
 | 字段 | 含义 |
@@ -316,9 +316,9 @@ ORDER BY seq;
 ```
 | time | uid | client_ip | type | path |
 |---|---|---|---|---|
-| 2026-10-09T06:18:30.919731382Z | 1000 | 172.31.39.207 | UNLNK | /clarch/user2.txt |
-| 2026-10-09T06:18:30.924751823Z | 0 | 172.31.39.207 | UNLNK | /clarch/f2.txt |
-| 2026-10-09T06:18:30.925292080Z | 0 | 172.31.39.207 | UNLNK | /clarch/f3.txt |
+| 2026-10-09T06:18:30.919731382Z | 1000 | 172.31.x.x | UNLNK | /clarch/user2.txt |
+| 2026-10-09T06:18:30.924751823Z | 0 | 172.31.x.x | UNLNK | /clarch/f2.txt |
+| 2026-10-09T06:18:30.925292080Z | 0 | 172.31.x.x | UNLNK | /clarch/f3.txt |
 | … | | | | |
 
 **某个文件的完整历史**
@@ -330,9 +330,9 @@ ORDER BY seq;
 ```
 | time | type | uid | client_ip | f |
 |---|---|---|---|---|
-| 06:18:30.914924380Z | CREAT | 1000 | 172.31.39.207 | user.txt |
-| 06:18:30.918221737Z | RENME | 1000 | 172.31.39.207 | /clarch/user.txt（→ user2.txt） |
-| 06:18:30.919731382Z | UNLNK | 1000 | 172.31.39.207 | /clarch/user2.txt |
+| 06:18:30.914924380Z | CREAT | 1000 | 172.31.x.x | user.txt |
+| 06:18:30.918221737Z | RENME | 1000 | 172.31.x.x | /clarch/user.txt（→ user2.txt） |
+| 06:18:30.919731382Z | UNLNK | 1000 | 172.31.x.x | /clarch/user2.txt |
 
 **重命名记录**
 | time | uid | old_path | name |

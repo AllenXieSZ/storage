@@ -80,6 +80,6 @@
 ## 交付物
 - SF200 详报：`reports/tpcds-iceberg-bench-2026-08-11.md`
 - SF2000 详报：`reports/tpcds-iceberg-bench-sf2000-2026-08-11.md`
-- 原始数据：`s3://tpcds-iceberg-bench-20260811/results/{sf200,sf2000}/bench_{a,b,c}.csv`
+- 原始数据：`s3://my-tpcds-bench-bucket/results/{sf200,sf2000}/bench_{a,b,c}.csv`
 - 汇总表：`summary_sf200.csv` / `summary_sf2000.csv`（逐查询 A/B/C 的 r1/median/warm）
 - 方法：PySpark `bench.py`（每查询 noop write 完整执行计时，3 轮），EMR on EC2，SSM 驱动。

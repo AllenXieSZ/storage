@@ -298,4 +298,4 @@ aws s3api delete-bucket --bucket <SRC> --region us-east-2
 - IAM：`s3crr-gen-ec2-1792758433`（role + instance profile）、`s3crr-repl-1792758433`、`s3crr-batch-1792758433` 都已删除；`list-roles` / `list-instance-profiles` 里查不到本轮 epoch。
 - S3：20 个目标桶都在各自运行校验完后删除（全部版本 + metrics 配置 + 桶）；源桶先删复制配置，再删全部版本（131,171 个，含 reports 文件），确认 `list-object-versions` 为空后删桶。`list-buckets` 里已经没有任何含 `1792758433` 的桶。
 - `s3control list-jobs`（Active/Preparing/New/Suspended）：没有未完成的 job。
-- 没碰：`s3lambdatest2`、新加坡测试的资源、其他已有资源。没有 push GitHub。
+- 没碰：`my-test-bucket`、新加坡测试的资源、其他已有资源。没有 push GitHub。

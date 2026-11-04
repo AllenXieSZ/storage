@@ -10,7 +10,7 @@
 | AWS Secret Access Key | `aws_secret_access_key`/`SecretAccessKey` 后跟 40 位真实值 |
 | 阿里云 AccessKey | `LTAI` + 12-20 位 |
 | AWS 账号 ID | ARN 中的 12 位账号号，或 `account_id`/`owner_id` 字段 |
-| 真实测试密码 | `#2026` / `FsxOntap#` / `OpenCart#2026` / `AuroraBk#` / `Admin#2026`（非 REDACTED） |
+| 真实测试密码 | `<PASSWORD_PATTERN>` / `<FSXADMIN_PASSWORD>` / `<DB_PASSWORD>` / `<AURORA_PASSWORD>` / `<ADMIN_PASSWORD>`（非 REDACTED） |
 | 私钥 | `BEGIN ... PRIVATE KEY` |
 | GitHub / Slack token | `ghp_...` / `xox...` |
 

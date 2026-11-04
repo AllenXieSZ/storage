@@ -87,7 +87,7 @@
 
 ## 复用资产
 - rootcause 目录 `storage/datasync-snapmirror-rootcause/` 里的 `ssmrun.sh` / `ontap_script.sh` / `ontap.sh` 可直接复用（改 fsxadmin 密码为本次新建 FS 的密码）。
-- 现有保留的 FSxN（fs-027217e10840009de 等）**不要拿来当本实验对象**——本实验需要"从建卷到开 Backup"全程可控的干净新卷，别用被动过的旧卷污染变量。建议起全新 FSxN。
+- 现有保留的 FSxN（fs-0123456789abcdef0 等）**不要拿来当本实验对象**——本实验需要"从建卷到开 Backup"全程可控的干净新卷，别用被动过的旧卷污染变量。建议起全新 FSxN。
 
 ## 预算（起真实资源前必须先报预算等小帅确认 —— ROLE.md 铁律的唯一停等闸）
 1 个最小 FSxN（1HA/1536/2048GB）+ 1 台 c6i.large + 1 次卷级 Backup（10G）≈ **$3–6 量级**，跑约 1–2 小时，资源保留。

@@ -148,7 +148,7 @@ umount /mnt/lustre-bench
 ### Lustre FS (2026-10-27)
 
 ```
-FileSystemId:    fs-0879f933a37ca5922
+FileSystemId:    fs-0123456789abcdef0
 DeploymentType:  PERSISTENT_2
 StorageCapacity: 4800 GiB (SSD)
 Throughput:      125 MB/s/TiB (600 MB/s total)
@@ -163,9 +163,9 @@ Status:          Deleted after test
 
 ```
 FSx ONTAP:   NFS v4.1, rsize/wsize=64K (default, not optimized)
-FSx OpenZFS: fs-03520c47456c242bd, SA2, 1024 GiB, 320 MBps, NFS v3, nconnect=16, rsize/wsize=1M
+FSx OpenZFS: fs-0123456789abcdef0, SA2, 1024 GiB, 320 MBps, NFS v3, nconnect=16, rsize/wsize=1M
 S3 Files:    NFS v4.2, s3files mount helper
-EFS:         fs-027ff9a3e720a5a4e, NFS v4.1, rsize/wsize=1M, TLS
+EFS:         fs-0123456789abcdef0, NFS v4.1, rsize/wsize=1M, TLS
 ```
 
 ## Related benchmarks in this repo

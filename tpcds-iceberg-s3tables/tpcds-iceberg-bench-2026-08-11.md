@@ -116,7 +116,7 @@
 
 ## 附录
 
-- 原始逐查询逐轮结果：`s3://tpcds-iceberg-bench-20260811/results/sf200/bench_{a,b,c}.csv`
+- 原始逐查询逐轮结果：`s3://my-tpcds-bench-bucket/results/sf200/bench_{a,b,c}.csv`
 - 汇总表（逐查询 A/B/C 的 r1/median/warm）：`tpcds_results/summary_sf200.csv`
 - 查询集：`spark-sql-perf` `tpcds_2_4`（103 SQL）
 - 测量脚本：PySpark `bench.py`（noop write 计时，3 轮）

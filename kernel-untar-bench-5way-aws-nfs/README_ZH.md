@@ -107,7 +107,7 @@ umount /mnt/lustre-bench
 ## Lustre 测试环境
 
 ```
-FileSystemId:    fs-0879f933a37ca5922
+FileSystemId:    fs-0123456789abcdef0
 DeploymentType:  PERSISTENT_2
 StorageCapacity: 4800 GiB (SSD)
 Throughput:      125 MB/s/TiB (600 MB/s total)

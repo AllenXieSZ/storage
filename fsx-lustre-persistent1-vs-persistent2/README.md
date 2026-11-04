@@ -112,7 +112,7 @@ P1 和 P2 之间**不能互相转换**，修改吞吐也只能在本类型的档
 ### 2.3 Persistent 1 只能通过 CLI 创建 ✅
 
 文档原文："You can create Persistent 1 deployment types only by using the AWS CLI and the Amazon FSx API."
-实测 CLI 创建 P1 成功（fs-0981c63f654d6d647，约 6 分钟）。控制台本次未登录验证，以文档为准。
+实测 CLI 创建 P1 成功（fs-0123456789abcdef0，约 6 分钟）。控制台本次未登录验证，以文档为准。
 
 ### 2.4 Persistent 1 不能单独配置 Metadata IOPS ✅
 

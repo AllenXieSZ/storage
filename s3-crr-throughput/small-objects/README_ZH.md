@@ -280,6 +280,6 @@ AWS_REGION=us-east-2 s5cmd --numworkers 256 rm --all-versions "s3://$SRC/*"; aws
 | `s3-crr-dst-s2-1792770913` | 同上（1,039,484 行，0 错误）→ 删桶（18:11:04） |
 | `s3-crr-src-small-1792770913` | rm --all-versions（1,039,485 行，0 错误）→ list-object-versions Versions=0、DeleteMarkers=0 → 删桶（18:17） |
 | Batch job | 无 Active/Preparing/New/Suspended 作业 |
-| 已有资源 | 未触碰 s3lambdatest2 及其他已有资源（s3lambdatest2 head-bucket 正常） |
+| 已有资源 | 未触碰 my-test-bucket 及其他已有资源（my-test-bucket head-bucket 正常） |
 
 源桶 `reports/` 下的 manifest.json 已检查（FailedTasksOnly，两次均无失败报告 CSV）。

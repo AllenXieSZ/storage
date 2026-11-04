@@ -67,8 +67,8 @@ WantedBy=multi-user.target
 
 | 操作 | Changelog 记录 |
 |---|---|
-| `mkdir cl8` | `12955 02MKDIR 05:55:15.024429670 2026.10.09 0x0 t=[0x200000403:0x1928:0x0] ef=0xf u=0:0 nid=172.31.39.207@tcp p=[0x200000007:0x1:0x0] cl8` |
-| `echo a > a.txt` | `12957 01CREAT 05:55:18.028357979 2026.10.09 0x0 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.39.207@tcp p=[0x200000403:0x1928:0x0] a.txt` |
+| `mkdir cl8` | `12955 02MKDIR 05:55:15.024429670 2026.10.09 0x0 t=[0x200000403:0x1928:0x0] ef=0xf u=0:0 nid=172.31.x.x@tcp p=[0x200000007:0x1:0x0] cl8` |
+| `echo a > a.txt` | `12957 01CREAT 05:55:18.028357979 2026.10.09 0x0 t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=172.31.x.x@tcp p=[0x200000403:0x1928:0x0] a.txt` |
 | `echo more >> a.txt` | `12958 12LYOUT ... t=[0x200000403:0x1929:0x0] ef=0xf u=0:0 nid=0@<0:0> ...` |
 | `truncate -s 1 a.txt` | `12959 13TRUNC ... t=[0x200000403:0x1929:0x0] ...` |
 | `chmod` / `chown` / `touch` | `12960 14SATTR ...` 、`12961 14SATTR ...`（3 个操作只产生 2 条） |
@@ -78,7 +78,7 @@ WantedBy=multi-user.target
 | `cat b.txt` | **无记录** |
 | `rm lnk` / `rm hard` / `rm b.txt` | `06UNLNK ... /cl8/lnk`、`06UNLNK ... /cl8/hard`、`06UNLNK ... /cl8/b.txt` |
 | `rmdir cl8` | `12968 07RMDIR ... /cl8` |
-| 普通用户 ec2-user 删除 | `4148 06UNLNK 05:51:36.321249230 2026.10.09 0x1 t=[...] ef=0xf u=1000:1000 nid=172.31.39.207@tcp p=[...] /cl5/user_slow.txt` |
+| 普通用户 ec2-user 删除 | `4148 06UNLNK 05:51:36.321249230 2026.10.09 0x1 t=[...] ef=0xf u=1000:1000 nid=172.31.x.x@tcp p=[...] /cl5/user_slow.txt` |
 
 ### 字段说明
 
@@ -90,7 +90,7 @@ WantedBy=multi-user.target
 | 标志 | `0x1` | UNLNK 中 `0x1` = 最后一个链接被删（文件真正删除）；`0x0` = 只删了一个硬链接 |
 | `t=` | `[0x200000403:0x1929:0x0]` | 目标文件 FID |
 | `u=` | `1000:1000` | **操作者 uid:gid** |
-| `nid=` | `172.31.39.207@tcp` | **发起操作的客户端 IP** |
+| `nid=` | `172.31.x.x@tcp` | **发起操作的客户端 IP** |
 | `p=` | `[0x200000403:0x1928:0x0]` | 父目录 FID |
 | 名称 / 路径 | `a.txt` 或 `/cl8/b.txt` | CREAT/MKDIR 只有文件名；**UNLNK/RMDIR/RENME 带从文件系统根开始的完整路径** |
 | `s=` `sp=` | — | RENME 的源文件 FID 和源父目录 FID |

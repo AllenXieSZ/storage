@@ -36,7 +36,7 @@ From the Lustre Wiki ([Configuring Lustre File Striping](https://wiki.lustre.org
 
 | Component | Configuration |
 |---|---|
-| FSx for Lustre | fs-0abb08606bd0a8f3e, PERSISTENT_2, 4800 GiB SSD, 500 MB/s/TiB |
+| FSx for Lustre | fs-0123456789abcdef0, PERSISTENT_2, 4800 GiB SSD, 500 MB/s/TiB |
 | Provisioned disk throughput | 4.8 TiB × 500 = **2,400 MB/s** |
 | OSS in-memory cache | ~65.76 GiB (13.7 GiB/TiB × 4.8 TiB, per [AWS docs](https://docs.aws.amazon.com/fsx/latest/LustreGuide/ssd-storage.html)) |
 | OST count | 4 (OST0000–OST0003), stripe_count=-1, stripe_size=1M |
@@ -574,8 +574,8 @@ However, that 50 TiB of Lustre at P2-1000 delivers **50 GB/s of sequential throu
 ## Resources Cleaned
 
 All test resources have been deleted:
-- FSx Lustre: fs-0abb08606bd0a8f3e (deleted)
+- FSx Lustre: fs-0123456789abcdef0 (deleted)
 - EC2: i-06f6e18f680453866 (terminated)
-- FSx ONTAP (multi-BS test): fs-097010cd426a22b53 (deleted)
-- FSx ONTAP (multi-client test): fs-08ce59bb8878f921b (deleted)
-- FSx ONTAP (6144/200K test): fs-003626e0d19ef75e1 (deleted)
+- FSx ONTAP (multi-BS test): fs-0123456789abcdef0 (deleted)
+- FSx ONTAP (multi-client test): fs-0123456789abcdef0 (deleted)
+- FSx ONTAP (6144/200K test): fs-0123456789abcdef0 (deleted)

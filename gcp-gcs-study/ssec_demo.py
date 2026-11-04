@@ -7,12 +7,12 @@ SSE-C (Server-Side Encryption with Customer-provided keys) demo on AWS S3.
 2. 读取对象时，必须再次带同一把 key，否则读不出来
 3. 对比三种读取：带正确 key / 不带 key / 带错误 key
 
-Bucket: s3lambdatest2 (us-east-2)
+Bucket: my-test-bucket (us-east-2)
 
 ============================================================================
 ⚠️ 实测结论（2026-09-02，本账号 <ACCOUNT_ID> / <EMAIL>）：
 本账号在一个启用了 SCP 的 AWS Organization (<ORG_ID>) 下，
-**组织级 SCP 全局禁用了 SSE-C 上传**。无论对 s3lambdatest2 还是全新建的
+**组织级 SCP 全局禁用了 SSE-C 上传**。无论对 my-test-bucket 还是全新建的
 bucket，PutObject 带 SSE-C 都返回：
   AccessDenied ... "this bucket has blocked upload requests that specify
   Server Side Encryption with Customer provided keys (SSE-C).
@@ -31,7 +31,7 @@ import hashlib
 from botocore.exceptions import ClientError
 
 REGION = "us-east-2"
-BUCKET = "s3lambdatest2"
+BUCKET = "my-test-bucket"
 KEY = "ssec-demo/hello-ssec.txt"
 PLAINTEXT = b"Hello SSE-C! This object is encrypted with a customer-provided key.\n"
 

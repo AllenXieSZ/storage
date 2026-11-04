@@ -6,15 +6,15 @@ REGION = "us-east-2"
 ACCOUNT = "<ACCOUNT_ID>"
 
 # EC2 默认 (default VPC, 公有子网 2c — 与现有实验同子网)
-VPC_ID = "vpc-0c28d2a9082ef222e"
-DEFAULT_SUBNET = "subnet-0c551a33e366d52d4"   # us-east-2c, MapPublicIp=True
+VPC_ID = "vpc-0123456789abcdef0"
+DEFAULT_SUBNET = "subnet-0123456789abcdef"   # us-east-2c, MapPublicIp=True
 AMI_X86 = "ami-06475e8f54266e38e"             # AL2023 x86_64 (查询自 SSM latest)
 DEFAULT_INSTANCE = "c6in.4xlarge"
 KEY_NAME = "ohio"
 INSTANCE_PROFILE = "storage-bench-ec2-profile"   # 带 AmazonSSMManagedInstanceCore
 
 # 报告存储
-REPORT_BUCKET = "s3lambdatest2"               # 复用现有 bucket
+REPORT_BUCKET = "my-test-bucket"               # 复用现有 bucket
 REPORT_PREFIX = "storage-bench-reports"
 PRESIGN_EXPIRE = 604800                        # 7 天
 

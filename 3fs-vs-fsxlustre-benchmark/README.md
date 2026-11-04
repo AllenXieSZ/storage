@@ -17,7 +17,7 @@
 ### FSx Lustre
 | 项 | 配置 |
 |---|---|
-| 文件系统 | fs-0d45ce2da127d0028 |
+| 文件系统 | fs-0123456789abcdef0 |
 | 部署类型 | PERSISTENT_2, Lustre 2.15 |
 | 容量 | 1,200 GiB |
 | 吞吐档 | 125 MB/s/TiB (合同吞吐 ~146.5 MB/s) |

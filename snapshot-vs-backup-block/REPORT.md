@@ -75,15 +75,15 @@
 create-file-system --file-system-type ONTAP --storage-capacity 4096 \
   --ontap-configuration DeploymentType=SINGLE_AZ_2, HAPairs=2, \
     ThroughputCapacityPerHAPair=1536 (total 3072), FsxAdminPassword=***
-Subnet: subnet-0c551a33e366d52d4 (us-east-2c, vpc-0c28d2a9082ef222e)
+Subnet: subnet-0123456789abcdef (us-east-2c, vpc-0123456789abcdef0)
 ```
-- FileSystemId: **fs-05cc3578781832d5e**，AVAILABLE 约 18 分钟。
+- FileSystemId: **fs-0123456789abcdef0**，AVAILABLE 约 18 分钟。
 - 2 HA pair → 2 个 aggregate：aggr1 (1.77TB), aggr2 (1.77TB)。
-- 坑记录：绑定的 `NetApp` 安全组默认只放 9060/9061/8443/3128，**没有 SSH(22)/NFS(2049,111,635,4045-4046)**；需手动放行（源 172.31.0.0/16）后 ONTAP CLI 与 NFS 挂载才通。
+- 坑记录：绑定的 `NetApp` 安全组默认只放 9060/9061/8443/3128，**没有 SSH(22)/NFS(2049,111,635,4045-4046)**；需手动放行（源 172.31.x.x/16）后 ONTAP CLI 与 NFS 挂载才通。
 
 ### 5.2 SVM + FlexVol
 ```
-create-storage-virtual-machine --name testsvm  → svm-01c6aff9b8c53b5e2 (CREATED)
+create-storage-virtual-machine --name testsvm  → svm-01234567890abcdef (CREATED)
 volume create -vserver testsvm -volume snapvol -aggregate aggr1 -size 200GB \
   -security-style unix -junction-path /snapvol -space-guarantee none  → [Job 63] succeeded
 ```
@@ -166,10 +166,10 @@ file1.bin 1.0G, file2.bin 1.0G, file3.bin 512M, file4.bin 512M ; 3.6G used
 
 | 资源 | ID |
 |------|-----|
-| FSxN 文件系统 | fs-05cc3578781832d5e |
-| SVM | svm-01c6aff9b8c53b5e2 (testsvm) |
+| FSxN 文件系统 | fs-0123456789abcdef0 |
+| SVM | svm-01234567890abcdef (testsvm) |
 | 卷 | snapvol（已转 FlexGroup，单 constituent snapvol__0001） |
-| 安全组 | sg-07bab98ddeefb19ad（NetApp，已加 SSH/NFS 放行） |
+| 安全组 | sg-0123456789abcdef0（NetApp，已加 SSH/NFS 放行） |
 | 跳板机 | i-0dffb881b2a90daa2（Ohio MySQL-Master，SSM） |
 
 fsxadmin 密码：见私有记录（报告中已脱敏）。Mgmt endpoint / NFS IP 见私有记录。
@@ -182,9 +182,9 @@ sshpass ... ssh fsxadmin@<mgmt-ip> "volume unmount -vserver testsvm -volume snap
   volume offline -vserver testsvm -volume snapvol; \
   volume delete -vserver testsvm -volume snapvol -force true"
 # 3. 删 SVM
-aws fsx delete-storage-virtual-machine --storage-virtual-machine-id svm-01c6aff9b8c53b5e2 --region us-east-2
+aws fsx delete-storage-virtual-machine --storage-virtual-machine-id svm-01234567890abcdef --region us-east-2
 # 4. 删文件系统
-aws fsx delete-file-system --file-system-id fs-05cc3578781832d5e --region us-east-2 \
+aws fsx delete-file-system --file-system-id fs-0123456789abcdef0 --region us-east-2 \
   --ontap-configuration SkipFinalBackup=true
 ```
 > 本实验**未创建任何 FSx backup**，所以无需先删 recovery point。

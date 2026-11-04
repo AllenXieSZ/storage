@@ -57,11 +57,11 @@
 | 起始容量 | **1200 GiB (1.2 TiB)** |
 | 目标容量 | **2400 GiB (2.4 TiB)** |
 | Region / AZ | us-east-2 / us-east-2c |
-| Subnet / VPC | subnet-0c551a33e366d52d4 / vpc-0c28d2a9082ef222e |
-| SG | sg-08f2883d5c47ced16 (复用 lustre-learn) |
-| FileSystemId | fs-01d83babb9999c2ad |
+| Subnet / VPC | subnet-0123456789abcdef / vpc-0123456789abcdef0 |
+| SG | sg-0123456789abcdef0 (复用 lustre-learn) |
+| FileSystemId | fs-0123456789abcdef0 |
 | MountName | spxr3b4v |
-| DNS | fs-01d83babb9999c2ad.fsx.us-east-2.amazonaws.com |
+| DNS | fs-0123456789abcdef0.fsx.us-east-2.amazonaws.com |
 | 灌数据 | ~900 GB（9 × 100 GiB，dd if=/dev/urandom 并行）|
 | 灌数据 EC2 | c6in.2xlarge, AL2023 (kernel 6.18.41), lustre-client 2.15.6-32 |
 

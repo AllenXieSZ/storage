@@ -1,39 +1,39 @@
 # RUN LOG — FSxN 全生命周期实验
 
 **开始**: 2026-09-23 ~09:55 UTC
-**账号/区域**: 386094880462 / us-east-2
-**VPC**: vpc-0c28d2a9082ef222e
-**跳板机**: i-0dffb881b2a90daa2 (us-east-2c, subnet-0c551a33e366d52d4)
+**账号/区域**: 123456789012 / us-east-2
+**VPC**: vpc-0123456789abcdef0
+**跳板机**: i-0dffb881b2a90daa2 (us-east-2c, subnet-0123456789abcdef)
 
 ## 环境准备
 - ohio key: ~/.ssh/ohio.pem ✓
 - storage repo: ~/.openclaw/workspace/storage (main) ✓
-- fsxadmin 密码(拟设): FsxOntap#2026Ohio
+- fsxadmin 密码(拟设): <FSXADMIN_PASSWORD>
 
 ## 时间线
 
 ### FS 创建
-- 09:55 UTC `aws fsx create-file-system` → **fs-0806e114696713d2c** (CREATING)
+- 09:55 UTC `aws fsx create-file-system` → **fs-0123456789abcdef0** (CREATING)
   - Gen2 SINGLE_AZ_2, 1 HA pair, throughput 1536 MBps, SSD 2048 GiB
   - AutomaticBackupRetentionDays=0 (无自动备份)
-  - subnet-0c551a33e366d52d4 (us-east-2c), sg-00ca35d004d81089b (vpc-internal)
+  - subnet-0123456789abcdef (us-east-2c), sg-0123456789abcdef0 (vpc-internal)
 
 ### fio 客户端 EC2
-- 09:57 UTC 启动 **i-0f94cb684f2cb38bb** (c6in.4xlarge, AL2023 x86_64, 172.31.35.22, us-east-2c)
+- 09:57 UTC 启动 **i-0f94cb684f2cb38bb** (c6in.4xlarge, AL2023 x86_64, 172.31.x.x, us-east-2c)
   - key=ohio, SG=vpc-internal+MyIP, profile=fio-i7i-ssm-profile (SSM)
 
 ### FS AVAILABLE
-- 10:03 UTC fs-0806e114696713d2c → AVAILABLE (创建耗时 ~11min: 09:52→10:03)
-- 管理端点 (fsxadmin 登录): **172.31.44.166**
+- 10:03 UTC fs-0123456789abcdef0 → AVAILABLE (创建耗时 ~11min: 09:52→10:03)
+- 管理端点 (fsxadmin 登录): **172.31.x.x**
 
 ### SVM + FlexVol
-- 10:05 UTC SVM **svm-02d9b4728dd51dcbd** (lifesvm) CREATED
-- FlexVol **fsvol-0f92a7bfb7cd9692d** (lifevol, /lifevol, UNIX, 1.6TB, SE off, tiering NONE) CREATING
+- 10:05 UTC SVM **svm-01234567890abcdef** (lifesvm) CREATED
+- FlexVol **fsvol-0123456789abcdef** (lifevol, /lifevol, UNIX, 1.6TB, SE off, tiering NONE) CREATING
 - ONTAP 版本: 9.18.1P6
 - aggr: aggr1 (1.77TB, 1 HA pair)
 
 ### 数据写入
-- 10:06→10:12 UTC 写 200×1GiB=200GB (~6min), NFS IP 172.31.47.6:/lifevol
+- 10:06→10:12 UTC 写 200×1GiB=200GB (~6min), NFS IP 172.31.x.x:/lifevol
 - 注: FSx 把 rsize/wsize 钳制为 64K (已知行为)
 
 ### fio 启动 (1M randrw)
@@ -140,7 +140,7 @@
 - RUN1 中我在缩容 PAUSE 后降了 fio 负载、最终停 fio 才完成，不符合伟伟"保持 fio 满载、让 rebalance 在真实业务 I/O 下自己跑完"的要求。
 - RUN1 结束时已缩到 2048，fio 客户端 EC2 已终止。
 - RUN2 重跑缩容段：新建 fio 客户端 → 满载 fio → 扩回 4096 → 触发缩容 → **全程 fio 满载不动**，让 rebalance 自跑完、观察缩容自动 retry。
-- 新 fio 客户端 EC2 **i-0fb1bb68551670ebe** (172.31.45.201)
+- 新 fio 客户端 EC2 **i-0fb1bb68551670ebe** (172.31.x.x)
 - 13:32:22 fio 满载启动 (PID 27448): bs=1M randrw 50/50, numjobs=4, iodepth=16 (与RUN1 baseline同规格, 真实生产负载)
 - 13:34:46→13:37 扩回 4096 (~2.5min, UPDATED_OPTIMIZING)
 

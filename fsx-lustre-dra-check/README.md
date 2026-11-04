@@ -40,10 +40,10 @@ chmod +x fsx-lustre-dra-check.sh
 Region: us-east-2   Lustre 文件系统数量: 4
 
 FileSystemId          DRA-Id                 DRA-Lifecycle  S3 Path                    AutoExport(Lustre->S3)  AutoImport(S3->Lustre)  结论
-fs-0aaaaaaaaaaaaaaaa  dra-0aaaaaaaaaaaaaaaa  AVAILABLE      s3://<BUCKET>/bidir/       NEW,CHANGED,DELETED     NEW,CHANGED,DELETED     ✅ [双向] Lustre改动完整同步到S3(新增/修改/删除)
-fs-0bbbbbbbbbbbbbbbb  dra-0bbbbbbbbbbbbbbbb  AVAILABLE      s3://<BUCKET>/export/      NEW,CHANGED,DELETED     NONE                    ✅ [单向导出] Lustre改动完整同步到S3(新增/修改/删除)
-fs-0cccccccccccccccc  dra-0cccccccccccccccc  AVAILABLE      s3://<BUCKET>/import/      NONE                    NEW,CHANGED,DELETED     ❌ [单向导入] 已关联S3，但Lustre改动不会同步到S3
-fs-0dddddddddddddddd  -                      -              -                          -                       -                       ❌ 未关联 S3
+fs-0123456789abcdef0  dra-0123456789abcdef0  AVAILABLE      s3://<BUCKET>/bidir/       NEW,CHANGED,DELETED     NEW,CHANGED,DELETED     ✅ [双向] Lustre改动完整同步到S3(新增/修改/删除)
+fs-0123456789abcdef0  dra-0123456789abcdef0  AVAILABLE      s3://<BUCKET>/export/      NEW,CHANGED,DELETED     NONE                    ✅ [单向导出] Lustre改动完整同步到S3(新增/修改/删除)
+fs-0123456789abcdef0  dra-0123456789abcdef0  AVAILABLE      s3://<BUCKET>/import/      NONE                    NEW,CHANGED,DELETED     ❌ [单向导入] 已关联S3，但Lustre改动不会同步到S3
+fs-0123456789abcdef0  -                      -              -                          -                       -                       ❌ 未关联 S3
 
 汇总（按文件系统）: 共 4 个 | 完整同步 2 | 部分同步 0 | 关联了但不导出 1 | 未关联 S3 1
 ```

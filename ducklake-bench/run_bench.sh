@@ -11,7 +11,7 @@ INSTALL postgres;  LOAD postgres;
 INSTALL httpfs;    LOAD httpfs;
 INSTALL iceberg;   LOAD iceberg;
 CREATE OR REPLACE SECRET s3sec (TYPE s3, PROVIDER credential_chain, REGION '$REGION');
-ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=127.0.0.1 user=dl password=dl' AS dl (DATA_PATH 's3://$BUCKET/ducklake/');
+ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=127.0.0.1 user=dl password=<DB_PASSWORD>' AS dl (DATA_PATH 's3://$BUCKET/ducklake/');
 ATTACH '$TBARN' AS s3t (TYPE iceberg, ENDPOINT_TYPE s3_tables);
 SQL
 

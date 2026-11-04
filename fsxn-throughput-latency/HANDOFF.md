@@ -16,11 +16,11 @@
 ## AWS 环境
 - Region: **us-east-2**，账号 <ACCOUNT_ID>（user admin）
 - 跳板/挂载机 = **MySQL-Master EC2 `i-0dffb881b2a90daa2`**（SSM Online，Amazon Linux）
-  - AZ **us-east-2c**，subnet **subnet-0c551a33e366d52d4**，vpc **vpc-0c28d2a9082ef222e**
+  - AZ **us-east-2c**，subnet **subnet-0123456789abcdef**，vpc **vpc-0123456789abcdef0**
   - 已装 sshpass/expect；通过 `aws ssm start-session` 或 `aws ssm send-command` 驱动
-- **FSxN 建在同 AZ 同子网**（us-east-2c / subnet-0c551a33e366d52d4），让跳板机能挂 NFS
+- **FSxN 建在同 AZ 同子网**（us-east-2c / subnet-0123456789abcdef），让跳板机能挂 NFS
 - 工作区脚本参考：`ontap_run.sh <mgmt-ip> "<cmd>"`（走 SSM→EC2→sshpass 连 ONTAP CLI）
-- fsxadmin 密码本次自定：**FsxOntap#2026TPtest**（创建时 --fsx-admin-password 设定）
+- fsxadmin 密码本次自定：**<FSXADMIN_PASSWORD>**（创建时 --fsx-admin-password 设定）
 
 ## 关键规格（Gen2 最小 + 升吞吐）
 - **Gen2 = SINGLE_AZ_2**（DeploymentType=SINGLE_AZ_2）。⚠️Gen2 单文件系统最小吞吐档需确认：Gen2 SINGLE_AZ_2 的 ThroughputCapacityPerHAPair 合法档位（如 384/768/1536/3072/6144）。**最小档创建**（先查 `aws fsx create-file-system help` 或直接试最小 384）。
@@ -29,8 +29,8 @@
 - ⚠️注意 FSxN 死锁坑（TOOLS.md 记过）：扩 HA 才有"必须先升吞吐到1536"的约束；**本次只升吞吐、不扩 HA**，不涉及该死锁。单纯 update ThroughputCapacityPerHAPair 应可直接做。
 
 ## 执行步骤（子 agent 按此跑）
-1. **建 SG**：新建专用 SG（vpc-0c28d2a9082ef222e），入站放行来自跳板机 SG `sg-0d67509101b407583` 的 NFS（2049,111,635,4045-4046 tcp/udp）+ SSH(22) + ONTAP mgmt(如需)。
-2. **建 FSxN**：`aws fsx create-file-system --file-system-type ONTAP --storage-capacity 1024 --subnet-ids subnet-0c551a33e366d52d4 --security-group-ids <新SG> --ontap-configuration DeploymentType=SINGLE_AZ_2,ThroughputCapacityPerHAPair=384,FsxAdminPassword=FsxOntap#2026TPtest,PreferredSubnetId=subnet-0c551a33e366d52d4`（参数名以 create-file-system help 为准；SINGLE_AZ 可能不用 PreferredSubnetId）。等 AVAILABLE（~15-25min，轮询 describe-file-systems）。
+1. **建 SG**：新建专用 SG（vpc-0123456789abcdef0），入站放行来自跳板机 SG `sg-0123456789abcdef0` 的 NFS（2049,111,635,4045-4046 tcp/udp）+ SSH(22) + ONTAP mgmt(如需)。
+2. **建 FSxN**：`aws fsx create-file-system --file-system-type ONTAP --storage-capacity 1024 --subnet-ids subnet-0123456789abcdef --security-group-ids <新SG> --ontap-configuration DeploymentType=SINGLE_AZ_2,ThroughputCapacityPerHAPair=384,FsxAdminPassword=<FSXADMIN_PASSWORD>,PreferredSubnetId=subnet-0123456789abcdef`（参数名以 create-file-system help 为准；SINGLE_AZ 可能不用 PreferredSubnetId）。等 AVAILABLE（~15-25min，轮询 describe-file-systems）。
 3. **建 SVM + volume**：`aws fsx create-storage-virtual-machine`（SVM）→ 建一个 FlexVol（`aws fsx create-volume` 或 ONTAP CLI），junction path 如 /vol1。拿 NFS mount IP（describe-storage-virtual-machines 的 Endpoints.Nfs.IpAddresses）。
 4. **跳板机挂载**（走 SSM send-command，base64 传脚本避免转义）：
    - `mkdir -p /mnt/fsxtp`
@@ -43,13 +43,13 @@
    - 循环判停：轮询 `describe-file-systems ... AdministrativeActions`，当升吞吐的 action 状态变 COMPLETED（或 ThroughputCapacityPerHAPair 变为目标值且无 IN_PROGRESS action）→ 再多测 3~5 轮收尾 → 停。
    - 每轮把 `{elapsed_sec, op(read/write), lat_mean_us, lat_p99_us}` 追加写到 `/mnt/fsxtp/../results.csv`（放本地非 NFS 路径，如 /root/tp_results.csv，避免 NFS 写自己干扰测量）。
 7. **取回数据 + 画图**：
-   - 把 results.csv 从跳板机取回（走 S3 中转：跳板机 `aws s3 cp /root/tp_results.csv s3://s3lambdatest2/fsxn-tp-latency/` → 本地下载）。
+   - 把 results.csv 从跳板机取回（走 S3 中转：跳板机 `aws s3 cp /root/tp_results.csv s3://my-test-bucket/fsxn-tp-latency/` → 本地下载）。
    - 用 python matplotlib 画 PNG：x=elapsed_sec，y=latency(us)，两条线（read/write，画均值线，p99 可选虚线）；标出升吞吐区间（T0 到 COMPLETED）；标注峰值延迟点。
    - 输出 `latency_curve.png`。
 8. **交付**：
    - 报告写 `REPORT.md`（环境/规格/升吞吐耗时/baseline延迟/升级中峰值延迟/结论）。
    - 脱敏后推 GitHub `AllenXieSZ/storage` 路径 `fsxn-throughput-latency/`（README+脚本+results.csv+latency_curve.png）。
-   - PNG + CSV 上传 s3://s3lambdatest2/fsxn-tp-latency/，给 `--region us-east-2` 预签名链接（7天）。
+   - PNG + CSV 上传 s3://my-test-bucket/fsxn-tp-latency/，给 `--region us-east-2` 预签名链接（7天）。
 9. **清理**：测完删 volume→SVM→FSxN→新建SG。**除非小帅说保留**（小帅习惯保留资源，完成时问一句或默认保留并在报告注明资源ID+清理命令）。
 
 ## 注意

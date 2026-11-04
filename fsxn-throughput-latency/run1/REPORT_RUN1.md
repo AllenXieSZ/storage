@@ -13,13 +13,13 @@
 | 项目 | 值 |
 |---|---|
 | 文件系统 | FSxN **Gen2 / `SINGLE_AZ_2`**，1 HA pair |
-| FileSystemId | `fs-0d7924d394930c95f` |
+| FileSystemId | `fs-0123456789abcdef0` |
 | 存储容量 | 1024 GiB SSD（AUTOMATIC IOPS = 3072） |
-| SVM | `svm-05b23cf0627829b64`（svm1），NFS IP `172.31.44.241` |
-| Volume | `fsvol-0f81981b69e53e9b6`（vol1，512 GiB，junction `/vol1`，UNIX，SE 关闭） |
-| 子网 / AZ | `subnet-0c551a33e366d52d4` / us-east-2c |
-| VPC | `vpc-0c28d2a9082ef222e` |
-| 专用 SG | `sg-02326ca1dc0af5246`（放行来自跳板机 SG `sg-0d67509101b407583` 的 NFS 2049/111/635/4045-4046 + SSH 22） |
+| SVM | `svm-01234567890abcdef`（svm1），NFS IP `172.31.x.x` |
+| Volume | `fsvol-0123456789abcdef`（vol1，512 GiB，junction `/vol1`，UNIX，SE 关闭） |
+| 子网 / AZ | `subnet-0123456789abcdef` / us-east-2c |
+| VPC | `vpc-0123456789abcdef0` |
+| 专用 SG | `sg-0123456789abcdef0`（放行来自跳板机 SG `sg-0123456789abcdef0` 的 NFS 2049/111/635/4045-4046 + SSH 22） |
 | 挂载/压测机 | MySQL-Master EC2 `i-0dffb881b2a90daa2`（Amazon Linux，SSM 驱动） |
 | 挂载参数 | `nfsvers=3`（rsize/wsize=65536，服务端钳制 64K） |
 | fio 版本 | fio-2.14 |
@@ -92,23 +92,23 @@ runtime=8 -time_based   # 每轮短跑，采单点延迟
 ## 7. 资源（默认保留，小帅习惯）
 
 ```
-FileSystem : fs-0d7924d394930c95f   (SINGLE_AZ_2, 现 3072 MBps, 1024 GiB)
-SVM        : svm-05b23cf0627829b64
-Volume     : fsvol-0f81981b69e53e9b6
-SG         : sg-02326ca1dc0af5246
+FileSystem : fs-0123456789abcdef0   (SINGLE_AZ_2, 现 3072 MBps, 1024 GiB)
+SVM        : svm-01234567890abcdef
+Volume     : fsvol-0123456789abcdef
+SG         : sg-0123456789abcdef0
 挂载机     : i-0dffb881b2a90daa2 (共用跳板机，未新建)
 ```
 
 ### 清理命令（需要时执行）
 ```bash
 R=us-east-2
-aws fsx delete-volume --volume-id fsvol-0f81981b69e53e9b6 --region $R
+aws fsx delete-volume --volume-id fsvol-0123456789abcdef --region $R
 # 等 volume 删除完成后：
-aws fsx delete-storage-virtual-machine --storage-virtual-machine-id svm-05b23cf0627829b64 --region $R
+aws fsx delete-storage-virtual-machine --storage-virtual-machine-id svm-01234567890abcdef --region $R
 # 等 SVM 删除完成后：
-aws fsx delete-file-system --file-system-id fs-0d7924d394930c95f --region $R
+aws fsx delete-file-system --file-system-id fs-0123456789abcdef0 --region $R
 # 文件系统删完后删 SG：
-aws ec2 delete-security-group --group-id sg-02326ca1dc0af5246 --region $R
+aws ec2 delete-security-group --group-id sg-0123456789abcdef0 --region $R
 ```
 
 ## 8. 产物

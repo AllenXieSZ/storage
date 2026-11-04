@@ -4,9 +4,9 @@
 
 ## 规格（与 RUN1/RUN2 完全一致）
 - FSxN Gen2 SINGLE_AZ_2，1 HA pair，存储 1024 GiB SSD，起始吞吐 **1536 MBps**
-- FileSystemId: `fs-01230588a0f9ecfd5`（本次新建，测完已删）
-- SVM `svm-01aaa77e47f61b240`（NFS IP 172.31.42.21），Volume `fsvol-0eaffa632fa4a7ef0`（vol1, 512 GiB, /vol1, UNIX, SE 关闭）
-- 子网/AZ: subnet-0c551a33e366d52d4 / us-east-2c，SG sg-02326ca1dc0af5246（复用）
+- FileSystemId: `fs-0123456789abcdef0`（本次新建，测完已删）
+- SVM `svm-01234567890abcdef`（NFS IP 172.31.x.x），Volume `fsvol-0123456789abcdef`（vol1, 512 GiB, /vol1, UNIX, SE 关闭）
+- 子网/AZ: subnet-0123456789abcdef / us-east-2c，SG sg-0123456789abcdef0（复用）
 - 挂载/压测机: i-0dffb881b2a90daa2（SSM），nfsvers=3，rsize/wsize=64K，mountproto=tcp
 - fio: bs=16k sync direct=1 numjobs=1 iodepth=1 runtime=8 time_based（每轮 read + write）
 
@@ -27,4 +27,4 @@
 - 每轮 read(8s)+write(8s)+开销 ≈ 每 ~17s 一个样本对。
 
 ## 资源清理
-本次所有新建资源（Volume→SVM→FileSystem）测完已按顺序删除，SG sg-02326ca1dc0af5246 亦已删除。**资源已全部清理，无残留计费。** 跳板机 i-0dffb881b2a90daa2 为共用资源不删，其上 RUN3 的 NFS 挂载已卸载。
+本次所有新建资源（Volume→SVM→FileSystem）测完已按顺序删除，SG sg-0123456789abcdef0 亦已删除。**资源已全部清理，无残留计费。** 跳板机 i-0dffb881b2a90daa2 为共用资源不删，其上 RUN3 的 NFS 挂载已卸载。

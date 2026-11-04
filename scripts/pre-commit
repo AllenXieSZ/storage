@@ -28,7 +28,7 @@ for f in $staged; do
   echo "$added" | grep -qE 'arn:aws[a-z-]*:[a-z0-9-]*:[a-z0-9-]*:[0-9]{12}:' && report "$f: ARN 中含 AWS 账号 ID"
   echo "$added" | grep -qiE '(account[_-]?id|owner[_-]?id)["'"'"' :=]+[0-9]{12}' && report "$f: 疑似 AWS 账号 ID 字段"
   # 5. 明文密码
-  echo "$added" | grep -E '#2026|FsxOntap#|OpenCart#2026|AuroraBk#|Admin#2026' | grep -qv REDACTED && report "$f: 疑似真实测试密码字符串"
+  echo "$added" | grep -E '#2026|FsxOntap#|OpenCart#2026|AuroraBk#|<ADMIN_PASSWORD>' | grep -qv REDACTED && report "$f: 疑似真实测试密码字符串"
   # 6. 私钥
   echo "$added" | grep -qE 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' && report "$f: 含私钥 PEM"
   # 7. token

@@ -101,8 +101,8 @@ s3://<BUCKET>/lustre-changelog/mdt=divrbb4v-MDT0000/dt=2026-10-09/divrbb4v-MDT00
 
 每行一条 JSON（实测样例）：
 ```json
-{"mdt":"divrbb4v-MDT0000","seq":13134,"type":"UNLNK","type_code":"06UNLNK","time":"2026-10-09T06:18:30.919731382Z","flags":"0x1","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0x200000403:0x1995:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.39.207@tcp","client_ip":"172.31.39.207","parent_fid":"[0x200000403:0x1962:0x0]","path":"/clarch/user2.txt"}
-{"mdt":"divrbb4v-MDT0000","seq":13133,"type":"RENME","type_code":"08RENME","time":"2026-10-09T06:18:30.918221737Z","flags":"0x0","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0:0x0:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.39.207@tcp","client_ip":"172.31.39.207","parent_fid":"[0x200000403:0x1962:0x0]","name":"user2.txt","source_fid":"[0x200000403:0x1995:0x0]","source_parent_fid":"[0x200000403:0x1962:0x0]","old_path":"/clarch/user.txt"}
+{"mdt":"divrbb4v-MDT0000","seq":13134,"type":"UNLNK","type_code":"06UNLNK","time":"2026-10-09T06:18:30.919731382Z","flags":"0x1","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0x200000403:0x1995:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.x.x@tcp","client_ip":"172.31.x.x","parent_fid":"[0x200000403:0x1962:0x0]","path":"/clarch/user2.txt"}
+{"mdt":"divrbb4v-MDT0000","seq":13133,"type":"RENME","type_code":"08RENME","time":"2026-10-09T06:18:30.918221737Z","flags":"0x0","collector":"ip-172-31-39-207.us-east-2.compute.internal","target_fid":"[0:0x0:0x0]","ef":"0xf","uid":1000,"gid":1000,"client_nid":"172.31.x.x@tcp","client_ip":"172.31.x.x","parent_fid":"[0x200000403:0x1962:0x0]","name":"user2.txt","source_fid":"[0x200000403:0x1995:0x0]","source_parent_fid":"[0x200000403:0x1962:0x0]","old_path":"/clarch/user.txt"}
 ```
 
 | 字段 | 含义 |
@@ -153,10 +153,10 @@ ORDER BY seq LIMIT 10;
 ```
 | time | uid | client_ip | type | path |
 |---|---|---|---|---|
-| 2026-10-09T06:18:30.919731382Z | 1000 | 172.31.39.207 | UNLNK | /clarch/user2.txt |
-| 2026-10-09T06:18:30.924751823Z | 0 | 172.31.39.207 | UNLNK | /clarch/f2.txt |
-| 2026-10-09T06:18:30.925292080Z | 0 | 172.31.39.207 | UNLNK | /clarch/f3.txt |
-| 2026-10-09T06:18:30.928020289Z | 0 | 172.31.39.207 | UNLNK | /clarch/f47.txt |
+| 2026-10-09T06:18:30.919731382Z | 1000 | 172.31.x.x | UNLNK | /clarch/user2.txt |
+| 2026-10-09T06:18:30.924751823Z | 0 | 172.31.x.x | UNLNK | /clarch/f2.txt |
+| 2026-10-09T06:18:30.925292080Z | 0 | 172.31.x.x | UNLNK | /clarch/f3.txt |
+| 2026-10-09T06:18:30.928020289Z | 0 | 172.31.x.x | UNLNK | /clarch/f47.txt |
 | … | | | | |
 
 ### 某个文件的完整历史
@@ -169,9 +169,9 @@ ORDER BY seq;
 ```
 | time | type | uid | client_ip | f |
 |---|---|---|---|---|
-| 06:18:30.914924380Z | CREAT | 1000 | 172.31.39.207 | user.txt |
-| 06:18:30.918221737Z | RENME | 1000 | 172.31.39.207 | /clarch/user.txt（→ user2.txt） |
-| 06:18:30.919731382Z | UNLNK | 1000 | 172.31.39.207 | /clarch/user2.txt |
+| 06:18:30.914924380Z | CREAT | 1000 | 172.31.x.x | user.txt |
+| 06:18:30.918221737Z | RENME | 1000 | 172.31.x.x | /clarch/user.txt（→ user2.txt） |
+| 06:18:30.919731382Z | UNLNK | 1000 | 172.31.x.x | /clarch/user2.txt |
 
 ### 重命名记录
 ```sql

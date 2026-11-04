@@ -12,14 +12,14 @@
 |---|---|
 | Region / 账号 | us-east-2 / <ACCOUNT_ID> |
 | FSxN | Gen2 **SINGLE_AZ_2**，**单 HA pair (HAPairs=1)** |
-| 文件系统 | `fs-049b7a5387930eeed`（实验后已删除） |
+| 文件系统 | `fs-0123456789abcdef0`（实验后已删除） |
 | 存储容量 | 1024 GiB SSD |
 | 起始吞吐 | **384 MBps/HA pair**（该部署类型最低档） |
 | 目标吞吐 | **768 MBps/HA pair** |
 | SVM / Volume | svm1 / vol1（FlexVol 512GiB，junction `/vol1`，UNIX，SE 关闭） |
 | 挂载 | NFSv3，`nfsvers=3`，rsize/wsize=64K（ONTAP 钳制） |
 | 挂载/压测机 | MySQL-Master EC2 `i-0dffb881b2a90daa2`（AZ us-east-2c，共用，未删） |
-| 专用 SG | `sg-08af4a5ca5cce5afa`（独立，实验后已删除） |
+| 专用 SG | `sg-0123456789abcdef0`（独立，实验后已删除） |
 
 **档位合法性（已查证）**: FSx ONTAP Gen2 SINGLE_AZ_2 单 HA pair 合法吞吐档 = **384/768/1536/3072/6144 MBps**（Terraform AWS provider 官方文档："Valid values for deployment type MULTI_AZ_2 and SINGLE_AZ_2 are 384, 768, 1536, 3072, 6144 where ha_pairs is 1"）。**384→768 都在单 HA pair 内，不涉及扩 HA pair。**
 
@@ -74,8 +74,8 @@
 ## 8. 资源清理
 
 **资源已全部清理，无残留计费。**（已 API 复查确认全部 NotFound）
-- 删除 volume `fsvol-091cfb4e19b2fa550`（VolumeNotFound）→ SVM `svm-0b7126dba6e881839`（NotFound）→ FSxN `fs-049b7a5387930eeed`（FileSystemNotFound）
-- 删除专用 SG `sg-08af4a5ca5cce5afa`（确认无 ENI 依赖后，InvalidGroup.NotFound）
+- 删除 volume `fsvol-0123456789abcdef`（VolumeNotFound）→ SVM `svm-01234567890abcdef`（NotFound）→ FSxN `fs-0123456789abcdef0`（FileSystemNotFound）
+- 删除专用 SG `sg-0123456789abcdef0`（确认无 ENI 依赖后，InvalidGroup.NotFound）
 - 跳板机 `i-0dffb881b2a90daa2` 共用未删（仍 running）；仅清理本实验 NFS 挂载 `umount -f -l /mnt/fsx384` 及测试文件/脚本
 
 ---

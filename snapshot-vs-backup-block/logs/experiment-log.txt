@@ -1,15 +1,15 @@
 === snapshot-vs-backup-block experiment log (2026-09-01) ===
 
 --- FS create ---
-FileSystemId: fs-05cc3578781832d5e
+FileSystemId: fs-0123456789abcdef0
 DeploymentType: SINGLE_AZ_2 (Gen2), HAPairs=2, ThroughputCapacityPerHAPair=1536 (total 3072)
-StorageCapacity: 4096 GB, Subnet subnet-0c551a33e366d52d4 (us-east-2c)
+StorageCapacity: 4096 GB, Subnet subnet-0123456789abcdef (us-east-2c)
 ONTAP: NetApp Release 9.18.1P5
 Mgmt endpoint IP: <mgmt-ip>
 Created ~10:10 UTC, AVAILABLE ~10:28 UTC (~18 min)
 
 --- SVM ---
-svm-id: svm-01c6aff9b8c53b5e2 (testsvm)
+svm-id: svm-01234567890abcdef (testsvm)
 NFS IPs: <nfs-ip-1>, <nfs-ip-2>
 
 --- Volume snapvol (FlexVol) ---

@@ -511,7 +511,7 @@ snapmirror show-history -source-volume srcvol    → There are no entries
 前两次都用**少量大文件**(8 个 / 5 个),FlexGroup 按文件哈希分配 constituent,文件太少 → 哈希落点随机性大 → 分布严重偏斜(2:6、40:60)。本次(方向B)在**同一个干净 FSxN**上走完整就地升级链路,并用**大量文件(100/300/500 个 1GiB)** 验证「文件越多是否越趋近 50:50」。全程 fio 压测。
 
 ## 10.1 环境(全新,保留)
-- FSxN `fs-0cd1fb5168fa75437`,Gen2 **SINGLE_AZ_2**,ONTAP 9.18.1P5,us-east-2c
+- FSxN `fs-0123456789abcdef0`,Gen2 **SINGLE_AZ_2**,ONTAP 9.18.1P5,us-east-2c
 - 起点:**1 HA pair / 2048GB / 384 MB/s**,SVM `mfsvm`,卷 `mfvol` = **FlexVol**(junction `/mfvol`,security-style unix,storage-efficiency 关闭)
 - **全程不接 DataSync**(保持卷干净,才能就地转 FlexGroup)
 - fio 机:`i-06f35c8fef7ef0f49`(c6in.4xlarge,同 AZ,通过 SSM 驱动)
@@ -580,8 +580,8 @@ __0003 aggr2 57.75  __0005 57.75  __0007 57.75  __0009 56.75
 ![fio时序](flexgroup_fio_timeseries.png)
 
 ## 10.6 保留资源(方向B)
-- FSxN `fs-0cd1fb5168fa75437`(2HA/4096/1536,mgmt 172.31.33.74)
-- SVM `svm-056924ceb5976d61b`(mfsvm,NFS 172.31.35.226)
-- 卷 `fsvol-03fc195bcb541daec`(mfvol,9-constituent FlexGroup)
+- FSxN `fs-0123456789abcdef0`(2HA/4096/1536,mgmt 172.31.x.x)
+- SVM `svm-01234567890abcdef`(mfsvm,NFS 172.31.x.x)
+- 卷 `fsvol-0123456789abcdef`(mfvol,9-constituent FlexGroup)
 - fio 机 `i-06f35c8fef7ef0f49`(c6in.4xlarge)
-- 前三次的旧资源(fs-0ab60ba44b438cc36 / fs-0845731bf4690787b / fs-0bfc76afa2bfd0b69 / 旧 fio 机 i-053fd014494dc801a / DataSync loc-00a4180469b77a6ea)已在本次开始前**全部删除验证**。
+- 前三次的旧资源(fs-0123456789abcdef0 / fs-0123456789abcdef0 / fs-0123456789abcdef0 / 旧 fio 机 i-053fd014494dc801a / DataSync loc-00a4180469b77a6ea)已在本次开始前**全部删除验证**。

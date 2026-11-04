@@ -1,25 +1,25 @@
 # RUN_LOG.md — FSxN in-place upgrade (no DataSync), 2026-09-28
 
-Region: **us-east-2** | Account: **386094880462** | All timestamps **UTC**.
+Region: **us-east-2** | Account: **123456789012** | All timestamps **UTC**.
 
 ## Resources
 | Item | Value |
 |---|---|
-| FSx ONTAP file system | `fs-0db43d5be0f77763f` (Gen2 SINGLE_AZ_2, ONTAP) |
+| FSx ONTAP file system | `fs-0123456789abcdef0` (Gen2 SINGLE_AZ_2, ONTAP) |
 | Initial config | ThroughputCapacity **1536 MB/s**, **1 HA pair**, **2048 GB** |
-| SVM | `svm-0a8adbb726d0ee7e1` (name `testsvm`), NFS IP `172.31.40.216` |
-| Volume | `fsvol-01720468375417426` (name `testvol`), junction `/vol1`, FlexVol 1 TB, StorageEfficiency off |
-| Mgmt endpoint | `172.31.33.108` (fsxadmin) |
-| fio EC2 | `i-018ba743b2b13cea4` c6in.4xlarge, AL2023, us-east-2b (see note), priv 172.31.28.43 |
-| fio SG | `sg-0c9a3559bc188e145` |
-| FSxN SG | `sg-0ce9e0af3f447aef3` |
+| SVM | `svm-01234567890abcdef` (name `testsvm`), NFS IP `172.31.x.x` |
+| Volume | `fsvol-0123456789abcdef` (name `testvol`), junction `/vol1`, FlexVol 1 TB, StorageEfficiency off |
+| Mgmt endpoint | `172.31.x.x` (fsxadmin) |
+| fio EC2 | `i-018ba743b2b13cea4` c6in.4xlarge, AL2023, us-east-2b (see note), priv 172.31.x.x |
+| fio SG | `sg-0123456789abcdef0` |
+| FSxN SG | `sg-0123456789abcdef0` |
 
-> AZ note: FSx is in us-east-2c (subnet-0c551a33e366d52d4). c6in.4xlarge had InsufficientInstanceCapacity in 2c across retries, so the fio client launched in us-east-2b (same VPC vpc-0c28d2a9082ef222e). NFS traffic is cross-AZ within the VPC.
+> AZ note: FSx is in us-east-2c (subnet-0123456789abcdef). c6in.4xlarge had InsufficientInstanceCapacity in 2c across retries, so the fio client launched in us-east-2b (same VPC vpc-0123456789abcdef0). NFS traffic is cross-AZ within the VPC.
 
 ## Mount command (on fio EC2)
 ```
 sudo mount -t nfs -o nfsvers=3,rsize=65536,wsize=65536,hard,timeo=600,retrans=2,nconnect=16 \
-  172.31.40.216:/vol1 /mnt/fsxn
+  172.31.x.x:/vol1 /mnt/fsxn
 ```
 
 ## fio job file (`fio_test.fio`) — exact, reproducible
@@ -61,7 +61,7 @@ fio /root/fio_test.fio --status-interval=20 --output=/root/fio_run.log
 sudo pkill -INT fio
 ```
 
-## ONTAP commands (via SSM → jumpbox i-0dffb881b2a90daa2 → sshpass fsxadmin@172.31.33.108)
+## ONTAP commands (via SSM → jumpbox i-0dffb881b2a90daa2 → sshpass fsxadmin@172.31.x.x)
 Wrapper: `ontap_run.sh <mgmt-ip> "<cmd>"`. fsxadmin password = `<FSXADMIN_PASSWORD>`.
 
 ### 1. FlexVol → FlexGroup conversion (diag)
@@ -73,7 +73,7 @@ Result: `[Job 46] Job succeeded: success` — produced single constituent `testv
 
 ### 2. Expand HA 1 → 2 (no per-HA-pair throughput change) — AWS API
 ```
-aws fsx update-file-system --region us-east-2 --file-system-id fs-0db43d5be0f77763f \
+aws fsx update-file-system --region us-east-2 --file-system-id fs-0123456789abcdef0 \
   --storage-capacity 4096 \
   --ontap-configuration '{"HAPairs":2,"ThroughputCapacityPerHAPair":1536}'
 ```
@@ -130,5 +130,5 @@ Result: `Volume "testsvm:testvol" size set to 1t.` Final size 1100204236800 B (�
 | After resize | 1,100,204,236,800 | ≈1 TiB | 17 (~60.2 GB each) |
 
 ## Log retrieval
-fio log pulled off the private fio EC2 via S3: `gzip fio_run.log → s3://s3lambdatest2/.../raw/fio_run.log.gz → local`.
+fio log pulled off the private fio EC2 via S3: `gzip fio_run.log → s3://my-test-bucket/.../raw/fio_run.log.gz → local`.
 Parsed with `parse_fio_multi.py`; plotted with `plot_iops.py`.

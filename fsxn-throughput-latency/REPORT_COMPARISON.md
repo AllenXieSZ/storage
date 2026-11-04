@@ -25,12 +25,12 @@
 | 起始/目标吞吐 | 1536 → 3072 MBps | 同 | 同 |
 | 存储容量 | 1024 GiB SSD | 同 | 同 |
 | Volume | 512 GiB FlexVol, /vol1, UNIX, SE 关闭 | 同 | 同 |
-| 子网/AZ | subnet-0c551a33e366d52d4 / us-east-2c | 同 | 同 |
-| SG | sg-02326ca1dc0af5246 | 复用 | 复用 |
+| 子网/AZ | subnet-0123456789abcdef / us-east-2c | 同 | 同 |
+| SG | sg-0123456789abcdef0 | 复用 | 复用 |
 | 挂载/压测机 | i-0dffb881b2a90daa2 (SSM) | 同 | 同 |
 | 挂载参数 | nfsvers=3, rsize/wsize=64K | 同 | 同(mountproto=tcp) |
 | fio 参数 | bs=16k sync direct=1 numjobs=1 iodepth=1 runtime=8 time_based | 同 | 同 |
-| FileSystemId | fs-0d7924d394930c95f (已删) | fs-0a1bf6a382dc76343 (已删) | fs-01230588a0f9ecfd5 (已删) |
+| FileSystemId | fs-0123456789abcdef0 (已删) | fs-0123456789abcdef0 (已删) | fs-0123456789abcdef0 (已删) |
 
 > 三次均为满足"必须重测升级过程"而删掉已升到 3072 的旧 FS、重建全新 1536 档 FS。除文件系统实例 ID 外，规格逐项一致 → 三次可比。RUN3 测完所有资源已清理（含 SG）。
 
@@ -104,9 +104,9 @@
 
 ### 资源清理（RUN3 = 本系列最后一次，全部清理）
 **✅ 资源已全部清理，无残留计费。**
-- RUN3 新建的 Volume(`fsvol-0eaffa632fa4a7ef0`) → SVM(`svm-01aaa77e47f61b240`) → FileSystem(`fs-01230588a0f9ecfd5`) 已按顺序删除。
-- SG `sg-02326ca1dc0af5246`（本系列复用，不再需要）已删除（确认无 ENI 挂载）。
-- RUN1(`fs-0d7924d394930c95f`)、RUN2(`fs-0a1bf6a382dc76343`) 的文件系统此前均已删除。
+- RUN3 新建的 Volume(`fsvol-0123456789abcdef`) → SVM(`svm-01234567890abcdef`) → FileSystem(`fs-0123456789abcdef0`) 已按顺序删除。
+- SG `sg-0123456789abcdef0`（本系列复用，不再需要）已删除（确认无 ENI 挂载）。
+- RUN1(`fs-0123456789abcdef0`)、RUN2(`fs-0123456789abcdef0`) 的文件系统此前均已删除。
 - 跳板机 `i-0dffb881b2a90daa2` 为共用资源**不删**，其上 RUN3 的 NFS 挂载(`/mnt/fsxtp`)已卸载。
 
 ## 5. 方法学备注（诚实标注）

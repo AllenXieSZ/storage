@@ -38,12 +38,12 @@
 
 | 资源 | ID | 配置 |
 |---|---|---|
-| 源 FSxN | fs-027217e10840009de | Gen2 SINGLE_AZ_2, 起步 1HA / throughput **1536** MB/s / storage 2048GB |
-| 目标 FSxN | fs-07695c839cde46696 | Gen2 SINGLE_AZ_2, 1HA / 1536 / 1024GB |
+| 源 FSxN | fs-0123456789abcdef0 | Gen2 SINGLE_AZ_2, 起步 1HA / throughput **1536** MB/s / storage 2048GB |
+| 目标 FSxN | fs-0123456789abcdef0 | Gen2 SINGLE_AZ_2, 1HA / 1536 / 1024GB |
 | 源 SVM / 卷 | srcsvm / **srcvol** (FlexVol, /srcvol, UNIX, 512GB) | 转换对象 |
 | 目标 SVM / 卷 | dstsvm / dstvol (FlexVol, /dstvol) | DataSync 目标 |
 | 灌数机 EC2 | i-09d530edb2544dc9a | c6i.large, AL2023, ohio key, SSM |
-| SG | sg-07e321ff528ced7b0 | VPC 内全通 + ssh |
+| SG | sg-0123456789abcdef0 | VPC 内全通 + ssh |
 
 私网不通 → 全程 SSM RunShellScript 驱动 EC2 → sshpass `ssh -tt` 连 ONTAP CLI（fsxadmin）。
 

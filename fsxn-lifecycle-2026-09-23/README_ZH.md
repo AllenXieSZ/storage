@@ -251,11 +251,11 @@ pkill fio   # 停业务压测，给重定向低 I/O 窗口
 
 | 资源 | ID / 值 | 状态 |
 |---|---|---|
-| FSxN Gen2 | `fs-0806e114696713d2c` | **保留** |
-| SVM | `svm-02d9b4728dd51dcbd`（lifesvm）| 保留 |
-| FlexGroup 卷 | `fsvol-0f92a7bfb7cd9692d`（lifevol）| 保留 |
-| 管理端点 IP | `172.31.44.166`（fsxadmin 登录）| — |
-| NFS 端点 IP | `172.31.47.6` | — |
+| FSxN Gen2 | `fs-0123456789abcdef0` | **保留** |
+| SVM | `svm-01234567890abcdef`（lifesvm）| 保留 |
+| FlexGroup 卷 | `fsvol-0123456789abcdef`（lifevol）| 保留 |
+| 管理端点 IP | `172.31.x.x`（fsxadmin 登录）| — |
+| NFS 端点 IP | `172.31.x.x` | — |
 | fio 客户端 EC2 (RUN1) | `i-0f94cb684f2cb38bb`（c6in.4xlarge）| **已终止** |
 | fio 客户端 EC2 (RUN2) | `i-0fb1bb68551670ebe`（c6in.4xlarge）| **已终止** |
 | Region | us-east-2 | — |

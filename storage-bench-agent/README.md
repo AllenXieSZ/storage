@@ -32,7 +32,7 @@ plugin_<x>.py   # 未来: iperf3(网络) / sysbench(DB) / s3-throughput / gds ..
 - [x] IAM: storage-bench-lambda-role + storage-bench-ec2-profile(SSM) 已建
 - [ ] 部署为 Lambda(matplotlib layer) + API Gateway + API Key (目前本地 local_run.py 验证)
 - [ ] 编排上 Step Functions（避免单 Lambda 15min 上限）
-- [ ] FSx ONTAP 联调（复用现有 fs-0cd1fb5168fa75437 NFS 端点）
+- [ ] FSx ONTAP 联调（复用现有 fs-0123456789abcdef0 NFS 端点）
 - [ ] T9 IAM 最小权限收敛 + cleanup 二次确认
 
 ## 实测踩坑记录 (2026-08-29)
@@ -56,6 +56,6 @@ requirements.txt        boto3 + matplotlib
 
 ## 资源清单（用于清理，避免遗忘计费）
 - DynamoDB: `storage-bench-tasks` (us-east-2) — 空表按需计费 ~$0
-- 默认: VPC vpc-0c28d2a9082ef222e / subnet-0c551a33e366d52d4(2c) / AMI ami-06475e8f54266e38e / ohio key
-- 报告 bucket: s3lambdatest2/storage-bench-reports/
+- 默认: VPC vpc-0123456789abcdef0 / subnet-0123456789abcdef(2c) / AMI ami-06475e8f54266e38e / ohio key
+- 报告 bucket: my-test-bucket/storage-bench-reports/
 - Account: <ACCOUNT_ID> / region us-east-2

@@ -71,7 +71,7 @@ class FioPlugin(TestPlugin):
             ])
         elif st == "fsx-ontap":
             # FSx ONTAP: 阶段一先支持"复用已有 FSx"(传 nfsEndpoint+junction), 建新 FSx 留 T8
-            nfs = p["storageSpec"]["nfsEndpoint"]      # e.g. 172.31.35.226:/mfvol
+            nfs = p["storageSpec"]["nfsEndpoint"]      # e.g. 172.31.x.x:/mfvol
             self._ssm_run(iid, [
                 "yum install -y nfs-utils || true",
                 "mkdir -p /mnt/bench",

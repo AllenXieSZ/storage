@@ -50,7 +50,7 @@
 两卷 `snapmirror show` / `list-destinations` / `show-history` 全空，`volume snapshot show` 无快照，**snapshot-count = 0**。
 
 ### 3.2 FSx 卷级 Backup（仅 bkpvol）
-- `aws fsx create-backup --volume-id fsvol-0b96244abc8fcb7bd` → `backup-01aaa29249100f88b`
+- `aws fsx create-backup --volume-id fsvol-0123456789abcdef` → `backup-01aaa29249100f88b`
 - 到 AVAILABLE 耗时 **~259s（约 4.5 min）**。
 
 ### 3.3 备份【后】状态对照（diag 级）
@@ -146,7 +146,7 @@ Source: [Managing FSx for ONTAP volumes — Volume styles](https://docs.aws.amaz
 
 ## 六、资源清单（全部保留，删除前先问小帅）
 
-见同目录 `RESOURCES.md`。关键：FSxN `fs-0184d1e4b81ce12a8`，SVM `svm-0af4df6f58574e440`（bkpfgsvm），bkpvol `fsvol-0b96244abc8fcb7bd`，cleanvol `fsvol-0ff9b92f659a38ed5`，backup `backup-01aaa29249100f88b`，EC2 `i-0e64df080d1d36235`。
+见同目录 `RESOURCES.md`。关键：FSxN `fs-0123456789abcdef0`，SVM `svm-01234567890abcdef`（bkpfgsvm），bkpvol `fsvol-0123456789abcdef`，cleanvol `fsvol-0123456789abcdef`，backup `backup-01aaa29249100f88b`，EC2 `i-0e64df080d1d36235`。
 
 ---
 

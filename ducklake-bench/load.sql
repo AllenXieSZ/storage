@@ -9,7 +9,7 @@ CREATE OR REPLACE SECRET s3sec (TYPE s3, PROVIDER credential_chain, REGION '__RE
 ATTACH '/home/ec2-user/bench/tpcds_sf100.duckdb' AS src (READ_ONLY);
 
 -- A: DuckLake (postgres catalog + S3 数据)
-ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=127.0.0.1 user=dl password=dl' AS dl
+ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=127.0.0.1 user=dl password=<DB_PASSWORD>' AS dl
   (DATA_PATH 's3://__BUCKET__/ducklake/');
 CREATE SCHEMA IF NOT EXISTS dl.bench;
 

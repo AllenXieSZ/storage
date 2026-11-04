@@ -11,7 +11,7 @@ I/O size 取 5 档：**512K / 1M / 2M / 4M / 8M**。
 | 项目 | 配置 |
 |------|------|
 | 存储 | Amazon EFS，**Elastic Throughput（弹性吞吐）**，General Purpose 性能模式，加密 |
-| EFS ID | fs-045bbde273186f931 |
+| EFS ID | fs-0123456789abcdef0 |
 | 挂载方式 | 官方 EFS mount helper：`sudo mount -t efs -o tls fs-xxx:/ /mnt/efs` |
 | 挂载参数（实际生效） | nfs4，vers=4.1，rsize=1048576，wsize=1048576，hard，noresvport，proto=tcp，timeo=600，retrans=2，传输加密（TLS，stunnel 本地 127.0.0.1 代理） |
 | 客户端工具 | amazon-efs-utils 3.3.2 |

@@ -15,7 +15,7 @@ CREATE OR REPLACE SECRET s3secret (TYPE s3, PROVIDER credential_chain, REGION '_
 ATTACH '/home/ec2-user/bench/tpcds_sf100.duckdb' AS src (READ_ONLY);
 
 -- ========== A 组: DuckLake (元数据 -> PostgreSQL, 数据 -> S3 Parquet) ==========
-ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=127.0.0.1 user=dl password=dl' AS dl
+ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=127.0.0.1 user=dl password=<DB_PASSWORD>' AS dl
   (DATA_PATH 's3://__BUCKET__/ducklake/');
 
 -- ========== B 组: 自管 Iceberg (DuckDB iceberg 写, 数据+元数据 -> S3) ==========
