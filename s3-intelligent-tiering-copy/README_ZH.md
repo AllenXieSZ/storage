@@ -8,9 +8,11 @@
 > - "Objects that are uploaded or transitioned to S3 Intelligent-Tiering are automatically stored in the **Frequent Access tier**."
 > - "When objects move between access tiers, **the storage class remains the same** (S3 Intelligent-Tiering)."
 
+---
+
 ## 推荐方案：S3 Replication ✅
 
-配置 S3 Replication（SRR 同区域 或 CRR 跨区域），目标 Storage Class 设为 INTELLIGENT_TIERING。
+配置 S3 Replication（SRR 同区域 / CRR 跨区域），目标 Storage Class 设为 INTELLIGENT_TIERING。
 
 ```json
 {
@@ -37,38 +39,70 @@
 - ✅ 可配合 S3 RTC（Replication Time Control）保障 99.99% 对象 15 分钟内完成复制
 
 **缺点：**
-- ❌ 无法保留源 tier，从 Frequent Access 重新开始
-- ❌ 源 bucket 需要开启 Versioning
-- ❌ **源 bucket 的对象会被提升回 Frequent Access tier**：CopyObject / Replication 操作会被 S3 视为一次"访问"，源对象如果在 IA / Archive Instant Access tier，会被自动提升回 Frequent Access tier（官方原文："the source objects of the copy or replication operations are **tiered up**"）。这意味着复制期间**源 bucket 的存储费也会临时上升**，需要等 30/90 天重新沉降
+- ❌ 无法保留源 tier，目标对象从 Frequent Access 重新开始
+- ❌ 源 bucket 需要开启 Versioning（Replication 前提条件）
+- ❌ **源 bucket 的对象会被提升回 Frequent Access tier**：CopyObject / Replication 操作被 S3 视为一次"访问"，源对象如果在 IA / Archive Instant Access tier，会被自动提升回 Frequent Access tier（官方原文："the source objects of the copy or replication operations are **tiered up**"）。复制期间**源 bucket 的存储费也会临时上升**，需等 30/90 天重新沉降
 - ❌ Archive Access / Deep Archive Access tier 的对象**不能直接复制**，需要先 RestoreObject
 
 **注意事项：**
-- 源 bucket 必须开启 Versioning（Replication 前提条件）
-- 如果源 bucket 有对象在 Archive Access 或 Deep Archive Access tier，需要先 restore 再复制，或者排除这些对象后单独处理
+- 源 bucket 必须开启 Versioning
+- 如果源 bucket 有对象在 Archive Access 或 Deep Archive Access tier，需要先 restore 再复制，或者排除后单独处理
 - 目标 bucket 配置与源相同的 Intelligent-Tiering Configuration（Archive Access / Deep Archive Access 的激活天数），确保分层策略一致
+
+### S3 Replication 费用
+
+| 费用项 | 说明 | 价格参考（us-east-1） |
+|---|---|---|
+| **Replication PUT 请求** | 每个对象复制产生一次 PUT | $0.005 / 1,000 请求 |
+| **S3 Batch Replication Job** | 存量复制的 Job 管理费 | $0.025 / Job + $1.00 / 百万对象 |
+| **跨 Region 数据传输（DTO）** | ⚠️ **仅跨 Region 时收取**，同 Region 免费 | $0.02/GB（us-east-1 → 大多数 Region） |
+| **源端 GET 请求** | 读取源对象 | $0.0004 / 1,000 请求 |
+| **S3 RTC（可选）** | Replication Time Control 附加费 | $0.015/GB |
+
+> **⚠️ 跨 Region 复制的 DTO 费用是大头。** 例如 100 TB 跨 Region 复制，DTO ≈ $2,000。同 Region 复制（SRR）无 DTO 费用。
+
+### 费用估算示例
+
+以 **100 TB 数据、1 亿个对象、同 Region** 为例：
+
+| 费用项 | 计算 | 金额 |
+|---|---|---|
+| Batch Replication Job | $0.025 + 100 × $1.00 | $100.03 |
+| PUT 请求（1 亿） | 100,000 × $0.005 | $500 |
+| GET 请求（1 亿） | 100,000 × $0.0004 | $40 |
+| DTO（同 Region） | 免费 | $0 |
+| **合计** | | **~$640** |
+
+如果是**跨 Region**，额外增加 DTO：100 TB × $0.02/GB = **$2,048**，总计约 **$2,688**。
+
+---
 
 ## 不推荐方案：按源 tier 映射到独立 Storage Class ❌
 
-用 S3 Inventory 查出每个对象的 access tier，按映射关系 copy 到对应的独立 Storage Class（IA→Standard-IA, Archive Instant→Glacier IR 等）。
+思路：用 S3 Inventory 查出每个对象的 access tier，按映射关系通过 S3 Batch Operations 或 S3 Replication copy 到对应的独立 Storage Class（IA → Standard-IA, Archive Instant → Glacier IR 等）。
 
 **三个致命问题：**
 
 1. **很多 Storage Class 不能 lifecycle 回 Intelligent-Tiering**：Glacier IR / Glacier FR / Deep Archive / One Zone-IA 都不支持通过 lifecycle transition 到 Intelligent-Tiering。S3 lifecycle 是单向瀑布流（[Supported lifecycle transitions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-transition-general-considerations.html)），只能往下走，不能往回走。
-2. **独立 Storage Class 有 retrieval 费，Intelligent-Tiering 没有**：IT 的 IA / Archive Instant Access tier 读取**零 retrieval 费**（官方原文："There are no retrieval charges in S3 Intelligent-Tiering"），但 Standard-IA / Glacier IR 每次读都收 per-GB retrieval 费，凭空增加持续性开支。
+2. **独立 Storage Class 有 retrieval 费，Intelligent-Tiering 没有**：IT 的 IA / Archive Instant Access tier 读取**零 retrieval 费**（官方原文："There are no retrieval charges in S3 Intelligent-Tiering"），但 Standard-IA 读取收 $0.01/GB、Glacier IR 收 $0.03/GB retrieval 费。等于凭空增加持续性开支，数据越读越贵。
 3. **既然已经在独立 Storage Class 了，再搬回 IT 没有意义**：操作复杂、费用高、很多路径还走不通。
+
+---
 
 ## 过渡期成本评估
 
 对象到目标 bucket 后都从 Frequent Access 开始。可用 S3 Inventory 导出源 bucket 的 `IntelligentTieringAccessTier` 字段，统计各 tier 数据量，预估过渡期成本差异：
 
-| 源 Tier | 重新沉降所需天数 | 过渡期价格差（us-east-1） |
+| 源 Tier | 重新沉降所需天数 | 过渡期价格差（us-east-1, per GB-月） |
 |---|---|---|
-| Infrequent Access | 30 天 | Frequent $0.023 vs IA $0.0125/GB-月 |
-| Archive Instant Access | 90 天 | Frequent $0.023 vs AIA $0.004/GB-月 |
-| Archive Access | 90~730 天（按配置） | Frequent $0.023 vs AA $0.0036/GB-月 |
-| Deep Archive Access | 180~730 天（按配置） | Frequent $0.023 vs DA $0.00099/GB-月 |
+| Infrequent Access | 30 天 | FA $0.023 vs IA $0.0125（多 $0.0105） |
+| Archive Instant Access | 90 天 | FA $0.023 vs AIA $0.004（多 $0.019） |
+| Archive Access | 90~730 天（按配置） | FA $0.023 vs AA $0.0036（多 $0.0194） |
+| Deep Archive Access | 180~730 天（按配置） | FA $0.023 vs DA $0.00099（多 $0.022） |
 
 大部分数据（IA + Archive Instant）会在 30~90 天内恢复到对应 tier，过渡期成本可控。
+
+---
 
 ## 参考文档
 
@@ -76,3 +110,4 @@
 - [What does Amazon S3 replicate?](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication-what-is-isnot-replicated.html)
 - [Replication configuration - Specify storage class](https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication-add-config.html#storage-class-configuration)
 - [Supported lifecycle transitions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-transition-general-considerations.html)
+- [Amazon S3 Pricing](https://aws.amazon.com/s3/pricing/)
