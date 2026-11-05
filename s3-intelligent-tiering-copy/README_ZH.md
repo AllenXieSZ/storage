@@ -39,6 +39,7 @@
 **缺点：**
 - ❌ 无法保留源 tier，从 Frequent Access 重新开始
 - ❌ 源 bucket 需要开启 Versioning
+- ❌ **源 bucket 的对象会被提升回 Frequent Access tier**：CopyObject / Replication 操作会被 S3 视为一次"访问"，源对象如果在 IA / Archive Instant Access tier，会被自动提升回 Frequent Access tier（官方原文："the source objects of the copy or replication operations are **tiered up**"）。这意味着复制期间**源 bucket 的存储费也会临时上升**，需要等 30/90 天重新沉降
 - ❌ Archive Access / Deep Archive Access tier 的对象**不能直接复制**，需要先 RestoreObject
 
 **注意事项：**
