@@ -25,6 +25,7 @@
 | 项目 | 内容 |
 |------|------|
 | **[self-built-lustre-raid1](./self-built-lustre-raid1/)** | 自建 Lustre + mdadm RAID1 全套：部署 / 性能 / OST 故障 / RAID1 改造 / 换盘 / 扩展测试 / 无 RAID EBS 丢失测试 |
+| **[fsx-lustre-p1-project-quota](./fsx-lustre-p1-project-quota/)** | FSx Lustre Persistent 1 + Lustre 2.15 的 project quota 实测：`lfs project` / `lfs setquota -p` 可用，block 硬限、inode 硬限、soft limit + grace 均生效；root 不受限但计入用量，mv 入目录约 10s 后计入，remount 后设置保留 |
 | **[fsx-lustre-du-vs-xfs](./fsx-lustre-du-vs-xfs/)** | FSx Lustre（2.15.6 客户端）vs 本地 xfs 的 `du -sm` 差异实测：写入客户端 st_blocks 缓存偏小及刷新方法（remount / `ldlm lru_size=clear`）；稳定后 Lustre 一律偏大——大文件 +0.035%，≤128K 小文件每个 +8.5 KiB，>128K 按 256K 取整，目录 +25 KiB、symlink +5 KiB |
 | **[fsx-lustre-warmup](./fsx-lustre-warmup/)** | FSx Lustre warmup（S3→Lustre）脚本，含 v2 快速识别版（`lfs find -L released`，~40x 加速） |
 | **[lustre-hsm-s3-guide](./lustre-hsm-s3-guide/)** | 开源 Lustre 通过 HSM (Estuary copytool) 归档到 S3 的完整部署指南（含源码补丁、systemd 自启） |
