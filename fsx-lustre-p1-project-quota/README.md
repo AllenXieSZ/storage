@@ -1,8 +1,168 @@
-# FSx for Lustre Persistent 1（Lustre 2.15）设置 Project Quota 实测
+# FSx for Lustre Project Quota：新建 2.15 支持，升级到 2.15 不支持（实测）
+
+测试时间：2026-11-17，us-east-2，FSx for Lustre Persistent 1（SSD 50 MB/s/TiB，1200 GiB），客户端 AL2023 + `lustre-client 2.15.6`。
+
+## ⭐ 关键结论（全部已实测）
+
+| 文件系统来源 | 服务端版本 | `lfs project -sp` | `lfs setquota -p` | `lfs quota -p` | limit 是否生效 |
+|---|---|---|---|---|---|
+| **新建时指定 2.15** | 2.15.8.0 | ✅ | ✅ | ✅ | ✅ **生效** |
+| **2.12 创建 → 升级到 2.15** | 2.15.8.0 | ❌ Operation not supported | ❌ rc=95 | ❌ rc=95 | ❌ **不生效** |
+| **2.10 创建 → 升级到 2.15** | 2.15.8.0 | ❌ Operation not supported | ❌ rc=95 | ❌ rc=95 | ❌ **不生效** |
+| 升级后的 FS → backup → restore 成新 FS（2.15） | 2.15.8.0 | ❌ | ❌ rc=95 | ❌ rc=95 | ❌ 不生效 |
+| 2.12 服务端（未升级） | 2.12.9.0 | ⚠️ rc=0 但 projid 仍为 0（**假成功**） | ❌ rc=95 | ❌ rc=95 | ❌ |
+| 新建 2.15 + **2.12.8 客户端** | 2.15.8.0 | ✅ | ✅ | ✅ | ✅ 生效（客户端 2.12 不是原因） |
+
+- **升级上来的 FS，`describe-file-systems` 显示 `FileSystemTypeVersion=2.15`、服务端 `target_version: 2.15.8.0`，客户端完全看不出区别**（MDC connect_flags 与新建 2.15 完全一致），但 project quota 不可用。
+- **user / group quota 在升级上来的 FS 上正常**，只有 project quota 不可用。
+- **客户端无法修复**：umount/remount、`lustre_rmmod` 重载模块、换客户端版本、升级后等 20 分钟、再执行一次 `update-file-system`（no-op）、backup→restore，全部无效。
+- **唯一已实测可行的方案：新建一个创建时就指定 `--file-system-type-version 2.15` 的 FS，再迁移数据。**
+- FSx 文档（[Storage quotas](https://docs.aws.amazon.com/fsx/latest/LustreGuide/lustre-quotas.html)）只写了 *"Project quotas are only supported on Lustre version 2.15"*，**没有说明升级到 2.15 的 FS 不支持**（2026-11-17 查阅）。
+
+## 1. 升级上来的 FS 报错原文（2.12 → 2.15，客户端 2.15.6）
+
+```
+client: 2.15.6
+server:        target_version: 2.15.8.0
+$ lfs project -sp 29017 /mnt/fsx/proj29017
+lfs: failed to set xattr for '/mnt/fsx/proj29017': Operation not supported
+rc=1
+$ lfs project -d /mnt/fsx/proj29017
+    0 - /mnt/fsx/proj29017
+rc=0
+$ lfs setquota -p 29017 -B 1G /mnt/fsx
+setquota failed: Operation not supported
+rc=95
+$ lfs quota -p 29017 /mnt/fsx
+Unexpected quotactl error: Operation not supported
+Disk quotas for prj 29017 (pid 29017):
+     Filesystem  kbytes   quota   limit   grace   files   quota   limit   grace
+       /mnt/fsx     [0]     [0]     [0]       -     [0]     [0]     [0]       -
+Some errors happened when getting quota info. Some devices may be not working or deactivated. The data in "[]" is inaccurate.
+rc=95
+$ lfs quota -u quser /mnt/fsx
+uid 2001 is using default file quota setting
+rc=0
+--- dmesg
+Lustre: Unmounted <MOUNT_NAME>-client
+Lustre: Mounted <MOUNT_NAME>-client
+LustreError: (osc_quota.c:309:osc_quotactl()) ptlrpc_queue_wait failed, rc: -95
+LustreError: (mdc_request.c:2111:mdc_quotactl()) <MOUNT_NAME>-MDT0000-mdc-<id>: ptlrpc_queue_wait failed: rc = -95
+LustreError: (lmv_obd.c:4049:lmv_quotactl()) getquota on mdt 0 failed. -95
+```
+
+> 普通用户写 1.5 GiB（project 硬限 1 GiB）**全部写入成功**，limit 没有生效。
+
+### 升级前（服务端 2.12.9.0）对照
+```
+client: 2.15.6
+server:        target_version: 2.12.9.0
+$ lfs project -sp 29017 /mnt/fsx/proj29017
+rc=0
+$ lfs project -d /mnt/fsx/proj29017
+    0 - /mnt/fsx/proj29017
+rc=0
+$ lfs setquota -p 29017 -B 1G /mnt/fsx
+setquota failed: Operation not supported
+rc=95
+$ lfs quota -p 29017 /mnt/fsx
+Unexpected quotactl error: Operation not supported
+Disk quotas for prj 29017 (pid 29017):
+     Filesystem  kbytes   quota   limit   grace   files   quota   limit   grace
+       /mnt/fsx     [0]     [0]     [0]       -     [0]     [0]     [0]       -
+Some errors happened when getting quota info. Some devices may be not working or deactivated. The data in "[]" is inaccurate.
+rc=95
+$ lfs quota -u quser /mnt/fsx
+```
+注意：2.12 上 `lfs project -sp` **返回 rc=0，但 `lfs project -d` 显示 projid 仍是 0**，容易误以为设置成功。
+
+### 用 backup restore 出的新 FS（2.15）——仍然报错
+```
+server:        target_version: 2.15.8.0
+$ lfs project -sp 29017
+lfs: failed to set xattr for '/mnt/fsx/proj29017_r': Operation not supported
+rc=1
+    0 - /mnt/fsx/proj29017_r
+$ lfs setquota -p 29017 -B 1G
+setquota failed: Operation not supported
+rc=95
+$ lfs quota -p 29017
+Unexpected quotactl error: Operation not supported
+Disk quotas for prj 29017 (pid 29017):
+     Filesystem  kbytes   quota   limit   grace   files   quota   limit   grace
+       /mnt/fsx     [0]     [0]     [0]       -     [0]     [0]     [0]       -
+Some errors happened when getting quota info. Some devices may be not working or deactivated. The data in "[]" is inaccurate.
+rc=95
+--- 已有（升级前）目录 proj29017 打 projid
+lfs: failed to set xattr for '/mnt/fsx/proj29017': Operation not supported
+```
+
+## 2. 根因（Lustre 官方手册 + 源码 + 实测）
+
+**MDT/OST 的 ldiskfs 磁盘没有开启 `PROJECT` feature。版本升级只替换 Lustre 软件，不会自动开启这个磁盘特性。**
+
+### 2.1 Lustre 官方手册（[lustre-manual](https://github.com/lustre/lustre-manual) `ConfiguringQuotas.xml` / `UpgradingLustre.xml`）
+- *"For ldiskfs backends, mkfs.lustre now creates empty quota files and enables the QUOTA feature flag in the superblock ... **The project quota feature is disabled by default, and tune2fs needs to be run to enable every target manually.**"*
+- *"Lustre filesystems formatted with a Lustre release prior to 2.10 ... will not have project quota usage reporting functional until 2.15.0 or **`tune2fs -O project` is run against all ldiskfs backend targets**. This command sets the PROJECT feature flag in the superblock and runs e2fsck (**as a result, the target must be offline**)."*
+- 升级章节：*"to enable the project quota feature enter the following on every ldiskfs backend target while unmounted: `tune2fs -O project /dev/dev`"*，enforcement 在 MGS 上通过 `lctl set_param -P osd-*.<fs>*.quota_slave*.enabled=ugp` 开启。
+
+### 2.2 Lustre 源码（[lustre-release](https://github.com/lustre/lustre-release) master）：三条报错同一根因
+| 命令 | 服务端代码 | 触发条件 |
+|---|---|---|
+| `lfs project -sp` | `lustre/osd-ldiskfs/osd_handler.c` `osd_transfer_project()`：`if (!ldiskfs_has_feature_project(sb)) { ... if (projid != LDISKFS_DEF_PROJID) return -EOPNOTSUPP; }` | ldiskfs 无 PROJECT feature 且 projid≠0 |
+| `lfs setquota -p` / `lfs quota -p` | `lustre/osd-ldiskfs/osd_quota.c`：`case PRJQUOTA: if (ldiskfs_has_feature_project(sb)) ... else RETURN(-ENOENT)` → `lustre/quota/lquota_lib.c` `acct_obj_lookup()` 失败 → `RETURN(-EOPNOTSUPP)` | 同上，project accounting 对象不存在 |
+
+### 2.3 客户端实测佐证
+```
+--- lfs project -p 29017 (no -s) on file
+lfs: failed to set xattr for '/mnt/fsx/p2/f': Operation not supported
+rc=1
+--- lfs project -s (inherit flag only, projid 0)
+rc=0
+    0 P /mnt/fsx/p2
+--- strace errno of lfs project
+ioctl(3, FS_IOC_FSGETXATTR, {fsx_xflags=FS_XFLAG_PROJINHERIT, fsx_extsize=32695, fsx_nextents=1416958012, fsx_projid=0, fsx_cowextsize=1131230656}) = 0
+ioctl(3, FS_IOC_FSSETXATTR, {fsx_xflags=FS_XFLAG_PROJINHERIT, fsx_extsize=32695, fsx_projid=0x7159, fsx_cowextsize=1131230656}) = -1 EOPNOTSUPP (Operation not supported)
+```
+- `ioctl(FS_IOC_FSSETXATTR, projid=0x7159)` 返回 **EOPNOTSUPP**；
+- 只设继承标志、projid=0 的 `lfs project -s` **成功**（`0 P`）——与源码 `if (projid != LDISKFS_DEF_PROJID) return -EOPNOTSUPP` 精确对应；
+- user/group quota 正常 → QUOTA feature 存在，只缺 PROJECT feature。
+
+> 推测（未实测）：FSx 的版本升级流程未对 MDT/OST 执行 `tune2fs -O project`；FSx 新建 2.15 时 mkfs 已带 PROJECT feature（由新建 2.15 project quota 可用反推，FSx 内部参数未公开）。`tune2fs` 需要服务端块设备 root 权限且目标离线，客户无法执行。
+
+## 3. 遇到 rc=95 时的排查顺序
+
+```bash
+id -u                                                        # 非 root 报 "Operation not permitted"（EPERM），不是 rc=95
+stat -f -c %T <dir>                                          # 必须是 lustre；tmpfs/ext4 上 lfs project 也会报 "Operation not supported"
+lctl get_param -n mdc.*.import | grep target_version         # 服务端实际版本
+aws fsx describe-file-systems --file-system-ids <FS_ID> \
+  --query 'FileSystems[0].[FileSystemTypeVersion,CreationTime,AdministrativeActions[?AdministrativeActionType==`FILE_SYSTEM_UPDATE`]]'
+dmesg | grep -E "quotactl|rc = -95|rc: -95"
+```
+
+| 现象 | 判断 |
+|---|---|
+| 三条都报 `Operation not supported`，服务端 2.15，**有过 FILE_SYSTEM_UPDATE 升级记录** | 升级上来的 FS，磁盘缺 PROJECT feature → 新建 2.15 FS 迁移，或开 AWS Support case |
+| `lfs project` rc=0 但 projid 仍为 0，setquota/quota rc=95 | 服务端还是 2.10/2.12 |
+| `Operation not permitted` | 没用 root |
+| `lfs project` not supported，setquota/quota `No such device (rc=19)` | 路径不在 Lustre 上 |
+
+## 4. 升级 Lustre 版本的坑（已实测）
+- **只 umount 不够**：umount 后 LNet（TCP 988）连接仍在，`update-file-system` 约 10 分钟后失败：
+  *"Amazon FSx is unable to update the Lustre version of your file system because clients are currently connected to the file system."*
+  所有客户端执行 `lustre_rmmod` 后重试成功（2.10→2.15 约 11.5 分钟，2.12→2.15 约 15 分钟）。
+- 2.15.6 客户端无法挂载 2.10 服务端：*"Server MGS version (2.10.5.0) refused connection from this client with an incompatible version (2.15.6)"*。
+- **想用 project quota，就不要走"建 2.10/2.12 再升级"这条路，创建时直接指定 2.15**（P1 CLI 默认是 2.10）。
+
+---
+
+# 附：新建 2.15 FS 的 project quota 完整实测（支持且生效）
+
 
 测试时间：2026-11-17（us-east-2）。结论：**可以设置，且 limit 生效**（block 硬限、inode 硬限、soft limit + grace 均实测生效）。
 
-## 0. 结论速览（全部已实测）
+## A0. 结论速览（全部已实测）
 
 | 测试项 | 结果 |
 |---|---|
@@ -20,7 +180,7 @@
 | 删除文件后 | ✅ 用量下降，恢复可写（统计有数十秒延迟） |
 | umount/remount 后 | ✅ 配额、grace 设置、目录 projid 均保留（存在服务端） |
 
-## 1. 环境
+## A1. 环境
 
 | 项 | 值 |
 |---|---|
@@ -39,7 +199,7 @@ aws fsx create-file-system --region us-east-2 --file-system-type LUSTRE \
 ```
 客户端：`sudo dnf install -y lustre-client`（AL2023 默认 2.15.6）
 
-## 2. 配额设置命令
+## A2. 配额设置命令
 ```bash
 # 绑定目录到 project 100（-r 递归，-s 设置继承标志）
 lfs project -p 100 -r -s /mnt/fsx/proj100
@@ -52,9 +212,9 @@ lfs setquota -t -p -b 60 -i 60 /mnt/fsx
 ```
 注：`-i 1024` 时 lfs 给出 warning `inode softlimit '1024' smaller than minimum qunit size`，但设置成功且生效。
 
-## 3. 原始输出
+## A3. 原始输出
 
-### 3.1 挂载与环境（c1）
+### A3.1 挂载与环境（c1）
 ```
 [SSM status=Success]
 + mkdir -p /mnt/fsx
@@ -97,7 +257,7 @@ pid 100 is using default file quota setting
 
 ```
 
-### 3.2 设置配额 + block 硬限制 + 对照（c2）
+### A3.2 设置配额 + block 硬限制 + 对照（c2）
 ```
 [SSM status=Success]
 ### 2.1 创建目录、绑定 project 100（继承标志 -s，递归 -r）
@@ -149,10 +309,10 @@ Disk quotas for prj 100 (pid 100):
 
 ```
 
-### 3.3 报错原文 + inode 硬限 + soft/grace + mv（c3）
+### A3.3 报错原文 + inode 硬限 + soft/grace + mv（c3）
 ```
 [SSM status=Success]
-### 3.0 当前目录内容 + 等 30s 后 usage（检查删除后的统计）
+### 0 当前目录内容 + 等 30s 后 usage（检查删除后的统计）
 total 59
 drwxrwxrwx. 3 quser quser 25600 Nov 17 01:46 .
 drwxr-xr-x. 6 root  root  33280 Nov 17 01:46 ..
@@ -162,7 +322,7 @@ drwxr-xr-x. 2 quser quser  1024 Nov 17 01:46 sub
 Disk quotas for prj 100 (pid 100):
      Filesystem  kbytes   quota   limit   grace   files   quota   limit   grace
        /mnt/fsx      66   51200  102400       -       4    1024    2000       -
-### 3.1 block 硬限制报错原文（quser 写 150MiB）
+### 1 block 硬限制报错原文（quser 写 150MiB）
 dd: error writing '/mnt/fsx/proj100/big2': Disk quota exceeded
 100+0 records in
 99+0 records out
@@ -173,7 +333,7 @@ small write exit=0
 Disk quotas for prj 100 (pid 100):
      Filesystem  kbytes   quota   limit   grace   files   quota   limit   grace
        /mnt/fsx      66   51200  102400       -       4    1024    2000       -
-### 3.2 inode 硬限制：quser 在 project 目录建 2500 个文件（硬 2000）
+### 2 inode 硬限制：quser 在 project 目录建 2500 个文件（硬 2000）
 failed at #1996: touch: cannot touch '/mnt/fsx/proj100/many/f1996': Disk quota exceeded
 created=1995
 1995
@@ -183,7 +343,7 @@ Disk quotas for prj 100 (pid 100):
 Disk quotas for prj 100 (pid 100):
      Filesystem  kbytes   quota   limit   grace   files   quota   limit   grace
        /mnt/fsx      66   51200  102400       -       4    1024    2000       -
-### 3.3 soft limit + grace：block grace 改成 60s
+### 3 soft limit + grace：block grace 改成 60s
 Block grace time: 1m; Inode grace time: 1m
 lfs setquota: warning: inode softlimit '1024' smaller than minimum qunit size
 See 'lfs help setquota' or Lustre manual for details
@@ -207,7 +367,7 @@ total 85067
 -rw-r--r--. 1 quser quser 10485760 Nov 17 01:48 soft2
 -rw-r--r--. 1 quser quser  3145728 Nov 17 01:49 soft3
 drwxr-xr-x. 2 quser quser    25600 Nov 17 01:46 sub
-### 3.4 把已有的非 project 文件 mv 进来是否计入（rename 同 FS）
+### 4 把已有的非 project 文件 mv 进来是否计入（rename 同 FS）
 31457280 bytes (31 MB, 30 MiB) copied, 0.0668827 s, 470 MB/s
     0 - /mnt/fsx/noproj/m1
 mv exit=0
@@ -219,7 +379,7 @@ Disk quotas for prj 100 (pid 100):
 
 ```
 
-### 3.4 mv 延迟、root 写入、remount 保留（c4）
+### A3.4 mv 延迟、root 写入、remount 保留（c4）
 ```
 [SSM status=Success]
 ### 4.1 mv 进来的 30MiB 文件：等 30s 再看用量
@@ -245,7 +405,7 @@ Block grace time: 1m; Inode grace time: 1m
 
 ```
 
-## 4. 观察与注意事项
+## A4. 观察与注意事项
 
 1. **硬限制是"写到接近 limit 时拒绝"，不是精确到字节**：100 MiB 硬限写到 99 MiB 被拒；inode 2000 硬限到 1999 被拒（Lustre 配额按 qunit 分配给 OST/MDT）。
 2. **超限后小写入的表现**：block 硬限触发后 `dd` 1 MiB 直接写入 0 字节；但 `echo hello > file`（几字节、走客户端缓存）在 3.1 中 exit=0——推测（未实测）：小写入先进 page cache，返回成功，回写时才可能失败；应用侧应检查 `close()/fsync()` 返回值。
@@ -255,10 +415,10 @@ Block grace time: 1m; Inode grace time: 1m
 6. **grace 字段**：超软限后显示剩余 grace（如 `1m`、`6d23h59m55s`），过期后显示 `none`，此时软限变硬限。
 7. Project quota 只支持 Lustre 2.15（FSx 文档："Project quotas are only supported on Lustre version 2.15 on FSx for Lustre file systems"）。P1 默认版本是 2.10，**必须在创建时指定 `--file-system-type-version 2.15`**（或从 2.10/2.12 升级到 2.15）。
 
-## 5. 资源清理
+## A5. 资源清理
 测试目录已删除并卸载；客户端 EC2 已 terminate；文件系统已删除（SkipFinalBackup）。
 
 参考：[FSx for Lustre Storage quotas](https://docs.aws.amazon.com/fsx/latest/LustreGuide/lustre-quotas.html)
 
-## 6. 复现脚本
-[`scripts/`](./scripts/)：`c0` 安装客户端 → `c1` 挂载/环境/建用户 → `c2` 设置配额 + block 硬限 + 对照 → `c3` 报错原文 + inode 硬限 + soft/grace + mv → `c4` mv 延迟 + root 写入 + remount 保留。按顺序以 root 执行。
+## A6. 复现脚本
+[`scripts/`](./scripts/)：`upgrade_test.sh` 复现升级后不可用；`c0` 安装客户端 → `c1` 挂载/环境/建用户 → `c2` 设置配额 + block 硬限 + 对照 → `c3` 报错原文 + inode 硬限 + soft/grace + mv → `c4` mv 延迟 + root 写入 + remount 保留。按顺序以 root 执行。
