@@ -50,15 +50,6 @@ Tested with 2 FSx Lustre SCRATCH_2 file systems (us-east-2).
 | Invoke skip again (idempotent) | `2:02:00` unchanged | `changed: false` |
 | Invoke restore | `2:02:00` → `3:02:00` | `changed: true` |
 
-### Issues Found & Fixed During Development
-
-| Issue | Impact | Fix |
-|---|---|---|
-| Relative shift (±24h) | Double-shift on re-invoke | Absolute value (idempotent) |
-| Immediate invoke on deploy | MW changed at wrong time | Replaced with Scheduler `at()` |
-| EventBridge Rules `at()` | `ValidationException` | Use EventBridge Scheduler |
-| Lambda Pending on invoke | `ResourceConflictException` | Wait for Active state (later removed with invoke removal) |
-
 ## Architecture
 
 ```

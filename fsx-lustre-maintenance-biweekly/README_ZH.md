@@ -175,15 +175,6 @@ EventBridge Rules rate(14 days)      EventBridge Rules rate(14 days)
 | IAM Role | `fsx-mw-lambda-role` | Lambda 执行角色（共用） |
 | IAM Role | `fsx-mw-scheduler-role` | Scheduler 调用 Lambda 角色（共用） |
 
-## 开发过程中发现的问题
-
-| 问题 | 影响 | 修复 |
-|---|---|---|
-| Lambda 相对偏移（±24h） | 重复触发导致 MW 偏移 ×2 | 改为绝对值设置（幂等） |
-| deploy 时立即 invoke | MW 被提前修改，可能导致当周 MW 反而被命中 | 去掉立即 invoke，改用 at() 精确对齐 |
-| EventBridge Rules 不支持 at() | `PutRule` 报 `ValidationException` | 改用 EventBridge Scheduler |
-| Lambda 创建后立即 invoke 报 Pending | Lambda 冷部署需要几秒 | 加等待轮询 Active 状态（后来去掉了 invoke，不再需要） |
-
 ## 费用
 
 - Lambda + EventBridge + Scheduler + IAM：基本为零
