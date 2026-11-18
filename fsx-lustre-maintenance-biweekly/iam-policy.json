@@ -26,7 +26,7 @@
       "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:fsx-mw-*"
     },
     {
-      "Sid": "EventBridgeManage",
+      "Sid": "EventBridgeRulesManage",
       "Effect": "Allow",
       "Action": [
         "events:PutRule",
@@ -38,20 +38,37 @@
       "Resource": "arn:aws:events:*:ACCOUNT_ID:rule/fsx-mw-*"
     },
     {
+      "Sid": "EventBridgeSchedulerManage",
+      "Effect": "Allow",
+      "Action": [
+        "scheduler:CreateSchedule",
+        "scheduler:UpdateSchedule",
+        "scheduler:DeleteSchedule",
+        "scheduler:GetSchedule"
+      ],
+      "Resource": "arn:aws:scheduler:*:ACCOUNT_ID:schedule/default/fsx-mw-*"
+    },
+    {
       "Sid": "IAMPassRole",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role"
+      "Resource": [
+        "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role",
+        "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-scheduler-role"
+      ]
     },
     {
-      "Sid": "IAMForLambdaRole",
+      "Sid": "IAMForRoles",
       "Effect": "Allow",
       "Action": [
         "iam:CreateRole",
         "iam:GetRole",
         "iam:PutRolePolicy"
       ],
-      "Resource": "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role"
+      "Resource": [
+        "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role",
+        "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-scheduler-role"
+      ]
     },
     {
       "Sid": "STSGetCallerIdentity",
