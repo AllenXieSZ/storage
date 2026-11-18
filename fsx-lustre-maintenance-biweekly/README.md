@@ -4,27 +4,25 @@ Convert Amazon FSx for Lustre weekly maintenance windows into **biweekly (every 
 
 ## How It Works
 
-Two Lambda functions per file system, triggered by EventBridge every 14 days:
+Two Lambda functions per file system (idempotent, absolute value):
 
-- **Skip Lambda**: fires 12h before MW, sets MW to `original − 24h` (absolute, idempotent)
-- **Restore Lambda**: fires 12h after MW, sets MW back to `original` (absolute, idempotent)
+- **Skip Lambda**: sets MW to `original − 24h`
+- **Restore Lambda**: sets MW back to `original`
 
-```
-Week 1 (skip):  Skip shifts MW away → no window at original time → skipped
-                Restore sets MW back → ready for next cycle
-Week 2 (allow): Neither Lambda fires (14-day rate) → MW at original → maintenance runs
-Week 3 = Week 1, ...
-```
+### Trigger Schedule
 
-### Idempotency
+| Rule | Type | Purpose |
+|---|---|---|
+| `fsx-mw-skip-init-{fs-id}` | Scheduler `at()` | First skip, precisely aligned to next MW−12h UTC. Auto-deletes after fire. |
+| `fsx-mw-restore-init-{fs-id}` | Scheduler `at()` | First restore, precisely aligned to next MW+12h UTC. Auto-deletes after fire. |
+| `fsx-mw-skip-{fs-id}` | Rules `rate(14 days)` | Ongoing skip every 14 days from deploy time. |
+| `fsx-mw-restore-{fs-id}` | Rules `rate(14 days)` | Ongoing restore every 14 days from deploy time. |
 
-Lambda functions set MW to a **hard-coded absolute value** (from CSV), not a relative shift. Invoking multiple times produces the same result. If MW is already at the target, no `UpdateFileSystem` call is made.
+**Why two types?** EventBridge Rules `rate()` starts from creation time (not MW time). Rules don't support `at()` (returns `ValidationException`). EventBridge Scheduler supports `at()` with `ActionAfterCompletion=DELETE`. So: Scheduler handles precise first trigger, Rules handle ongoing 14-day cycles.
 
 ### Deployment Timing ⚠️
 
-**Deploy in the week AFTER a successful maintenance.** The deploy script invokes Skip Lambda immediately, which skips the current week's maintenance. If the previous week's maintenance was also skipped, you'll exceed the 14-day limit and AWS will force maintenance.
-
-See [FSx Lustre User Guide — Maintenance Windows](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html).
+**Deploy in the week AFTER a successful maintenance.** The first `at()` trigger will skip the next maintenance window. If the previous week was also skipped → exceeds 14-day limit → AWS forces maintenance.
 
 ## Quick Start
 
@@ -32,59 +30,63 @@ See [FSx Lustre User Guide — Maintenance Windows](https://docs.aws.amazon.com/
 # 1. List FSx Lustre file systems → CSV
 python3 fsx_mw_scheduler.py list --region us-east-2
 
-# 2. Edit CSV to keep only the file systems you want
+# 2. Edit CSV to keep only target file systems
 
-# 3. Deploy (creates Lambda + EventBridge + invokes first skip)
+# 3. Deploy (creates Lambda + Scheduler at() + Rules rate(14d))
 python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
+
+# MW is NOT changed immediately — waits for at() trigger at the precise time
 ```
 
-## Test Results
+## Test Results (2026-11-18)
 
-Tested with 2 FSx Lustre SCRATCH_2 file systems (us-east-2):
+Tested with 2 FSx Lustre SCRATCH_2 file systems (us-east-2).
 
 ### mw-test-1 (MW = Wed 02:00 UTC / `3:02:00`)
 
-| Phase | MW Value | Notes |
+| Action | MW Change | Result |
 |---|---|---|
-| Before Skip | `3:02:00` | Wed 02:00 UTC |
-| After Skip | `2:02:00` | **Tue 02:00** ← shifted, Wed skipped |
-| After Restore | `3:02:00` | **Wed 02:00** ← restored |
-| Skip again (idempotent) | `2:02:00` | Same result ✅ |
+| Manual invoke skip | `3:02:00` → `2:02:00` | `changed: true` |
+| Invoke skip again (idempotent) | `2:02:00` unchanged | `changed: false` |
+| Invoke restore | `2:02:00` → `3:02:00` | `changed: true` |
 
-### mw-test-2 (MW = Fri 18:30 UTC / `5:18:30`)
+### Issues Found & Fixed During Development
 
-| Phase | MW Value | Notes |
+| Issue | Impact | Fix |
 |---|---|---|
-| Before Skip | `5:18:30` | Fri 18:30 UTC |
-| After Skip | `4:18:30` | **Thu 18:30** ← shifted |
-| After Restore | `5:18:30` | **Fri 18:30** ← restored |
+| Relative shift (±24h) | Double-shift on re-invoke | Absolute value (idempotent) |
+| Immediate invoke on deploy | MW changed at wrong time | Replaced with Scheduler `at()` |
+| EventBridge Rules `at()` | `ValidationException` | Use EventBridge Scheduler |
+| Lambda Pending on invoke | `ResourceConflictException` | Wait for Active state (later removed with invoke removal) |
 
 ## Architecture
 
 ```
-EventBridge (rate 14 days)           EventBridge (rate 14 days)
+EventBridge Scheduler at()          EventBridge Scheduler at()
+(first trigger, auto-delete)        (first trigger, auto-delete)
      │                                    │
      ▼                                    ▼
  Skip Lambda                          Restore Lambda
  MW → original − 24h                  MW → original
- (idempotent, absolute)               (idempotent, absolute)
+     ▲                                    ▲
      │                                    │
-     ▼                                    ▼
- FSx UpdateFileSystem                 FSx UpdateFileSystem
+EventBridge Rules rate(14 days)      EventBridge Rules rate(14 days)
+(ongoing cycle)                      (ongoing cycle)
 ```
 
 ## Cost
 
-Effectively zero (2 Lambda invocations per FS per 14 days, 128 MB, <1 sec each).
+Effectively zero (2 Lambda invocations per FS per 14 days).
 
 ## Cleanup
 
 ```bash
-FS_ID=fs-xxxxxxxxxxxx; REGION=us-east-2
+FS_ID=fs-xxxx; REGION=us-east-2
 for prefix in fsx-mw-skip fsx-mw-restore; do
-  aws events remove-targets --rule "${prefix}-${FS_ID}" --ids "target-${FS_ID}" --region $REGION
-  aws events delete-rule --name "${prefix}-${FS_ID}" --region $REGION
-  aws lambda delete-function --function-name "${prefix}-${FS_ID}" --region $REGION
+  aws events remove-targets --rule "${prefix}-${FS_ID}" --ids "target-${prefix}-${FS_ID}" --region $REGION 2>/dev/null
+  aws events delete-rule --name "${prefix}-${FS_ID}" --region $REGION 2>/dev/null
+  aws lambda delete-function --function-name "${prefix}-${FS_ID}" --region $REGION 2>/dev/null
+  aws scheduler delete-schedule --name "${prefix}-init-${FS_ID}" --region $REGION 2>/dev/null
 done
 ```
 
