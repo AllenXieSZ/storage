@@ -312,7 +312,17 @@ def cmd_deploy(args):
 
         # Invoke Skip Lambda to start the first skip cycle
         skip_func = f"fsx-mw-skip-{fs_id}"
-        print(f"\n   🚀 Invoking {skip_func} to align first skip cycle...")
+        print(f"\n   🚀 Waiting for {skip_func} to become Active...")
+        for _wait in range(30):
+            try:
+                fn_state = lam.get_function(FunctionName=skip_func)["Configuration"]["State"]
+            except Exception:
+                fn_state = "Unknown"
+            if fn_state == "Active":
+                break
+            time.sleep(2)
+        print(f"     State: {fn_state}")
+        print(f"   🚀 Invoking {skip_func} to align first skip cycle...")
         resp = lam.invoke(FunctionName=skip_func, InvocationType="RequestResponse")
         payload = json.loads(resp["Payload"].read())
         print(f"     Result: {payload.get('body', payload)}")
