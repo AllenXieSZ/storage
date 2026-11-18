@@ -23,7 +23,6 @@ import os
 import sys
 import time
 import zipfile
-from datetime import datetime, timedelta, timezone
 
 import boto3
 from botocore.exceptions import ClientError
@@ -125,27 +124,14 @@ LAMBDA_CODE_TEMPLATE = '''
 import json
 import boto3
 
-from datetime import date, datetime, timedelta, timezone
-
 def lambda_handler(event, context):
     """
-    Set FSx Lustre maintenance window to ORIGINAL_MW + SHIFT_HOURS (absolute value, idempotent).
-    FS_ID, ORIGINAL_MW (from CSV), SHIFT_HOURS, REGION, FIRST_SKIP_DATE are baked in at deploy time.
-    The rule fires weekly; it only acts in skip weeks (every 14 days from FIRST_SKIP_DATE).
+    Shift FSx Lustre maintenance window by SHIFT_HOURS.
+    FS_ID, SHIFT_HOURS, REGION are baked in at deploy time.
     """
     fs_id = "{fs_id}"
-    original_mw = "{original_mw}"
     shift_hours = {shift_hours}
     region = "{region}"
-    first_skip_date = date.fromisoformat("{first_skip_date}")
-    offset_hours = {offset_hours}  # fire time relative to MW (-12 skip / +12 restore)
-
-    # Which MW occurrence does this run belong to? Act only in skip weeks.
-    mw_date = (datetime.now(timezone.utc) - timedelta(hours=offset_hours)).date()
-    if (mw_date - first_skip_date).days % 14 != 0:
-        msg = f"FSx {{fs_id}}: {{mw_date}} is not a skip week, no change"
-        print(msg)
-        return {{"statusCode": 200, "body": msg}}
 
     fsx = boto3.client("fsx", region_name=region)
 
@@ -153,41 +139,36 @@ def lambda_handler(event, context):
     resp = fsx.describe_file_systems(FileSystemIds=[fs_id])
     current_mw = resp["FileSystems"][0]["LustreConfiguration"]["WeeklyMaintenanceStartTime"]
 
-    # Target = original MW from CSV + shift (7-day wrap) -> absolute, idempotent
-    parts = original_mw.split(":")
+    # Parse and shift (7-day wrap)
+    parts = current_mw.split(":")
     day, hour, minute = int(parts[0]), int(parts[1]), int(parts[2])
-    total_hours = ((day - 1) * 24 + hour + shift_hours) % 168
+    total_hours = (day - 1) * 24 + hour + shift_hours
+    total_hours = total_hours % 168
+    if total_hours < 0:
+        total_hours += 168
     new_day = total_hours // 24 + 1
     new_hour = total_hours % 24
     new_mw = f"{{new_day}}:{{new_hour:02d}}:{{minute:02d}}"
-
-    day_names = {{1:"Mon",2:"Tue",3:"Wed",4:"Thu",5:"Fri",6:"Sat",7:"Sun"}}
-    if current_mw == new_mw:
-        msg = f"FSx {{fs_id}}: MW already {{day_names[new_day]}} {{new_hour:02d}}:{{minute:02d}} UTC, no change"
-        print(msg)
-        return {{"statusCode": 200, "body": msg, "oldMW": current_mw, "newMW": new_mw}}
 
     fsx.update_file_system(
         FileSystemId=fs_id,
         LustreConfiguration={{"WeeklyMaintenanceStartTime": new_mw}},
     )
 
-    cd, ch, cm = (int(x) for x in current_mw.split(":"))
+    day_names = {{1:"Mon",2:"Tue",3:"Wed",4:"Thu",5:"Fri",6:"Sat",7:"Sun"}}
     msg = (
-        f"FSx {{fs_id}}: set MW from {{day_names[cd]}} {{ch:02d}}:{{cm:02d}} UTC "
-        f"to {{day_names[new_day]}} {{new_hour:02d}}:{{minute:02d}} UTC (original {{original_mw}} {{shift_hours:+d}}h)"
+        f"FSx {{fs_id}}: shifted MW from {{day_names[day]}} {{hour:02d}}:{{minute:02d}} UTC "
+        f"to {{day_names[new_day]}} {{new_hour:02d}}:{{minute:02d}} UTC ({{shift_hours:+d}}h)"
     )
     print(msg)
     return {{"statusCode": 200, "body": msg, "oldMW": current_mw, "newMW": new_mw}}
 '''
 
 
-def create_lambda_zip(fs_id: str, original_mw: str, shift_hours: int, region: str,
-                      first_skip_date: str, offset_hours: int) -> bytes:
+def create_lambda_zip(fs_id: str, shift_hours: int, region: str) -> bytes:
     """Create in-memory zip with lambda_function.py."""
     code = LAMBDA_CODE_TEMPLATE.format(
-        fs_id=fs_id, original_mw=original_mw, shift_hours=shift_hours, region=region,
-        first_skip_date=first_skip_date, offset_hours=offset_hours,
+        fs_id=fs_id, shift_hours=shift_hours, region=region
     )
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -273,20 +254,9 @@ def compute_schedule_info(mw_str: str, offset_hours: int) -> dict:
         5: "FRI", 6: "SAT", 7: "SUN",
     }
     return {
-        "rate_expr": f"cron({minute} {fire_hour} ? * {eb_day_map[fire_day]} *)",
+        "rate_expr": "rate(14 days)",
         "target_time": f"{eb_day_map[fire_day]} {fire_hour:02d}:{minute:02d} UTC",
     }
-
-
-def next_mw_date(mw_str: str):
-    """Date of the next MW whose skip time (MW - 12h) is still in the future."""
-    day, hour, minute = parse_mw(mw_str)
-    now = datetime.now(timezone.utc)
-    t = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    t += timedelta(days=(day - 1 - now.weekday()) % 7)
-    if t - timedelta(hours=12) <= now:
-        t += timedelta(days=7)
-    return t.date()
 
 
 # ─── Feature 2: Deploy Lambda + EventBridge ──
@@ -314,21 +284,18 @@ def cmd_deploy(args):
         name = fs["Name"] or fs_id
         print(f"\n{'='*60}")
         print(f"📁 {name} ({fs_id})  MW={mw} ({human_readable_mw(mw)})")
-        first_skip = next_mw_date(mw)
-        print(f"   First skipped MW: {first_skip} (then every 14 days)")
 
         for label, func_prefix, offset, shift in [
             ("A (skip)", "fsx-mw-skip", -12, -24),
-            ("B (restore)", "fsx-mw-restore", +12, 0),
+            ("B (restore)", "fsx-mw-restore", +12, +24),
         ]:
             func_name = f"{func_prefix}-{fs_id}"
             sched = compute_schedule_info(mw, offset)
-            zip_bytes = create_lambda_zip(fs_id, mw, shift, args.region,
-                                          first_skip.isoformat(), offset)
+            zip_bytes = create_lambda_zip(fs_id, shift, args.region)
 
             print(f"   Lambda {label}: {func_name}")
             print(f"     Fires at: {sched['target_time']} ({abs(offset)}h {'before' if offset < 0 else 'after'} MW)")
-            print(f"     Action: set MW = original {mw} {shift:+d}h (biweekly, first skip {first_skip})")
+            print(f"     Action: shift MW {shift:+d}h")
 
             # Create or update Lambda
             try:

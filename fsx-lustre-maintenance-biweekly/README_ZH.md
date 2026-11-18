@@ -10,20 +10,20 @@ FSx for Lustre 的运维窗口（Maintenance Window）是 **每周固定时间**
 
 ## 工作原理
 
-对每个 FSx Lustre 文件系统，脚本会部署 **两个 Lambda 函数**，由 EventBridge 按 CSV 中运维窗口时间**每周**触发（cron），只在跳过周（每 14 天一次）真正修改；写入的值由 CSV 原始窗口计算（绝对值，幂等）：
+对每个 FSx Lustre 文件系统，脚本会部署 **两个 Lambda 函数**，由 EventBridge 每 14 天触发一次：
 
 ```
 第 1 周（跳过运维）：
   Lambda A 在运维窗口前 12 小时触发
-    → 将运维窗口设为 原始窗口 −24 小时
+    → 将运维窗口往前挪 24 小时
     → 原来的运维时间点已经没有窗口了 → 运维被跳过
 
   Lambda B 在原运维时间后 12 小时触发
-    → 将运维窗口设为 原始窗口
+    → 将运维窗口往后挪 24 小时
     → 恢复到原来的位置，等待下一个周期
 
 第 2 周（正常运维）：
-  两个 Lambda 照常触发，但判断不是跳过周，不做修改
+  两个 Lambda 都不触发（14 天一次的调度周期）
     → 运维窗口保持在原位 → 正常执行运维
 
 第 3 周 = 第 1 周（跳过），第 4 周 = 第 2 周（正常），如此循环...
@@ -125,12 +125,12 @@ python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
 📁 mw-test-1 (fs-02e88f8550a3572d3)  MW=3:02:00 (Wed 02:00 UTC)
    Lambda A (skip): fsx-mw-skip-fs-02e88f8550a3572d3
      Fires at: TUE 14:00 UTC (12h before MW)
-     Action: set MW = original 3:02:00 -24h (biweekly, first skip 2026-11-25)
+     Action: shift MW -24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-skip-fs-02e88f8550a3572d3 (rate(14 days))
    Lambda B (restore): fsx-mw-restore-fs-02e88f8550a3572d3
      Fires at: WED 14:00 UTC (12h after MW)
-     Action: set MW = original 3:02:00 +0h (biweekly, first skip 2026-11-25)
+     Action: shift MW +24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-restore-fs-02e88f8550a3572d3 (rate(14 days))
 
@@ -138,12 +138,12 @@ python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
 📁 mw-test-2 (fs-0247683a1e4d5b957)  MW=5:18:30 (Fri 18:30 UTC)
    Lambda A (skip): fsx-mw-skip-fs-0247683a1e4d5b957
      Fires at: FRI 06:30 UTC (12h before MW)
-     Action: set MW = original 3:02:00 -24h (biweekly, first skip 2026-11-25)
+     Action: shift MW -24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-skip-fs-0247683a1e4d5b957 (rate(14 days))
    Lambda B (restore): fsx-mw-restore-fs-0247683a1e4d5b957
      Fires at: SAT 06:30 UTC (12h after MW)
-     Action: set MW = original 3:02:00 +0h (biweekly, first skip 2026-11-25)
+     Action: shift MW +24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-restore-fs-0247683a1e4d5b957 (rate(14 days))
 
@@ -194,13 +194,13 @@ Lambda B 返回值：
 ## 架构图
 
 ```
-EventBridge（cron，每周）           EventBridge（cron，每周）
+EventBridge（rate: 14 天）          EventBridge（rate: 14 天）
      │                                    │
      ▼                                    ▼
  Lambda A                             Lambda B
  "fsx-mw-skip-{fs-id}"               "fsx-mw-restore-{fs-id}"
  触发时间: 运维窗口前 12h             触发时间: 运维窗口后 12h
- 动作: 窗口 = 原始 −24h               动作: 窗口 = 原始
+ 动作: 运维窗口 −24h                  动作: 运维窗口 +24h
      │                                    │
      ▼                                    ▼
  FSx UpdateFileSystem                 FSx UpdateFileSystem
@@ -211,10 +211,10 @@ EventBridge（cron，每周）           EventBridge（cron，每周）
 
 | 资源 | 命名规则 | 用途 |
 |---|---|---|
-| Lambda 函数 | `fsx-mw-skip-{fs-id}` | 将运维窗口设为原始 −24 小时（跳过本周运维） |
-| Lambda 函数 | `fsx-mw-restore-{fs-id}` | 将运维窗口设为原始值（恢复原位） |
-| EventBridge 规则 | `fsx-mw-skip-{fs-id}` | 每周按 CSV 时间触发跳过 Lambda（运维窗口前 12h） |
-| EventBridge 规则 | `fsx-mw-restore-{fs-id}` | 每周按 CSV 时间触发恢复 Lambda（运维窗口后 12h） |
+| Lambda 函数 | `fsx-mw-skip-{fs-id}` | 将运维窗口往前挪 24 小时（跳过本周运维） |
+| Lambda 函数 | `fsx-mw-restore-{fs-id}` | 将运维窗口往后挪 24 小时（恢复原位） |
+| EventBridge 规则 | `fsx-mw-skip-{fs-id}` | 每 14 天触发跳过 Lambda |
+| EventBridge 规则 | `fsx-mw-restore-{fs-id}` | 每 14 天触发恢复 Lambda |
 | IAM 角色 | `fsx-mw-lambda-role` | 所有 Lambda 共用（每个账号 1 个） |
 
 ### IAM 权限说明
@@ -242,16 +242,15 @@ EventBridge（cron，每周）           EventBridge（cron，每周）
 
 本方案正好工作在 **14 天边界上**——跳过一周、执行一周。这是 AWS 允许的最大间隔。如果时间漂移或 EventBridge 投递延迟，AWS 可能会强制执行运维。
 
-### 调度与幂等
+### EventBridge `rate(14 days)` 的行为
 
-- EventBridge 规则使用 cron，时间由 CSV 中的运维窗口计算：A = 窗口前 12h，B = 窗口后 12h（例：`3:02:00` → A `cron(0 14 ? * TUE *)`，B `cron(0 14 ? * WED *)`）
-- 规则每周触发；部署时把"第一个要跳过的运维日"（下一次运维）写入 Lambda，之后每隔 14 天跳过一次，其余周 Lambda 不做修改
-- 幂等：Lambda 使用部署时从 CSV 读取的原始窗口，A 写入"原始 −24h"，B 写入"原始值"，当前值已等于目标值时不调用 API，重复触发不会累积偏移
-- 修改原始窗口：改 CSV 后重新 deploy
+- `rate(14 days)` 从规则**创建时间**开始，每 14 天触发一次
+- 第一次触发可能和期望的运维窗口偏移时间不完全对齐。后续周期会自动修正，因为每个 Lambda 执行前都会**读取当前的运维窗口值**再进行偏移
+- 如果需要精确的首次时间对齐，可以在部署后手动触发一次 Lambda A 来初始化第一次跳过
 
 ### 费用
 
-- **Lambda**：约 $0.00/月（每个文件系统每周 2 次调用，128MB 内存，每次 <1 秒）
+- **Lambda**：约 $0.00/月（每个文件系统每 14 天 2 次调用，128MB 内存，每次 <1 秒）
 - **EventBridge**：约 $0.00/月（每个文件系统 2 条定时规则）
 - **IAM**：免费
 - **总计**：对于任意合理数量的文件系统，费用基本为零

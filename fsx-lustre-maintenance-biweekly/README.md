@@ -8,20 +8,20 @@ FSx for Lustre performs maintenance **weekly** during your configured maintenanc
 
 ## How It Works
 
-For each FSx Lustre file system, the script deploys **two Lambda functions** triggered **weekly** by EventBridge cron at times derived from the CSV maintenance window; they only act in skip weeks (every 14 days) and write absolute values computed from the CSV original window (idempotent):
+For each FSx Lustre file system, the script deploys **two Lambda functions** triggered by EventBridge every 14 days:
 
 ```
 Week 1 (skip maintenance):
   Lambda A fires 12h BEFORE the maintenance window
-    → sets the window to original −24 hours
+    → shifts the window BACK 24 hours
     → the original MW time passes with no window scheduled → maintenance skipped
 
   Lambda B fires 12h AFTER the original MW time
-    → sets the window back to the original
+    → shifts the window FORWARD 24 hours
     → restores the window to its original position for the next cycle
 
 Week 2 (allow maintenance):
-  Both Lambdas fire but see it is not a skip week → no change
+  Neither Lambda fires (14-day rate schedule)
     → maintenance window stays at its original time → maintenance executes normally
 
 Week 3 = Week 1 (skip), Week 4 = Week 2 (allow), ...
@@ -123,12 +123,12 @@ Output:
 📁 mw-test-1 (fs-02e88f8550a3572d3)  MW=3:02:00 (Wed 02:00 UTC)
    Lambda A (skip): fsx-mw-skip-fs-02e88f8550a3572d3
      Fires at: TUE 14:00 UTC (12h before MW)
-     Action: set MW = original 3:02:00 -24h (biweekly, first skip 2026-11-25)
+     Action: shift MW -24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-skip-fs-02e88f8550a3572d3 (rate(14 days))
    Lambda B (restore): fsx-mw-restore-fs-02e88f8550a3572d3
      Fires at: WED 14:00 UTC (12h after MW)
-     Action: set MW = original 3:02:00 +0h (biweekly, first skip 2026-11-25)
+     Action: shift MW +24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-restore-fs-02e88f8550a3572d3 (rate(14 days))
 
@@ -136,12 +136,12 @@ Output:
 📁 mw-test-2 (fs-0247683a1e4d5b957)  MW=5:18:30 (Fri 18:30 UTC)
    Lambda A (skip): fsx-mw-skip-fs-0247683a1e4d5b957
      Fires at: FRI 06:30 UTC (12h before MW)
-     Action: set MW = original 3:02:00 -24h (biweekly, first skip 2026-11-25)
+     Action: shift MW -24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-skip-fs-0247683a1e4d5b957 (rate(14 days))
    Lambda B (restore): fsx-mw-restore-fs-0247683a1e4d5b957
      Fires at: SAT 06:30 UTC (12h after MW)
-     Action: set MW = original 3:02:00 +0h (biweekly, first skip 2026-11-25)
+     Action: shift MW +24h
      ✅ Lambda created
      ✅ EventBridge rule: fsx-mw-restore-fs-0247683a1e4d5b957 (rate(14 days))
 
@@ -192,13 +192,13 @@ Lambda B output:
 ## Architecture
 
 ```
-EventBridge (cron, weekly)           EventBridge (cron, weekly)
+EventBridge (rate: 14 days)          EventBridge (rate: 14 days)
      │                                    │
      ▼                                    ▼
  Lambda A                             Lambda B
  "fsx-mw-skip-{fs-id}"               "fsx-mw-restore-{fs-id}"
  Fires: MW − 12h                     Fires: MW + 12h
- Action: MW = original − 24h          Action: MW = original
+ Action: MW − 24h                    Action: MW + 24h
      │                                    │
      ▼                                    ▼
  FSx UpdateFileSystem                 FSx UpdateFileSystem
@@ -211,8 +211,8 @@ EventBridge (cron, weekly)           EventBridge (cron, weekly)
 |---|---|---|
 | Lambda Function | `fsx-mw-skip-{fs-id}` | Shift MW back 24h (skip maintenance) |
 | Lambda Function | `fsx-mw-restore-{fs-id}` | Shift MW forward 24h (restore) |
-| EventBridge Rule | `fsx-mw-skip-{fs-id}` | Trigger skip Lambda weekly at MW −12h (from CSV) |
-| EventBridge Rule | `fsx-mw-restore-{fs-id}` | Trigger restore Lambda weekly at MW +12h (from CSV) |
+| EventBridge Rule | `fsx-mw-skip-{fs-id}` | Trigger skip Lambda every 14 days |
+| EventBridge Rule | `fsx-mw-restore-{fs-id}` | Trigger restore Lambda every 14 days |
 | IAM Role | `fsx-mw-lambda-role` | Shared by all Lambda functions (1 per account) |
 
 ### IAM Permissions
@@ -238,16 +238,15 @@ From the [FSx Lustre User Guide](https://docs.aws.amazon.com/fsx/latest/LustreGu
 
 This biweekly approach operates **at the 14-day boundary** — skipping one week, then allowing the next. This is the maximum stretch AWS permits. If timing drifts or EventBridge delivery is delayed, AWS may force maintenance to maintain the 14-day guarantee.
 
-### Schedule and idempotency
+### EventBridge `rate(14 days)` Behavior
 
-- EventBridge rules use cron computed from the CSV window: A = MW −12h, B = MW +12h (e.g. `3:02:00` → A `cron(0 14 ? * TUE *)`, B `cron(0 14 ? * WED *)`).
-- Rules fire weekly. At deploy time the first MW to skip (the next MW) is baked into the Lambda; every 14 days after that is a skip week, other weeks the Lambda makes no change.
-- Idempotent: the Lambda uses the original window read from the CSV at deploy time; A writes original −24h, B writes the original. If the window is already at the target, no API call is made, so duplicate runs do not drift.
-- To change the original window, edit the CSV and deploy again.
+- `rate(14 days)` fires at the time the rule was **created**, then every 14 days.
+- The first invocation may not align perfectly with the desired MW offset. Subsequent cycles self-correct because each Lambda reads the **current** MW value before shifting.
+- If you need precise initial timing, manually invoke Lambda A once after deployment to seed the first skip.
 
 ### Cost
 
-- **Lambda**: ~$0.00/month (2 invocations per FS per week, 128 MB, <1 sec each)
+- **Lambda**: ~$0.00/month (2 invocations per FS per 14 days, 128 MB, <1 sec each)
 - **EventBridge**: ~$0.00/month (2 rules per FS, scheduled)
 - **IAM**: Free
 - **Total**: Effectively free for any reasonable number of file systems
