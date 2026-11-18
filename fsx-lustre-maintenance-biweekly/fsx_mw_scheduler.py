@@ -5,21 +5,22 @@ FSx Lustre Maintenance Window Biweekly Scheduler
 Converts FSx Lustre weekly maintenance into biweekly by shifting the
 maintenance window back and forth with two Lambda functions per file system.
 
+Key design:
+  - Lambda functions are IDEMPOTENT: they set the MW to a hard-coded absolute
+    value (from CSV), not a relative shift. Safe to invoke multiple times.
+  - EventBridge uses rate(14 days). Deploy triggers the first Skip invocation
+    to align the cycle start.
+  - Deploy must happen in the week AFTER a successful maintenance. See README.
+
 Usage:
   python3 fsx_mw_scheduler.py list   --region us-east-2 [--output fsx_lustre_list.csv]
   python3 fsx_mw_scheduler.py deploy --region us-east-2 [--csv fsx_lustre_list.csv]
-
-Prerequisites:
-  - IAM user with the policy from iam-policy.json attached
-  - AWS credentials configured (env vars or ~/.aws/credentials)
-  - Python 3.9+ with boto3 installed
 """
 
 import argparse
 import csv
 import io
 import json
-import os
 import sys
 import time
 import zipfile
@@ -28,34 +29,28 @@ import boto3
 from botocore.exceptions import ClientError
 
 LAMBDA_ROLE_NAME = "fsx-mw-lambda-role"
-
-# FSx uses d=1(Mon)..7(Sun), all UTC
 DAY_NAMES = {1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 7: "Sun"}
 
 
 # ─── Helpers ──────────────────────────────────
 
 def get_account_id(session) -> str:
-    """Get AWS account ID from STS."""
     return session.client("sts").get_caller_identity()["Account"]
 
 
 def parse_mw(mw_str: str) -> tuple:
-    """Parse 'd:HH:MM' -> (day_int, hour_int, minute_int)."""
     parts = mw_str.split(":")
     return int(parts[0]), int(parts[1]), int(parts[2])
 
 
 def format_mw(day: int, hour: int, minute: int) -> str:
-    """Format to 'd:HH:MM'."""
     return f"{day}:{hour:02d}:{minute:02d}"
 
 
 def shift_mw(mw_str: str, hours: int) -> str:
-    """Shift a maintenance window by +/- hours (wraps within 7-day week)."""
     day, hour, minute = parse_mw(mw_str)
     total_hours = (day - 1) * 24 + hour + hours
-    total_hours = total_hours % 168  # 7 days * 24 hours
+    total_hours = total_hours % 168
     if total_hours < 0:
         total_hours += 168
     new_day = total_hours // 24 + 1
@@ -64,7 +59,6 @@ def shift_mw(mw_str: str, hours: int) -> str:
 
 
 def human_readable_mw(mw_str: str) -> str:
-    """Convert '3:02:00' to 'Wed 02:00 UTC'."""
     day, hour, minute = parse_mw(mw_str)
     return f"{DAY_NAMES[day]} {hour:02d}:{minute:02d} UTC"
 
@@ -118,7 +112,7 @@ def cmd_list(args):
         )
 
 
-# ─── Lambda code template ────────────────────
+# ─── Lambda code template (idempotent) ───────
 
 LAMBDA_CODE_TEMPLATE = '''
 import json
@@ -126,49 +120,48 @@ import boto3
 
 def lambda_handler(event, context):
     """
-    Shift FSx Lustre maintenance window by SHIFT_HOURS.
-    FS_ID, SHIFT_HOURS, REGION are baked in at deploy time.
+    Set FSx Lustre maintenance window to a fixed target value.
+    Idempotent: if MW is already at target, no API call is made.
+
+    All values are hard-coded at deploy time from the CSV.
     """
     fs_id = "{fs_id}"
-    shift_hours = {shift_hours}
+    target_mw = "{target_mw}"
+    original_mw = "{original_mw}"
     region = "{region}"
+    label = "{label}"
 
     fsx = boto3.client("fsx", region_name=region)
 
-    # Get current maintenance window
     resp = fsx.describe_file_systems(FileSystemIds=[fs_id])
     current_mw = resp["FileSystems"][0]["LustreConfiguration"]["WeeklyMaintenanceStartTime"]
 
-    # Parse and shift (7-day wrap)
-    parts = current_mw.split(":")
-    day, hour, minute = int(parts[0]), int(parts[1]), int(parts[2])
-    total_hours = (day - 1) * 24 + hour + shift_hours
-    total_hours = total_hours % 168
-    if total_hours < 0:
-        total_hours += 168
-    new_day = total_hours // 24 + 1
-    new_hour = total_hours % 24
-    new_mw = f"{{new_day}}:{{new_hour:02d}}:{{minute:02d}}"
+    if current_mw == target_mw:
+        msg = f"FSx {{fs_id}} [{{label}}]: MW is already {{target_mw}}, no change (idempotent)"
+        print(msg)
+        return {{"statusCode": 200, "body": msg, "changed": False, "currentMW": current_mw}}
 
     fsx.update_file_system(
         FileSystemId=fs_id,
-        LustreConfiguration={{"WeeklyMaintenanceStartTime": new_mw}},
+        LustreConfiguration={{"WeeklyMaintenanceStartTime": target_mw}},
     )
 
     day_names = {{1:"Mon",2:"Tue",3:"Wed",4:"Thu",5:"Fri",6:"Sat",7:"Sun"}}
-    msg = (
-        f"FSx {{fs_id}}: shifted MW from {{day_names[day]}} {{hour:02d}}:{{minute:02d}} UTC "
-        f"to {{day_names[new_day]}} {{new_hour:02d}}:{{minute:02d}} UTC ({{shift_hours:+d}}h)"
-    )
+    def fmt(mw):
+        d, h, m = int(mw.split(":")[0]), int(mw.split(":")[1]), int(mw.split(":")[2])
+        return f"{{day_names[d]}} {{h:02d}}:{{m:02d}} UTC"
+
+    msg = f"FSx {{fs_id}} [{{label}}]: MW changed from {{fmt(current_mw)}} to {{fmt(target_mw)}} (original={{original_mw}})"
     print(msg)
-    return {{"statusCode": 200, "body": msg, "oldMW": current_mw, "newMW": new_mw}}
+    return {{"statusCode": 200, "body": msg, "changed": True, "oldMW": current_mw, "newMW": target_mw}}
 '''
 
 
-def create_lambda_zip(fs_id: str, shift_hours: int, region: str) -> bytes:
-    """Create in-memory zip with lambda_function.py."""
+def create_lambda_zip(fs_id: str, target_mw: str, original_mw: str,
+                       region: str, label: str) -> bytes:
     code = LAMBDA_CODE_TEMPLATE.format(
-        fs_id=fs_id, shift_hours=shift_hours, region=region
+        fs_id=fs_id, target_mw=target_mw, original_mw=original_mw,
+        region=region, label=label
     )
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -177,7 +170,6 @@ def create_lambda_zip(fs_id: str, shift_hours: int, region: str) -> bytes:
 
 
 def ensure_lambda_role(session, account_id: str):
-    """Create the Lambda execution role with minimal permissions."""
     iam = session.client("iam")
     role_arn = f"arn:aws:iam::{account_id}:role/{LAMBDA_ROLE_NAME}"
 
@@ -201,31 +193,23 @@ def ensure_lambda_role(session, account_id: str):
                 Description="Lambda role for FSx maintenance window scheduler",
             )
             print(f"   ✅ Created IAM role {LAMBDA_ROLE_NAME}")
-            time.sleep(10)  # wait for IAM propagation
+            time.sleep(10)
         else:
             raise
 
-    # Minimal policy: CloudWatch Logs + FSx describe/update only
     policy_doc = json.dumps({
         "Version": "2012-10-17",
         "Statement": [
             {
                 "Sid": "CloudWatchLogs",
                 "Effect": "Allow",
-                "Action": [
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:PutLogEvents",
-                ],
+                "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
                 "Resource": "arn:aws:logs:*:*:*",
             },
             {
                 "Sid": "FSxDescribeUpdate",
                 "Effect": "Allow",
-                "Action": [
-                    "fsx:DescribeFileSystems",
-                    "fsx:UpdateFileSystem",
-                ],
+                "Action": ["fsx:DescribeFileSystems", "fsx:UpdateFileSystem"],
                 "Resource": "*",
             },
         ],
@@ -235,28 +219,7 @@ def ensure_lambda_role(session, account_id: str):
         PolicyName="fsx-mw-lambda-policy",
         PolicyDocument=policy_doc,
     )
-
     return role_arn
-
-
-def compute_schedule_info(mw_str: str, offset_hours: int) -> dict:
-    """Compute the target fire time for an EventBridge schedule."""
-    day, hour, minute = parse_mw(mw_str)
-    total_hours = (day - 1) * 24 + hour + offset_hours
-    total_hours = total_hours % 168
-    if total_hours < 0:
-        total_hours += 168
-    fire_day = total_hours // 24 + 1
-    fire_hour = total_hours % 24
-
-    eb_day_map = {
-        1: "MON", 2: "TUE", 3: "WED", 4: "THU",
-        5: "FRI", 6: "SAT", 7: "SUN",
-    }
-    return {
-        "rate_expr": "rate(14 days)",
-        "target_time": f"{eb_day_map[fire_day]} {fire_hour:02d}:{minute:02d} UTC",
-    }
 
 
 # ─── Feature 2: Deploy Lambda + EventBridge ──
@@ -273,31 +236,36 @@ def cmd_deploy(args):
         return
 
     print(f"📋 Read {len(filesystems)} file systems from {args.csv}")
-
     role_arn = ensure_lambda_role(session, account_id)
     lam = session.client("lambda")
     events = session.client("events")
 
     for fs in filesystems:
         fs_id = fs["FileSystemId"]
-        mw = fs["MaintenanceWindow"]
+        original_mw = fs["MaintenanceWindow"]
         name = fs["Name"] or fs_id
-        print(f"\n{'='*60}")
-        print(f"📁 {name} ({fs_id})  MW={mw} ({human_readable_mw(mw)})")
+        skipped_mw = shift_mw(original_mw, -24)
 
-        for label, func_prefix, offset, shift in [
-            ("A (skip)", "fsx-mw-skip", -12, -24),
-            ("B (restore)", "fsx-mw-restore", +12, +24),
+        print(f"\n{'='*60}")
+        print(f"📁 {name} ({fs_id})")
+        print(f"   Original MW : {original_mw} ({human_readable_mw(original_mw)})")
+        print(f"   Skipped MW  : {skipped_mw} ({human_readable_mw(skipped_mw)})")
+
+        for label, func_prefix, target_mw, offset in [
+            ("skip",    "fsx-mw-skip",    skipped_mw,  -12),
+            ("restore", "fsx-mw-restore", original_mw, +12),
         ]:
             func_name = f"{func_prefix}-{fs_id}"
-            sched = compute_schedule_info(mw, offset)
-            zip_bytes = create_lambda_zip(fs_id, shift, args.region)
+            fire_time = human_readable_mw(shift_mw(original_mw, offset))
+            zip_bytes = create_lambda_zip(
+                fs_id, target_mw, original_mw, args.region, label
+            )
 
-            print(f"   Lambda {label}: {func_name}")
-            print(f"     Fires at: {sched['target_time']} ({abs(offset)}h {'before' if offset < 0 else 'after'} MW)")
-            print(f"     Action: shift MW {shift:+d}h")
+            print(f"\n   Lambda [{label}]: {func_name}")
+            print(f"     Target MW : {target_mw} ({human_readable_mw(target_mw)})")
+            print(f"     Schedule  : rate(14 days), aligned to {fire_time}")
+            print(f"     Idempotent: yes (absolute value, safe to re-invoke)")
 
-            # Create or update Lambda
             try:
                 lam.create_function(
                     FunctionName=func_name,
@@ -307,23 +275,22 @@ def cmd_deploy(args):
                     Code={"ZipFile": zip_bytes},
                     Timeout=30,
                     MemorySize=128,
-                    Description=f"{'Skip' if shift < 0 else 'Restore'} MW for {fs_id} ({sched['target_time']}, {shift:+d}h)",
+                    Description=f"{label}: MW→{target_mw} for {fs_id} | original={original_mw}",
                 )
                 print(f"     ✅ Lambda created")
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceConflictException":
                     lam.update_function_code(FunctionName=func_name, ZipFile=zip_bytes)
-                    print(f"     ⚠️  Lambda exists, updated code")
+                    print(f"     ⚠️  Lambda exists, code updated")
                 else:
                     raise
 
-            # EventBridge rule
             rule_name = f"{func_prefix}-{fs_id}"
             events.put_rule(
                 Name=rule_name,
-                ScheduleExpression=sched["rate_expr"],
+                ScheduleExpression="rate(14 days)",
                 State="ENABLED",
-                Description=f"Biweekly {func_prefix.split('-')[-1]} MW for {fs_id} at {sched['target_time']}",
+                Description=f"{label} MW for {fs_id} at {fire_time} | original={original_mw}",
             )
             func_arn = f"arn:aws:lambda:{args.region}:{account_id}:function:{func_name}"
             events.put_targets(
@@ -341,13 +308,21 @@ def cmd_deploy(args):
             except ClientError as e:
                 if e.response["Error"]["Code"] != "ResourceConflictException":
                     raise
-            print(f"     ✅ EventBridge rule: {rule_name} ({sched['rate_expr']})")
+            print(f"     ✅ EventBridge rule: {rule_name} (rate 14 days)")
+
+        # Invoke Skip Lambda to start the first skip cycle
+        skip_func = f"fsx-mw-skip-{fs_id}"
+        print(f"\n   🚀 Invoking {skip_func} to align first skip cycle...")
+        resp = lam.invoke(FunctionName=skip_func, InvocationType="RequestResponse")
+        payload = json.loads(resp["Payload"].read())
+        print(f"     Result: {payload.get('body', payload)}")
 
     print(f"\n{'='*60}")
-    print("🎉 Deployment complete!")
+    print("🎉 部署完成！")
+    print()
+    print("⚠️  重要：请确保在【上周刚完成 maintenance 之后】部署。")
+    print("   详见 README_ZH.md「部署时机」章节。")
 
-
-# ─── Main ─────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(
@@ -355,11 +330,11 @@ def main():
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_list = sub.add_parser("list", help="List FSx Lustre file systems → CSV")
+    p_list = sub.add_parser("list", help="List FSx Lustre → CSV")
     p_list.add_argument("--region", required=True)
     p_list.add_argument("--output", default="fsx_lustre_list.csv")
 
-    p_deploy = sub.add_parser("deploy", help="Deploy Lambda + EventBridge from CSV")
+    p_deploy = sub.add_parser("deploy", help="Deploy Lambda + EventBridge")
     p_deploy.add_argument("--region", required=True)
     p_deploy.add_argument("--csv", default="fsx_lustre_list.csv")
 
