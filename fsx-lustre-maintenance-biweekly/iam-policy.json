@@ -1,27 +1,63 @@
 {
   "Version": "2012-10-17",
   "Statement": [
-    {"Sid": "FSx", "Effect": "Allow", "Action": ["fsx:DescribeFileSystems"], "Resource": "*"},
-    {"Sid": "STS", "Effect": "Allow", "Action": "sts:GetCallerIdentity", "Resource": "*"},
-    {"Sid": "S3Csv", "Effect": "Allow", "Action": "s3:PutObject", "Resource": "arn:aws:s3:::BUCKET/fsx-mw/*"},
-    {"Sid": "Lambda", "Effect": "Allow",
-     "Action": ["lambda:CreateFunction", "lambda:GetFunction", "lambda:UpdateFunctionCode",
-                "lambda:UpdateFunctionConfiguration", "lambda:GetFunctionConfiguration",
-                "lambda:PutFunctionConcurrency", "lambda:PutFunctionEventInvokeConfig", "lambda:InvokeFunction"],
-     "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:fsx-mw-scheduler"},
-    {"Sid": "Scheduler", "Effect": "Allow",
-     "Action": ["scheduler:CreateScheduleGroup", "scheduler:CreateSchedule", "scheduler:UpdateSchedule",
-                "scheduler:DeleteSchedule", "scheduler:GetSchedule", "scheduler:ListSchedules"],
-     "Resource": ["arn:aws:scheduler:*:ACCOUNT_ID:schedule-group/fsx-mw",
-                  "arn:aws:scheduler:*:ACCOUNT_ID:schedule/fsx-mw/*"]},
-    {"Sid": "SnsSqsCw", "Effect": "Allow",
-     "Action": ["sns:CreateTopic", "sns:Subscribe", "sqs:CreateQueue", "sqs:GetQueueAttributes",
-                "cloudwatch:PutMetricAlarm"],
-     "Resource": ["arn:aws:sns:*:ACCOUNT_ID:fsx-mw-alerts", "arn:aws:sqs:*:ACCOUNT_ID:fsx-mw-dlq",
-                  "arn:aws:cloudwatch:*:ACCOUNT_ID:alarm:fsx-mw-*"]},
-    {"Sid": "IAM", "Effect": "Allow",
-     "Action": ["iam:CreateRole", "iam:GetRole", "iam:PutRolePolicy", "iam:PassRole"],
-     "Resource": ["arn:aws:iam::ACCOUNT_ID:role/fsx-mw-scheduler-lambda-role",
-                  "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-scheduler-invoke-role"]}
+    {
+      "Sid": "FSxReadUpdate",
+      "Effect": "Allow",
+      "Action": [
+        "fsx:DescribeFileSystems",
+        "fsx:UpdateFileSystem"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaManage",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:InvokeFunction",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration"
+      ],
+      "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:fsx-mw-*"
+    },
+    {
+      "Sid": "EventBridgeManage",
+      "Effect": "Allow",
+      "Action": [
+        "events:PutRule",
+        "events:PutTargets",
+        "events:DeleteRule",
+        "events:RemoveTargets",
+        "events:DescribeRule"
+      ],
+      "Resource": "arn:aws:events:*:ACCOUNT_ID:rule/fsx-mw-*"
+    },
+    {
+      "Sid": "IAMPassRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role"
+    },
+    {
+      "Sid": "IAMForLambdaRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:PutRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role"
+    },
+    {
+      "Sid": "STSGetCallerIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    }
   ]
 }

@@ -1,10 +1,24 @@
 {
   "Version": "2012-10-17",
   "Statement": [
-    {"Effect": "Allow", "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "arn:aws:logs:REGION:ACCOUNT_ID:*"},
-    {"Effect": "Allow", "Action": "fsx:DescribeFileSystems", "Resource": "*"},
-    {"Effect": "Allow", "Action": "fsx:UpdateFileSystem", "Resource": "arn:aws:fsx:REGION:ACCOUNT_ID:file-system/fs-xxxxxxxx"},
-    {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::BUCKET/fsx-mw/fsx_lustre_list.csv"},
-    {"Effect": "Allow", "Action": "sqs:SendMessage", "Resource": "arn:aws:sqs:REGION:ACCOUNT_ID:fsx-mw-dlq"}
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Sid": "FSxDescribeUpdate",
+      "Effect": "Allow",
+      "Action": [
+        "fsx:DescribeFileSystems",
+        "fsx:UpdateFileSystem"
+      ],
+      "Resource": "*"
+    }
   ]
 }
