@@ -1,284 +1,93 @@
-# FSx Lustre Maintenance Window — Biweekly Scheduler
+# FSx for Lustre Maintenance Window — Biweekly Scheduler (v2)
 
-Convert Amazon FSx for Lustre weekly maintenance windows into **biweekly (every 2 weeks)** using Lambda + EventBridge, with zero manual intervention after deployment.
+[中文](README_ZH.md)
 
-## Problem
+FSx for Lustre maintenance windows are weekly; there is no biweekly option. In a **skip week** this tool moves the window one day earlier (to a time that has already passed), then moves it back afterwards, so patches land at most once every two weeks.
 
-FSx for Lustre performs maintenance **weekly** during your configured maintenance window. There is no native setting to change the frequency. During maintenance the file system is briefly unavailable, and the in-memory cache is cleared — causing higher latencies afterward. For workloads where weekly patching is too disruptive, reducing the frequency to biweekly is desirable.
+> AWS docs: patching happens "typically once every several weeks", not every week, and a window must be **scheduled at least once every 14 days**, otherwise FSx applies a pending patch anyway. See [Maintenance windows](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html).
 
-## How It Works
-
-For each FSx Lustre file system, the script deploys **two Lambda functions** triggered by EventBridge every 14 days:
+## How it works
 
 ```
-Week 1 (skip maintenance):
-  Lambda A fires 12h BEFORE the maintenance window
-    → shifts the window BACK 24 hours
-    → the original MW time passes with no window scheduled → maintenance skipped
-
-  Lambda B fires 12h AFTER the original MW time
-    → shifts the window FORWARD 24 hours
-    → restores the window to its original position for the next cycle
-
-Week 2 (allow maintenance):
-  Neither Lambda fires (14-day rate schedule)
-    → maintenance window stays at its original time → maintenance executes normally
-
-Week 3 = Week 1 (skip), Week 4 = Week 2 (allow), ...
+EventBridge Scheduler (cron, UTC, weekly)
+  skip    schedule: original MW −12h → in a skip week, set MW = original −24h
+  restore schedule: original MW +12h → set MW = original (runs every week as a safety net)
+                │
+                ▼
+     Lambda fsx-mw-scheduler (shared by all file systems)
+       reads the CSV from S3 on every run → original MW → writes an absolute value
 ```
 
-### Example — Maintenance Window = Wednesday 02:00 UTC
+Example: original MW `3:02:00` (Wed 02:00)
 
-| Phase | Maintenance Window | Triggered By |
+| Schedule | cron | Action |
 |---|---|---|
-| Original | `3:02:00` → **Wed 02:00 UTC** | — |
-| After Lambda A (`-24h`) | `2:02:00` → **Tue 02:00 UTC** | Skip Lambda (Tue 14:00 UTC) |
-| After Lambda B (`+24h`) | `3:02:00` → **Wed 02:00 UTC** ✅ restored | Restore Lambda (Wed 14:00 UTC) |
+| skip | `cron(0 14 ? * TUE *)` Tue 14:00 | skip week: set `2:02:00` (Tue 02:00, already past) → no maintenance this Wed |
+| restore | `cron(0 14 ? * WED *)` Wed 14:00 | set back to `3:02:00` |
 
-### FSx Maintenance Window Format
+## What changed from v1
 
-- **Format**: `d:HH:MM` where `d` = 1 (Monday) through 7 (Sunday)
-- **Timezone**: Always **UTC** (no timezone setting)
-- **Duration**: 30-minute window
-- **Constraint**: AWS requires a maintenance window to be hit at least once every **14 days**. If not, AWS will force maintenance regardless of the window setting.
+| v1 problem (verified by test) | v2 |
+|---|---|
+| `rate(14 days)` is anchored at rule creation time; both rules fired together, nothing was skipped and the window could drift | **cron** derived from the CSV window; the Lambda decides whether this is a skip week |
+| read current value ±24h — duplicates accumulate | **Idempotent**: reads the original window from the CSV every run and writes an absolute value; no API call if already at target |
+| no error handling | pre-checks (AVAILABLE, no running admin action) + API retry + read-back check; failures → retries → **SQS DLQ** → **CloudWatch alarm → SNS** |
+| two Lambdas per FS | one shared Lambda, reserved concurrency = 1 |
 
-> **Source**: [Amazon FSx for Lustre User Guide — Maintenance Windows](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html)
-
-## Prerequisites
-
-- Python 3.9+ with `boto3` installed
-- An AWS account with FSx Lustre file systems
-- AWS CLI configured (for IAM user/key setup)
-
-## Setup — Step by Step
-
-### 1. Create IAM User
+## Usage
 
 ```bash
-# Create the user
-aws iam create-user --user-name fsx-mw-scheduler
-
-# Create access key
-aws iam create-access-key --user-name fsx-mw-scheduler
-# Save the AccessKeyId and SecretAccessKey from the output
-```
-
-### 2. Attach IAM Policy
-
-The user needs permissions to: list/update FSx file systems, create/invoke Lambda functions, manage EventBridge rules, and create the Lambda execution role.
-
-Edit `iam-policy.json` — replace all `ACCOUNT_ID` with your 12-digit AWS account ID:
-
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-sed "s/ACCOUNT_ID/$ACCOUNT_ID/g" iam-policy.json > /tmp/iam-policy-resolved.json
-
-aws iam put-user-policy \
-  --user-name fsx-mw-scheduler \
-  --policy-name fsx-mw-scheduler-policy \
-  --policy-document file:///tmp/iam-policy-resolved.json
-```
-
-### 3. Configure Credentials
-
-```bash
-export AWS_ACCESS_KEY_ID=<your-access-key-id>
-export AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
-```
-
-### 4. List FSx Lustre File Systems → CSV
-
-```bash
+# 1. List Lustre file systems; keep only the ones to make biweekly in the CSV
 python3 fsx_mw_scheduler.py list --region us-east-2
+
+# 2. Deploy (CSV is uploaded to S3; --first-skip-week = any day in the first skip week, default this week)
+python3 fsx_mw_scheduler.py deploy --region us-east-2 --bucket <bucket-in-same-region> \
+    --csv fsx_lustre_list.csv --first-skip-week 2026-11-23 --email ops@example.com
+
+# 3. To change the original window: edit the CSV and deploy again (updates the S3 CSV and the cron)
+
+# 4. Remove schedules
+python3 fsx_mw_scheduler.py remove --region us-east-2 --all
 ```
 
-Output:
-```
-✅ Wrote 2 FSx Lustre file systems to fsx_lustre_list.csv
-   fs-02e88f8550a3572d3  mw-test-1                       MW=3:02:00 (Wed 02:00 UTC)
-   fs-0247683a1e4d5b957  mw-test-2                       MW=5:18:30 (Fri 18:30 UTC)
-```
-
-CSV file (`fsx_lustre_list.csv`):
+CSV (`MaintenanceWindow` = original window, `d:HH:MM`, d=1 Mon … 7 Sun, UTC):
 ```csv
 Name,FileSystemId,MaintenanceWindow,MaintenanceWindowHuman,Timezone
-mw-test-1,fs-02e88f8550a3572d3,3:02:00,Wed 02:00 UTC,UTC
-mw-test-2,fs-0247683a1e4d5b957,5:18:30,Fri 18:30 UTC,UTC
+mw-biweekly-test,fs-0eeabbe93f4cc61f0,3:02:00,Wed 02:00 UTC,UTC
 ```
 
-> **Tip**: Edit the CSV to remove any file systems you don't want to convert to biweekly.
+## Test results (2026-11-18, us-east-2, SCRATCH_2 1200 GiB, original MW 3:02:00)
 
-### 5. Deploy Lambda + EventBridge
+Script: `test_v2.sh`
 
-```bash
-python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
-```
+| # | Case | Window | Result |
+|---|---|---|---|
+| T1 | skip in a skip week | `3:02` → `2:02` | ✅ |
+| T2 | skip again | stays `2:02` (NO_CHANGE) | ✅ idempotent |
+| T3 | restore | `2:02` → `3:02` | ✅ |
+| T4 | restore again | stays `3:02` (NO_CHANGE) | ✅ idempotent |
+| T5 | skip in a non-skip week (12-01) | unchanged (NOT_SKIP_WEEK) | ✅ |
+| T6 | skip the week after (12-08) | `3:02` → `2:02` | ✅ alternates; across year end: 12-22 skip / 12-29 maintain / 01-05 skip |
+| T7 | skip and restore at the same time | serialized, ends at `3:02` | ✅ no drift |
+| T8 | window manually set to `6:10`, then restore | `6:10` → `3:02` | ✅ corrected from CSV |
+| T9 | only the S3 CSV changed to `5:18:30`, no redeploy | restore writes `5:18:30` | ✅ CSV read on every run |
+| T10 | FS missing from CSV | error `CSV 中找不到文件系统` | ✅ |
+| T11 | invalid event | error `事件参数非法` | ✅ |
+| T12 | real Scheduler trigger (one-time schedule) | valid FS: `3:02` → `2:02`; non-existent FS: ran 3 times (1 + 2 retries), then DLQ (RetriesExhausted); alarm `fsx-mw-lambda-errors` went to ALARM | ✅ |
 
-Output:
-```
-📋 Read 2 file systems from fsx_lustre_list.csv
-   ✅ Created IAM role fsx-mw-lambda-role
+> Finding: Scheduler invokes Lambda asynchronously, so **function errors do not reach the Scheduler DLQ** (that one only covers delivery failures). The Lambda async OnFailure destination must be configured too; v2 sends both to `fsx-mw-dlq`.
 
-============================================================
-📁 mw-test-1 (fs-02e88f8550a3572d3)  MW=3:02:00 (Wed 02:00 UTC)
-   Lambda A (skip): fsx-mw-skip-fs-02e88f8550a3572d3
-     Fires at: TUE 14:00 UTC (12h before MW)
-     Action: shift MW -24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-skip-fs-02e88f8550a3572d3 (rate(14 days))
-   Lambda B (restore): fsx-mw-restore-fs-02e88f8550a3572d3
-     Fires at: WED 14:00 UTC (12h after MW)
-     Action: shift MW +24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-restore-fs-02e88f8550a3572d3 (rate(14 days))
+## Notes
 
-============================================================
-📁 mw-test-2 (fs-0247683a1e4d5b957)  MW=5:18:30 (Fri 18:30 UTC)
-   Lambda A (skip): fsx-mw-skip-fs-0247683a1e4d5b957
-     Fires at: FRI 06:30 UTC (12h before MW)
-     Action: shift MW -24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-skip-fs-0247683a1e4d5b957 (rate(14 days))
-   Lambda B (restore): fsx-mw-restore-fs-0247683a1e4d5b957
-     Fires at: SAT 06:30 UTC (12h after MW)
-     Action: shift MW +24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-restore-fs-0247683a1e4d5b957 (rate(14 days))
-
-============================================================
-🎉 Deployment complete!
-```
-
-## Test Results
-
-Tested with 2 FSx Lustre SCRATCH_2 file systems (us-east-2). Manual Lambda invocations verified the full cycle:
-
-### Test 1: mw-test-1 (MW = Wed 02:00 UTC / `3:02:00`)
-
-| Phase | MW Value | Human Readable |
-|---|---|---|
-| Before Lambda A | `3:02:00` | Wed 02:00 UTC |
-| After Lambda A (−24h) | `2:02:00` | **Tue 02:00 UTC** ← shifted back, Wed window skipped |
-| After Lambda B (+24h) | `3:02:00` | **Wed 02:00 UTC** ← restored |
-
-Lambda A output:
-```json
-{"statusCode": 200, "body": "FSx fs-02e88f8550a3572d3: shifted MW from Wed 02:00 UTC to Tue 02:00 UTC (-24h)", "oldMW": "3:02:00", "newMW": "2:02:00"}
-```
-
-Lambda B output:
-```json
-{"statusCode": 200, "body": "FSx fs-02e88f8550a3572d3: shifted MW from Tue 02:00 UTC to Wed 02:00 UTC (+24h)", "oldMW": "2:02:00", "newMW": "3:02:00"}
-```
-
-### Test 2: mw-test-2 (MW = Fri 18:30 UTC / `5:18:30`)
-
-| Phase | MW Value | Human Readable |
-|---|---|---|
-| Before Lambda A | `5:18:30` | Fri 18:30 UTC |
-| After Lambda A (−24h) | `4:18:30` | **Thu 18:30 UTC** ← shifted back, Fri window skipped |
-| After Lambda B (+24h) | `5:18:30` | **Fri 18:30 UTC** ← restored |
-
-Lambda A output:
-```json
-{"statusCode": 200, "body": "FSx fs-0247683a1e4d5b957: shifted MW from Fri 18:30 UTC to Thu 18:30 UTC (-24h)", "oldMW": "5:18:30", "newMW": "4:18:30"}
-```
-
-Lambda B output:
-```json
-{"statusCode": 200, "body": "FSx fs-0247683a1e4d5b957: shifted MW from Thu 18:30 UTC to Fri 18:30 UTC (+24h)", "oldMW": "4:18:30", "newMW": "5:18:30"}
-```
-
-## Architecture
-
-```
-EventBridge (rate: 14 days)          EventBridge (rate: 14 days)
-     │                                    │
-     ▼                                    ▼
- Lambda A                             Lambda B
- "fsx-mw-skip-{fs-id}"               "fsx-mw-restore-{fs-id}"
- Fires: MW − 12h                     Fires: MW + 12h
- Action: MW − 24h                    Action: MW + 24h
-     │                                    │
-     ▼                                    ▼
- FSx UpdateFileSystem                 FSx UpdateFileSystem
- (shift window back)                  (shift window forward)
-```
-
-### Resources Created Per File System
-
-| Resource | Name Pattern | Purpose |
-|---|---|---|
-| Lambda Function | `fsx-mw-skip-{fs-id}` | Shift MW back 24h (skip maintenance) |
-| Lambda Function | `fsx-mw-restore-{fs-id}` | Shift MW forward 24h (restore) |
-| EventBridge Rule | `fsx-mw-skip-{fs-id}` | Trigger skip Lambda every 14 days |
-| EventBridge Rule | `fsx-mw-restore-{fs-id}` | Trigger restore Lambda every 14 days |
-| IAM Role | `fsx-mw-lambda-role` | Shared by all Lambda functions (1 per account) |
-
-### IAM Permissions
-
-**IAM User** (`iam-policy.json`) — for running the script:
-- `fsx:DescribeFileSystems`, `fsx:UpdateFileSystem` — list and update MW
-- `lambda:Create/Delete/Invoke/Update*` — manage Lambda functions (scoped to `fsx-mw-*`)
-- `events:PutRule/PutTargets/Delete*` — manage EventBridge rules (scoped to `fsx-mw-*`)
-- `iam:CreateRole/GetRole/PutRolePolicy/PassRole` — create Lambda execution role
-- `sts:GetCallerIdentity` — auto-detect account ID
-
-**Lambda Execution Role** (`lambda-execution-role-policy.json`) — for Lambda runtime:
-- `fsx:DescribeFileSystems`, `fsx:UpdateFileSystem` — read and update MW
-- `logs:Create*/PutLogEvents` — CloudWatch Logs
-
-## Important Considerations
-
-### 14-Day Hard Limit
-
-From the [FSx Lustre User Guide](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html):
-
-> *"You can move your maintenance window as frequently as required, provided that a maintenance window is scheduled at least once every 14 days. If a patch is released and you haven't scheduled a maintenance window within 14 days, FSx for Lustre will proceed with maintenance on the file system to ensure its security and reliability."*
-
-This biweekly approach operates **at the 14-day boundary** — skipping one week, then allowing the next. This is the maximum stretch AWS permits. If timing drifts or EventBridge delivery is delayed, AWS may force maintenance to maintain the 14-day guarantee.
-
-### EventBridge `rate(14 days)` Behavior
-
-- `rate(14 days)` fires at the time the rule was **created**, then every 14 days.
-- The first invocation may not align perfectly with the desired MW offset. Subsequent cycles self-correct because each Lambda reads the **current** MW value before shifting.
-- If you need precise initial timing, manually invoke Lambda A once after deployment to seed the first skip.
-
-### Cost
-
-- **Lambda**: ~$0.00/month (2 invocations per FS per 14 days, 128 MB, <1 sec each)
-- **EventBridge**: ~$0.00/month (2 rules per FS, scheduled)
-- **IAM**: Free
-- **Total**: Effectively free for any reasonable number of file systems
-
-## Cleanup
-
-```bash
-# Delete Lambda functions and EventBridge rules for a specific FS
-FS_ID=fs-xxxxxxxxxxxx
-REGION=us-east-2
-
-for prefix in fsx-mw-skip fsx-mw-restore; do
-  aws events remove-targets --rule "${prefix}-${FS_ID}" --ids "target-${FS_ID}" --region $REGION
-  aws events delete-rule --name "${prefix}-${FS_ID}" --region $REGION
-  aws lambda delete-function --function-name "${prefix}-${FS_ID}" --region $REGION
-done
-
-# (Optional) Delete the shared Lambda role
-aws iam delete-role-policy --role-name fsx-mw-lambda-role --policy-name fsx-mw-lambda-policy
-aws iam delete-role --role-name fsx-mw-lambda-role
-
-# (Optional) Delete the IAM user
-aws iam delete-user-policy --user-name fsx-mw-scheduler --policy-name fsx-mw-scheduler-policy
-aws iam delete-access-key --user-name fsx-mw-scheduler --access-key-id <KEY_ID>
-aws iam delete-user --user-name fsx-mw-scheduler
-```
+- Two real maintenance runs are exactly 14 days apart — **no margin**. The docs do not say whether "scheduled" means a window exists or a window has passed; **assumption (not tested)**: a window always being scheduled is enough.
+- A real patch event cannot be triggered on demand, so "no patch was applied in the skip week" is not tested.
+- If the original window is on Monday, skip fires on Sunday 14:00; the week is decided by the maintenance day, so it does not pick the wrong week.
 
 ## Files
 
 | File | Description |
 |---|---|
-| `fsx_mw_scheduler.py` | Main script — `list` and `deploy` commands |
-| `iam-policy.json` | IAM policy for the operator user (replace `ACCOUNT_ID`) |
-| `lambda-execution-role-policy.json` | IAM policy for the Lambda execution role |
-| `README.md` | This file |
+| `fsx_mw_scheduler.py` | Deploy script: `list` / `deploy` / `remove` |
+| `lambda_function.py` | Lambda code |
+| `test_v2.sh` | Test script |
+| `iam-policy.json` | Permissions needed to run the deploy script |

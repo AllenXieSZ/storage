@@ -1,289 +1,93 @@
-# FSx Lustre 运维窗口双周调度器
+# FSx for Lustre 维护窗口隔周调度（v2）
 
-将 Amazon FSx for Lustre 每周运维窗口自动调整为 **每两周执行一次**，通过 Lambda + EventBridge 实现，部署后无需任何手动操作。
+[English](README.md)
 
-## 背景问题
+FSx for Lustre 的维护窗口按周设置，没有"隔周"选项。本工具在**跳过周**把窗口临时挪到前一天（已过去的时间点），维护后再挪回原值，从而让补丁最多每两周落地一次。
 
-FSx for Lustre 的运维窗口（Maintenance Window）是 **每周固定时间** 执行，AWS 不提供原生的频率调整选项。运维期间文件系统会短暂不可用，且内存缓存会被清除——导致运维后一段时间内访问延迟明显升高。对于生产环境，每周一次运维可能太频繁、影响业务。
-
-本方案通过自动"挪窗口"的方式，**隔一周跳过一次运维**，等效实现双周运维。
+> 官方说明：补丁"通常每几周一次"，不是每周都有；且必须**每 14 天内至少排一次窗口**，否则有补丁时 AWS 会强制维护。见 [Maintenance windows](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html)。
 
 ## 工作原理
 
-对每个 FSx Lustre 文件系统，脚本会部署 **两个 Lambda 函数**，由 EventBridge 每 14 天触发一次：
-
 ```
-第 1 周（跳过运维）：
-  Lambda A 在运维窗口前 12 小时触发
-    → 将运维窗口往前挪 24 小时
-    → 原来的运维时间点已经没有窗口了 → 运维被跳过
-
-  Lambda B 在原运维时间后 12 小时触发
-    → 将运维窗口往后挪 24 小时
-    → 恢复到原来的位置，等待下一个周期
-
-第 2 周（正常运维）：
-  两个 Lambda 都不触发（14 天一次的调度周期）
-    → 运维窗口保持在原位 → 正常执行运维
-
-第 3 周 = 第 1 周（跳过），第 4 周 = 第 2 周（正常），如此循环...
+EventBridge Scheduler（cron，UTC，每周）
+  skip    计划：原始窗口 −12h 触发 → 若是"跳过周"，窗口写为 原始 −24h
+  restore 计划：原始窗口 +12h 触发 → 窗口写回 原始值（每周都执行，兜底）
+                │
+                ▼
+     Lambda fsx-mw-scheduler（全部 FS 共用）
+       每次从 S3 读取 CSV → 取该 FS 原始窗口 → 写绝对值
 ```
 
-### 举例 — 运维窗口 = 每周三 02:00 UTC
+例：原始窗口 `3:02:00`（周三 02:00）
 
-| 阶段 | 运维窗口值 | 触发者 |
+| 计划 | cron | 动作 |
 |---|---|---|
-| 初始状态 | `3:02:00` → **周三 02:00 UTC** | — |
-| Lambda A 执行后（-24h） | `2:02:00` → **周二 02:00 UTC** | 跳过 Lambda（周二 14:00 UTC 触发） |
-| Lambda B 执行后（+24h） | `3:02:00` → **周三 02:00 UTC** ✅ 恢复 | 恢复 Lambda（周三 14:00 UTC 触发） |
+| skip | `cron(0 14 ? * TUE *)` 周二 14:00 | 跳过周：改为 `2:02:00`（周二 02:00，已过去）→ 本周三不维护 |
+| restore | `cron(0 14 ? * WED *)` 周三 14:00 | 改回 `3:02:00` |
 
-### FSx 运维窗口格式说明
+## 相比 v1 的改进
 
-- **格式**：`d:HH:MM`，其中 `d` = 1（周一）到 7（周日）
-- **时区**：始终是 **UTC**（不可配置时区）
-- **时长**：30 分钟窗口
-- **硬性约束**：AWS 要求运维窗口 **至少每 14 天执行一次**。如果超过 14 天没有命中运维窗口，AWS 会强制执行运维。
+| 问题（v1，实测确认） | v2 |
+|---|---|
+| `rate(14 days)` 锚定在规则创建时间，两条规则同时触发，跳不过维护，甚至窗口被挪偏 | 按 CSV 维护窗口算出 **cron**，Lambda 内按周数判断是否跳过周 |
+| 读当前值 ±24h，重复触发会累积偏移 | **幂等**：每次读 CSV 原始窗口，写绝对值；已是目标值则不调用 API |
+| 无错误处理 | 前置检查（AVAILABLE、无进行中管理操作）+ API 重试 + 写后校验；失败 → 重试 → **SQS 死信队列** → **CloudWatch 告警 → SNS** |
+| 每 FS 两个 Lambda | 一个共用 Lambda，预留并发 = 1，避免并发读改写 |
 
-> **来源**：[Amazon FSx for Lustre 用户指南 — 运维窗口](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html)
-
-## 前置条件
-
-- Python 3.9+，已安装 `boto3`
-- 一个有 FSx Lustre 文件系统的 AWS 账号
-- AWS CLI 已配置好凭证
-
-## 部署步骤
-
-### 1. 创建 IAM 用户
+## 使用
 
 ```bash
-# 创建用户
-aws iam create-user --user-name fsx-mw-scheduler
-
-# 创建 Access Key
-aws iam create-access-key --user-name fsx-mw-scheduler
-# 记下输出中的 AccessKeyId 和 SecretAccessKey
-```
-
-### 2. 附加 IAM 权限策略
-
-该用户需要以下权限：列出/更新 FSx 文件系统、创建/调用 Lambda 函数、管理 EventBridge 规则、创建 Lambda 执行角色。
-
-编辑 `iam-policy.json`，将所有 `ACCOUNT_ID` 替换为你的 12 位 AWS 账号 ID：
-
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-sed "s/ACCOUNT_ID/$ACCOUNT_ID/g" iam-policy.json > /tmp/iam-policy-resolved.json
-
-aws iam put-user-policy \
-  --user-name fsx-mw-scheduler \
-  --policy-name fsx-mw-scheduler-policy \
-  --policy-document file:///tmp/iam-policy-resolved.json
-```
-
-### 3. 配置凭证
-
-```bash
-export AWS_ACCESS_KEY_ID=<你的AccessKeyId>
-export AWS_SECRET_ACCESS_KEY=<你的SecretAccessKey>
-```
-
-### 4. 列出 FSx Lustre 文件系统 → 生成 CSV
-
-```bash
+# 1. 列出 Lustre 文件系统，编辑 CSV 只保留需要隔周的
 python3 fsx_mw_scheduler.py list --region us-east-2
+
+# 2. 部署（CSV 上传到 S3；--first-skip-week 为第一个跳过周内任意一天，默认本周）
+python3 fsx_mw_scheduler.py deploy --region us-east-2 --bucket <同 Region 的 S3 桶> \
+    --csv fsx_lustre_list.csv --first-skip-week 2026-11-23 --email ops@example.com
+
+# 3. 修改原始窗口：改 CSV 后重新 deploy（同时更新 S3 CSV 和 cron）
+
+# 4. 删除计划
+python3 fsx_mw_scheduler.py remove --region us-east-2 --all
 ```
 
-输出示例：
-```
-✅ Wrote 2 FSx Lustre file systems to fsx_lustre_list.csv
-   fs-02e88f8550a3572d3  mw-test-1                       MW=3:02:00 (Wed 02:00 UTC)
-   fs-0247683a1e4d5b957  mw-test-2                       MW=5:18:30 (Fri 18:30 UTC)
-```
-
-生成的 CSV 文件（`fsx_lustre_list.csv`）：
+CSV 格式（`MaintenanceWindow` 为原始窗口，`d:HH:MM`，d=1 周一 … 7 周日，UTC）：
 ```csv
 Name,FileSystemId,MaintenanceWindow,MaintenanceWindowHuman,Timezone
-mw-test-1,fs-02e88f8550a3572d3,3:02:00,Wed 02:00 UTC,UTC
-mw-test-2,fs-0247683a1e4d5b957,5:18:30,Fri 18:30 UTC,UTC
+mw-biweekly-test,fs-0eeabbe93f4cc61f0,3:02:00,周三 02:00 UTC,UTC
 ```
 
-> **提示**：编辑 CSV 文件，删除不需要调整为双周运维的文件系统。
+## 实测结果（2026-11-18，us-east-2，SCRATCH_2 1200 GiB，原始窗口 3:02:00）
 
-### 5. 部署 Lambda + EventBridge
+测试脚本：`test_v2.sh`
 
-```bash
-python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
-```
+| # | 场景 | 窗口变化 | 结果 |
+|---|---|---|---|
+| T1 | 跳过周 skip | `3:02` → `2:02` | ✅ |
+| T2 | 重复 skip | `2:02` 不变（NO_CHANGE） | ✅ 幂等 |
+| T3 | restore | `2:02` → `3:02` | ✅ |
+| T4 | 重复 restore | `3:02` 不变（NO_CHANGE） | ✅ 幂等 |
+| T5 | 非跳过周 skip（12-01） | 不变（NOT_SKIP_WEEK） | ✅ |
+| T6 | 再下一周 skip（12-08） | `3:02` → `2:02` | ✅ 隔周正确；跨年 12-22 跳 / 12-29 维护 / 01-05 跳 |
+| T7 | skip、restore 同时触发 | 串行执行，最终 `3:02` | ✅ 不漂移 |
+| T8 | 手工改乱为 `6:10` 后 restore | `6:10` → `3:02` | ✅ 按 CSV 纠正 |
+| T9 | 只改 S3 CSV 为 `5:18:30`，不重新部署 | restore 写入 `5:18:30` | ✅ 每次都读 CSV |
+| T10 | CSV 中没有该 FS | 报错 `CSV 中找不到文件系统` | ✅ |
+| T11 | 非法事件参数 | 报错 `事件参数非法` | ✅ |
+| T12 | Scheduler 真实触发（一次性计划） | 正常 FS：`3:02` → `2:02`；不存在的 FS：执行 3 次（1 + 重试 2）后进入 DLQ（RetriesExhausted），告警 `fsx-mw-lambda-errors` 变 ALARM | ✅ |
 
-输出示例：
-```
-📋 Read 2 file systems from fsx_lustre_list.csv
-   ✅ Created IAM role fsx-mw-lambda-role
+> 发现：Scheduler 调 Lambda 是异步的，**函数报错不会进 Scheduler 的 DLQ**（那个只管投递失败），必须另外配置 Lambda 异步调用的 OnFailure 目标。v2 已两处都配到同一个 `fsx-mw-dlq`。
 
-============================================================
-📁 mw-test-1 (fs-02e88f8550a3572d3)  MW=3:02:00 (Wed 02:00 UTC)
-   Lambda A (skip): fsx-mw-skip-fs-02e88f8550a3572d3
-     Fires at: TUE 14:00 UTC (12h before MW)
-     Action: shift MW -24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-skip-fs-02e88f8550a3572d3 (rate(14 days))
-   Lambda B (restore): fsx-mw-restore-fs-02e88f8550a3572d3
-     Fires at: WED 14:00 UTC (12h after MW)
-     Action: shift MW +24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-restore-fs-02e88f8550a3572d3 (rate(14 days))
+## 注意
 
-============================================================
-📁 mw-test-2 (fs-0247683a1e4d5b957)  MW=5:18:30 (Fri 18:30 UTC)
-   Lambda A (skip): fsx-mw-skip-fs-0247683a1e4d5b957
-     Fires at: FRI 06:30 UTC (12h before MW)
-     Action: shift MW -24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-skip-fs-0247683a1e4d5b957 (rate(14 days))
-   Lambda B (restore): fsx-mw-restore-fs-0247683a1e4d5b957
-     Fires at: SAT 06:30 UTC (12h after MW)
-     Action: shift MW +24h
-     ✅ Lambda created
-     ✅ EventBridge rule: fsx-mw-restore-fs-0247683a1e4d5b957 (rate(14 days))
+- 两次实际维护间隔正好 14 天，**没有余量**；AWS 按"已排期"还是"实际执行"判断 14 天，文档未说明，**推测（未实测）**：只要始终有窗口排期即可。
+- 真实补丁维护无法人为触发，"跳过后确实没有打补丁"未实测。
+- 原始窗口在周一时，skip 在周日 14:00 触发，按"维护发生日"所在周判断，不会错周。
 
-============================================================
-🎉 Deployment complete!
-```
-
-## 测试结果
-
-在 us-east-2 区域用 2 个 FSx Lustre SCRATCH_2 文件系统进行了实测，手动触发 Lambda 验证了完整的跳过→恢复周期：
-
-### 测试 1：mw-test-1（运维窗口 = 周三 02:00 UTC / `3:02:00`）
-
-| 阶段 | 运维窗口值 | 可读格式 |
-|---|---|---|
-| Lambda A 执行前 | `3:02:00` | 周三 02:00 UTC |
-| Lambda A 执行后（−24h） | `2:02:00` | **周二 02:00 UTC** ← 往前挪了，周三的运维被跳过 |
-| Lambda B 执行后（+24h） | `3:02:00` | **周三 02:00 UTC** ← 恢复原位 |
-
-Lambda A 返回值：
-```json
-{"statusCode": 200, "body": "FSx fs-02e88f8550a3572d3: shifted MW from Wed 02:00 UTC to Tue 02:00 UTC (-24h)", "oldMW": "3:02:00", "newMW": "2:02:00"}
-```
-
-Lambda B 返回值：
-```json
-{"statusCode": 200, "body": "FSx fs-02e88f8550a3572d3: shifted MW from Tue 02:00 UTC to Wed 02:00 UTC (+24h)", "oldMW": "2:02:00", "newMW": "3:02:00"}
-```
-
-### 测试 2：mw-test-2（运维窗口 = 周五 18:30 UTC / `5:18:30`）
-
-| 阶段 | 运维窗口值 | 可读格式 |
-|---|---|---|
-| Lambda A 执行前 | `5:18:30` | 周五 18:30 UTC |
-| Lambda A 执行后（−24h） | `4:18:30` | **周四 18:30 UTC** ← 往前挪了，周五的运维被跳过 |
-| Lambda B 执行后（+24h） | `5:18:30` | **周五 18:30 UTC** ← 恢复原位 |
-
-Lambda A 返回值：
-```json
-{"statusCode": 200, "body": "FSx fs-0247683a1e4d5b957: shifted MW from Fri 18:30 UTC to Thu 18:30 UTC (-24h)", "oldMW": "5:18:30", "newMW": "4:18:30"}
-```
-
-Lambda B 返回值：
-```json
-{"statusCode": 200, "body": "FSx fs-0247683a1e4d5b957: shifted MW from Thu 18:30 UTC to Fri 18:30 UTC (+24h)", "oldMW": "4:18:30", "newMW": "5:18:30"}
-```
-
-## 架构图
-
-```
-EventBridge（rate: 14 天）          EventBridge（rate: 14 天）
-     │                                    │
-     ▼                                    ▼
- Lambda A                             Lambda B
- "fsx-mw-skip-{fs-id}"               "fsx-mw-restore-{fs-id}"
- 触发时间: 运维窗口前 12h             触发时间: 运维窗口后 12h
- 动作: 运维窗口 −24h                  动作: 运维窗口 +24h
-     │                                    │
-     ▼                                    ▼
- FSx UpdateFileSystem                 FSx UpdateFileSystem
- （把窗口往前挪一天）                 （把窗口挪回原位）
-```
-
-### 每个文件系统创建的资源
-
-| 资源 | 命名规则 | 用途 |
-|---|---|---|
-| Lambda 函数 | `fsx-mw-skip-{fs-id}` | 将运维窗口往前挪 24 小时（跳过本周运维） |
-| Lambda 函数 | `fsx-mw-restore-{fs-id}` | 将运维窗口往后挪 24 小时（恢复原位） |
-| EventBridge 规则 | `fsx-mw-skip-{fs-id}` | 每 14 天触发跳过 Lambda |
-| EventBridge 规则 | `fsx-mw-restore-{fs-id}` | 每 14 天触发恢复 Lambda |
-| IAM 角色 | `fsx-mw-lambda-role` | 所有 Lambda 共用（每个账号 1 个） |
-
-### IAM 权限说明
-
-**IAM 用户权限**（`iam-policy.json`）— 运行部署脚本用：
-- `fsx:DescribeFileSystems`、`fsx:UpdateFileSystem` — 列出和更新运维窗口
-- `lambda:Create/Delete/Invoke/Update*` — 管理 Lambda 函数（限定 `fsx-mw-*` 前缀）
-- `events:PutRule/PutTargets/Delete*` — 管理 EventBridge 规则（限定 `fsx-mw-*` 前缀）
-- `iam:CreateRole/GetRole/PutRolePolicy/PassRole` — 创建 Lambda 执行角色
-- `sts:GetCallerIdentity` — 自动获取账号 ID
-
-**Lambda 执行角色权限**（`lambda-execution-role-policy.json`）— Lambda 运行时用：
-- `fsx:DescribeFileSystems`、`fsx:UpdateFileSystem` — 读取和更新运维窗口
-- `logs:Create*/PutLogEvents` — CloudWatch 日志
-
-## 注意事项
-
-### 14 天硬性限制
-
-[FSx Lustre 用户指南](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html) 原文：
-
-> *"You can move your maintenance window as frequently as required, provided that a maintenance window is scheduled at least once every 14 days. If a patch is released and you haven't scheduled a maintenance window within 14 days, FSx for Lustre will proceed with maintenance on the file system to ensure its security and reliability."*
-
-翻译：你可以随意调整运维窗口，但 **至少每 14 天必须命中一次运维窗口**。如果超过 14 天没有执行运维，AWS 会强制执行以确保安全性。
-
-本方案正好工作在 **14 天边界上**——跳过一周、执行一周。这是 AWS 允许的最大间隔。如果时间漂移或 EventBridge 投递延迟，AWS 可能会强制执行运维。
-
-### EventBridge `rate(14 days)` 的行为
-
-- `rate(14 days)` 从规则**创建时间**开始，每 14 天触发一次
-- 第一次触发可能和期望的运维窗口偏移时间不完全对齐。后续周期会自动修正，因为每个 Lambda 执行前都会**读取当前的运维窗口值**再进行偏移
-- 如果需要精确的首次时间对齐，可以在部署后手动触发一次 Lambda A 来初始化第一次跳过
-
-### 费用
-
-- **Lambda**：约 $0.00/月（每个文件系统每 14 天 2 次调用，128MB 内存，每次 <1 秒）
-- **EventBridge**：约 $0.00/月（每个文件系统 2 条定时规则）
-- **IAM**：免费
-- **总计**：对于任意合理数量的文件系统，费用基本为零
-
-## 清理资源
-
-```bash
-# 删除某个文件系统对应的 Lambda 函数和 EventBridge 规则
-FS_ID=fs-xxxxxxxxxxxx
-REGION=us-east-2
-
-for prefix in fsx-mw-skip fsx-mw-restore; do
-  aws events remove-targets --rule "${prefix}-${FS_ID}" --ids "target-${FS_ID}" --region $REGION
-  aws events delete-rule --name "${prefix}-${FS_ID}" --region $REGION
-  aws lambda delete-function --function-name "${prefix}-${FS_ID}" --region $REGION
-done
-
-# （可选）删除共享的 Lambda 执行角色
-aws iam delete-role-policy --role-name fsx-mw-lambda-role --policy-name fsx-mw-lambda-policy
-aws iam delete-role --role-name fsx-mw-lambda-role
-
-# （可选）删除 IAM 用户
-aws iam delete-user-policy --user-name fsx-mw-scheduler --policy-name fsx-mw-scheduler-policy
-aws iam delete-access-key --user-name fsx-mw-scheduler --access-key-id <KEY_ID>
-aws iam delete-user --user-name fsx-mw-scheduler
-```
-
-## 文件说明
+## 文件
 
 | 文件 | 说明 |
 |---|---|
-| `fsx_mw_scheduler.py` | 主脚本 — 支持 `list`（列出文件系统）和 `deploy`（部署 Lambda + EventBridge）两个命令 |
-| `iam-policy.json` | 操作用户的 IAM 权限策略（需替换 `ACCOUNT_ID`） |
-| `lambda-execution-role-policy.json` | Lambda 执行角色的 IAM 权限策略 |
-| `README.md` | 英文文档 |
-| `README_ZH.md` | 本文（中文文档） |
+| `fsx_mw_scheduler.py` | 部署脚本：`list` / `deploy` / `remove` |
+| `lambda_function.py` | Lambda 代码 |
+| `test_v2.sh` | 实测脚本 |
+| `iam-policy.json` | 运行部署脚本所需权限 |
