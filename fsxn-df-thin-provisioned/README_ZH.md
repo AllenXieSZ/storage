@@ -133,3 +133,50 @@ sshpass -p <password> ssh fsxadmin@<mgmt-ip> \
 |---|---|---|---|
 | volume ≤ SSD 容量 | ✅ 准确 | ✅ 准确 | 可以用 df |
 | volume > SSD 容量（thin provisioned） | ❌ 虚高 | ❌ 虚高 | 必须用 ONTAP CLI |
+
+## Storage Efficiency 压缩效果实测
+
+ONTAP 默认开启 Storage Efficiency（inline 压缩 + 去重）。同样写入 200GB 数据到 17TB volume，使用全零数据（`/dev/zero`，高度可压缩）和随机数据（`/dev/urandom`，不可压缩）做对比：
+
+**全零 200GB：**
+
+```
+volume show -volume vol17tb -fields used,logical-used,sis-space-saved
+
+vserver volume  used    sis-space-saved logical-used
+------- ------- ------- --------------- ------------
+svm1    vol17tb 815.3MB 199.5GB         200.3GB
+```
+
+**随机 200GB：**
+
+```
+vserver volume  used    sis-space-saved logical-used
+------- ------- ------- --------------- ------------
+svm1    vol17tb 203.0GB 0B              203.0GB
+```
+
+**对比：**
+
+| 指标 | 全零 200GB | 随机 200GB | 说明 |
+|---|---|---|---|
+| `logical-used` | 200.3GB | 203.0GB | 逻辑写入量一致 |
+| `used` | **815.3MB** | **203.0GB** | 压缩后物理占用差 250 倍 |
+| `sis-space-saved` | **199.5GB**（节省 99.6%） | **0B** | 全零数据几乎全部被压缩掉 |
+| `physical-used` | 1.10GB | 205.3GB | aggregate 层面物理占用 |
+
+### 关键字段说明
+
+- **`logical-used`**：压缩前的逻辑数据量 = 客户实际写入了多少数据
+- **`used`**：压缩/去重后的物理占用 = SSD 上真正消耗的空间
+- **`sis-space-saved`**：Storage Efficiency 节省的空间 = logical-used − used
+- **压缩率** = `sis-space-saved` / `logical-used`
+
+### 实际意义
+
+- 生产环境的数据通常介于全零和纯随机之间，典型压缩率因数据类型而异：
+  - 数据库/日志/文本：30%–60% 压缩率
+  - 已压缩数据（图片/视频/加密）：接近 0%
+  - 虚拟机镜像/开发环境：40%–70%（去重 + 压缩）
+- 通过 `volume show -fields used,logical-used,sis-space-saved` 可以随时监控实际压缩效果
+- **容量规划时应基于 `physical-used` 而非 `logical-used`**，因为 SSD 空间是按物理占用消耗的
