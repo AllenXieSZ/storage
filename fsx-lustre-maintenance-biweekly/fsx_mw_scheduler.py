@@ -7,13 +7,12 @@ maintenance window back and forth with two Lambda functions per file system.
 
 Architecture (per file system):
   - 2 Lambda functions (skip + restore), idempotent absolute-value MW set
-  - 4 EventBridge Scheduler schedules:
-    - skip-init:    at() one-shot, fires MW−12h, auto-deletes
-    - restore-init: at() one-shot, fires MW+12h, auto-deletes
-    - skip-cycle:   rate(14 days) starting from the SECOND skip fire time
-    - restore-cycle:rate(14 days) starting from the SECOND restore fire time
+  - 2 EventBridge Scheduler schedules:
+    - skip:    rate(14 days) + StartDate = next MW−12h
+    - restore: rate(14 days) + StartDate = next MW+12h
 
-  The skip and restore fire times are 24h apart, so they never collide.
+  StartDate controls when the first invocation happens.
+  skip and restore are 24h apart, so they never collide.
 
 Usage:
   python3 fsx_mw_scheduler.py list   --region us-east-2 [--output fsx_lustre_list.csv]
@@ -267,8 +266,7 @@ def create_or_update_lambda(lam, func_name, role_arn, zip_bytes, description):
 
 
 def create_or_update_schedule(scheduler, name, expression, func_arn,
-                              scheduler_role_arn, desc, start_date=None,
-                              auto_delete=False):
+                              scheduler_role_arn, desc, start_date=None):
     """Create or update an EventBridge Scheduler schedule."""
     kwargs = dict(
         Name=name,
@@ -283,24 +281,21 @@ def create_or_update_schedule(scheduler, name, expression, func_arn,
     )
     if start_date:
         kwargs["StartDate"] = start_date
-    if auto_delete:
-        kwargs["ActionAfterCompletion"] = "DELETE"
 
     try:
         scheduler.create_schedule(**kwargs)
-        print(f"     ✅ Scheduler: {name} ({expression})"
-              + (f" StartDate={start_date.isoformat()}" if start_date else "")
-              + (" [auto-delete]" if auto_delete else ""))
+        start_info = f" StartDate={start_date.strftime('%Y-%m-%d %H:%M UTC')}" if start_date else ""
+        print(f"     ✅ Scheduler: {name} ({expression}){start_info}")
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConflictException":
             scheduler.update_schedule(**kwargs)
-            print(f"     ⚠️  Scheduler exists, updated: {name} ({expression})"
-                  + (f" StartDate={start_date.isoformat()}" if start_date else ""))
+            start_info = f" StartDate={start_date.strftime('%Y-%m-%d %H:%M UTC')}" if start_date else ""
+            print(f"     ⚠️  Scheduler exists, updated: {name} ({expression}){start_info}")
         else:
             raise
 
 
-# ─── Feature 2: Deploy Lambda + EventBridge ──
+# ─── Feature 2: Deploy Lambda + Scheduler ────
 
 def cmd_deploy(args):
     session = boto3.Session(region_name=args.region)
@@ -330,29 +325,25 @@ def cmd_deploy(args):
         print(f"   Original MW : {original_mw} ({human_readable_mw(original_mw)})")
         print(f"   Skipped MW  : {skipped_mw} ({human_readable_mw(skipped_mw)})")
 
-        # Calculate fire times:
+        # Fire times:
         #   skip  fires at MW − 12h (before the maintenance window)
         #   restore fires at MW + 12h (after the maintenance window)
-        #   They are 24h apart, so they never collide.
-        skip_first = next_occurrence_utc(original_mw, -12)
-        restore_first = next_occurrence_utc(original_mw, +12)
+        #   24h apart → never collide.
+        skip_start = next_occurrence_utc(original_mw, -12)
+        restore_start = next_occurrence_utc(original_mw, +12)
 
-        # The SECOND occurrence (for rate(14d) StartDate) is 14 days after first
-        skip_second = skip_first + timedelta(days=14)
-        restore_second = restore_first + timedelta(days=14)
-
-        for label, func_prefix, target_mw, first_at, cycle_start in [
-            ("skip", "fsx-mw-skip", skipped_mw, skip_first, skip_second),
-            ("restore", "fsx-mw-restore", original_mw, restore_first, restore_second),
+        for label, func_prefix, target_mw, start in [
+            ("skip", "fsx-mw-skip", skipped_mw, skip_start),
+            ("restore", "fsx-mw-restore", original_mw, restore_start),
         ]:
             func_name = f"{func_prefix}-{fs_id}"
             func_arn = f"arn:aws:lambda:{args.region}:{account_id}:function:{func_name}"
 
             print(f"\n   Lambda [{label}]: {func_name}")
-            print(f"     Target MW   : {target_mw} ({human_readable_mw(target_mw)})")
-            print(f"     First fire  : {first_at.strftime('%Y-%m-%d %H:%M UTC (%a)')} (at() one-shot)")
-            print(f"     Cycle start : {cycle_start.strftime('%Y-%m-%d %H:%M UTC (%a)')} (rate(14d) from here)")
-            print(f"     Idempotent  : yes")
+            print(f"     Target MW  : {target_mw} ({human_readable_mw(target_mw)})")
+            print(f"     First fire : {start.strftime('%Y-%m-%d %H:%M UTC (%a)')}")
+            print(f"     Repeat     : every 14 days")
+            print(f"     Idempotent : yes")
 
             # 1. Create/update Lambda
             create_or_update_lambda(
@@ -361,38 +352,26 @@ def cmd_deploy(args):
                 f"{label}: MW→{target_mw} for {fs_id} | original={original_mw}"
             )
 
-            # 2. Scheduler at() — first trigger (auto-deletes after fire)
+            # 2. Scheduler rate(14 days) + StartDate
+            #    First invocation at StartDate, then every 14 days.
             create_or_update_schedule(
                 scheduler,
-                name=f"{func_prefix}-init-{fs_id}",
-                expression=f"at({first_at.strftime('%Y-%m-%dT%H:%M:%S')})",
-                func_arn=func_arn,
-                scheduler_role_arn=sched_role_arn,
-                desc=f"First {label} for {fs_id} at {first_at.isoformat()}",
-                auto_delete=True,
-            )
-
-            # 3. Scheduler rate(14 days) — ongoing, with StartDate = second occurrence
-            #    This ensures the recurring trigger starts AFTER the init at() has fired,
-            #    and is properly aligned to MW±12h (not deploy time).
-            create_or_update_schedule(
-                scheduler,
-                name=f"{func_prefix}-cycle-{fs_id}",
+                name=f"{func_prefix}-{fs_id}",
                 expression="rate(14 days)",
                 func_arn=func_arn,
                 scheduler_role_arn=sched_role_arn,
-                desc=f"Recurring {label} for {fs_id} every 14d from {cycle_start.isoformat()} | original={original_mw}",
-                start_date=cycle_start,
+                desc=(f"{label} for {fs_id}: MW→{target_mw} every 14d, "
+                      f"first={start.isoformat()} | original={original_mw}"),
+                start_date=start,
             )
 
     print(f"\n{'='*60}")
     print("🎉 部署完成！")
     print()
     print("📌 调度说明：")
-    print("   1. at() 一次性规则：精确在下一个 MW±12h 时间点触发首次 skip/restore，触发后自动删除")
-    print("   2. rate(14 days) 周期规则：从第二次 skip/restore 时间点开始，每 14 天触发")
-    print("      skip 和 restore 的 StartDate 相差 24h，永远不会同时触发")
-    print("   3. Lambda 是幂等的，万一重叠触发也无副作用")
+    print("   每个文件系统 2 个 Scheduler 调度（skip + restore），各 rate(14 days)。")
+    print("   StartDate 控制首次触发时间：skip = MW−12h，restore = MW+12h（相隔24h不冲突）。")
+    print("   Lambda 是幂等的，重复触发无副作用。")
     print()
     print("⚠️  重要：请确保在「上周刚完成 maintenance 之后」部署，详见 README_ZH.md。")
 
@@ -419,24 +398,35 @@ def cmd_clean(args):
             else:
                 print(f"   ❌ Error deleting Lambda {func_name}: {e}")
 
-        # Delete Scheduler schedules (init + cycle)
+        # Delete Scheduler schedule (current naming: prefix-fsid)
+        sched_name = f"{prefix}-{fs_id}"
+        try:
+            scheduler.delete_schedule(Name=sched_name)
+            print(f"   ✅ Deleted Scheduler: {sched_name}")
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                print(f"   ⏭️  Scheduler not found: {sched_name}")
+            else:
+                print(f"   ❌ Error deleting Scheduler {sched_name}: {e}")
+
+        # Delete legacy Scheduler schedules (old naming: prefix-init/cycle-fsid)
         for suffix in ["init", "cycle"]:
-            sched_name = f"{prefix}-{suffix}-{fs_id}"
+            legacy_name = f"{prefix}-{suffix}-{fs_id}"
             try:
-                scheduler.delete_schedule(Name=sched_name)
-                print(f"   ✅ Deleted Scheduler: {sched_name}")
+                scheduler.delete_schedule(Name=legacy_name)
+                print(f"   ✅ Deleted legacy Scheduler: {legacy_name}")
             except ClientError as e:
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
-                    print(f"   ⏭️  Scheduler not found: {sched_name}")
+                    pass
                 else:
-                    print(f"   ❌ Error deleting Scheduler {sched_name}: {e}")
+                    print(f"   ❌ Error deleting legacy Scheduler {legacy_name}: {e}")
 
-    # Also clean up legacy EventBridge Rules (from old version that used Rules rate(14d))
+    # Clean up legacy EventBridge Rules (from oldest version that used Rules rate(14d))
     events = session.client("events")
     for prefix in ["fsx-mw-skip", "fsx-mw-restore"]:
         rule_name = f"{prefix}-{fs_id}"
         try:
-            # Old version used two different target ID formats; try both
+            # Old version used different target ID formats; try both
             for target_id in [f"target-{fs_id}", f"target-{rule_name}"]:
                 try:
                     events.remove_targets(Rule=rule_name, Ids=[target_id])

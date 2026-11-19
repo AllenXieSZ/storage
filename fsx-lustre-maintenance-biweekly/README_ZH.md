@@ -8,59 +8,48 @@ FSx for Lustre 运维窗口每周固定执行，无法调整频率。运维期�
 
 ## 工作原理
 
-每个文件系统部署 2 个 Lambda + 4 个 EventBridge Scheduler 调度：
+每个文件系统部署 **2 个 Lambda** + **2 个 EventBridge Scheduler 调度**：
 
-- **Skip Lambda**：将 MW 设为 `原始值 − 24h`（绝对值，幂等）
-- **Restore Lambda**：将 MW 恢复为`原始值`（绝对值，幂等）
-
-### 触发调度（全部使用 EventBridge Scheduler）
-
-| 调度名 | 类型 | 用途 |
+| 组件 | 命名 | 作用 |
 |---|---|---|
-| `fsx-mw-skip-init-{fs-id}` | `at()` 一次性 | 首次 skip，精确对齐到下一个 MW−12h，触发后自动删除 |
-| `fsx-mw-restore-init-{fs-id}` | `at()` 一次性 | 首次 restore，精确对齐到下一个 MW+12h，触发后自动删除 |
-| `fsx-mw-skip-cycle-{fs-id}` | `rate(14 days)` + `StartDate` | 周期 skip，StartDate = 首次 skip 后 14 天 |
-| `fsx-mw-restore-cycle-{fs-id}` | `rate(14 days)` + `StartDate` | 周期 restore，StartDate = 首次 restore 后 14 天 |
+| Lambda | `fsx-mw-skip-{fs-id}` | 将 MW 设为 `原始值 − 24h`（幂等） |
+| Lambda | `fsx-mw-restore-{fs-id}` | 将 MW 恢复为原始值（幂等） |
+| Scheduler | `fsx-mw-skip-{fs-id}` | `rate(14 days)` + `StartDate` = 下一个 MW−12h |
+| Scheduler | `fsx-mw-restore-{fs-id}` | `rate(14 days)` + `StartDate` = 下一个 MW+12h |
 
-### 关键设计：skip 和 restore 永远不会同时触发
+### 核心机制：`rate(14 days)` + `StartDate`
 
-skip 在 MW−12h 触发，restore 在 MW+12h 触发，两者相隔 24 小时。
-`rate(14 days)` 的 `StartDate` 分别对齐到各自的正确时间点，保证长期运行也不会错位。
+EventBridge Scheduler 的 `rate()` 表达式支持 `StartDate` 参数——首次触发在 StartDate，之后每 14 天触发一次。
+
+- skip 的 StartDate = MW−12h（维护前 12 小时）
+- restore 的 StartDate = MW+12h（维护后 12 小时）
+- **两者永远相隔 24 小时，不会冲突**
 
 ### 时间线示例
 
-假设 MW = Wed 02:00 UTC：
+假设 MW = Wed 02:00 UTC，部署在维护执行后那一周：
+
 ```
 第 1 周（跳过）：
-  Tue 14:00  skip-init at() 触发 → MW 改为 Tue 02:00（已过，本周不执行）
-  Wed 14:00  restore-init at() 触发 → MW 恢复为 Wed 02:00
-  init 调度自动删除
+  Tue 14:00  skip 首次触发（StartDate）→ MW 改为 Tue 02:00（已过，本周不执行维护）
+  Wed 14:00  restore 首次触发（StartDate）→ MW 恢复为 Wed 02:00
 
 第 2 周（正常）：
-  无触发（rate(14d) 还没到 StartDate）
+  无触发（还没到下一个 14 天周期）
   MW = Wed 02:00 → 正常执行 maintenance ✅
 
 第 3 周（跳过）：
-  Tue 14:00  skip-cycle rate(14d) 首次触发 → MW 改为 Tue 02:00
-  Wed 14:00  restore-cycle rate(14d) 首次触发 → MW 恢复为 Wed 02:00
+  Tue 14:00  skip 第二次触发（StartDate + 14d）→ MW 改为 Tue 02:00
+  Wed 14:00  restore 第二次触发（StartDate + 14d）→ MW 恢复为 Wed 02:00
   ...每 14 天循环
 ```
 
-### 为什么全部使用 EventBridge Scheduler？
-
-旧版使用 EventBridge Rules `rate(14 days)` 做周期触发，但有致命缺陷：
-- **Rules 的 `rate()` 首次触发 = 规则创建时间**，无法指定 StartDate
-- skip 和 restore 规则同时创建 → **同时触发 → 互相打架**
-- Rules 不支持 `at()` 表达式（返回 `ValidationException`）
-
-EventBridge Scheduler 同时支持 `at()` 和 `rate()` + `StartDate`，完美解决这两个问题。
-
 ### 幂等性
 
-Lambda 使用**绝对值设置**，原始运维窗口时间从 CSV hard code 到代码里：
-- Skip Lambda：`MW = 原始值 − 24h`（固定目标值，不是相对偏移）
-- Restore Lambda：`MW = 原始值`
-- MW 已经是目标值时不调用 UpdateFileSystem，直接返回
+Lambda 使用**绝对值设置**（不是相对偏移）：
+- Skip: `MW = 固定目标值`（原始值 − 24h）
+- Restore: `MW = 原始值`
+- MW 已经是目标值时跳过 UpdateFileSystem 调用
 - 多次触发结果相同，无副作用
 
 ### 所有时间均为 UTC
@@ -71,7 +60,7 @@ FSx Lustre MW 时区固定为 UTC，EventBridge Scheduler 也使用 UTC，天然
 
 **必须在「上周刚完成 maintenance」后的那一周部署。**
 
-原因：部署后首次 at() 会在下一个 MW−12h 跳过本周 maintenance。如果上周也被跳过 → 连续 2 周无 maintenance → 超 14 天 → AWS 可能强制执行。
+原因：部署后首次 skip 会跳过下一个维护窗口。如果上周也被跳过 → 连续 2 周无 maintenance → 超 14 天 → AWS 可能强制执行。
 
 > **来源**：[FSx Lustre User Guide — Maintenance Windows](https://docs.aws.amazon.com/fsx/latest/LustreGuide/maintenance-windows.html)
 
@@ -108,38 +97,41 @@ python3 fsx_mw_scheduler.py list --region us-east-2
 
 > 编辑 CSV 删除不需要调整的文件系统。
 
-### 3. 部署 Lambda + Scheduler
+### 3. 部署
 
 ```bash
 python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
 ```
 
-部署后 MW **不会立即改变**——等 at() 调度在精确时间点触发后才会改。
+部署后 MW **不会立即改变**——等 Scheduler 在 StartDate 触发后才会改。
 
-### 4. 验证（手动 invoke 测试）
+### 4. 验证
 
 ```bash
-# 测试 skip
+# 手动测试 skip（立即触发一次看效果）
 aws lambda invoke --function-name fsx-mw-skip-fs-xxxx --region us-east-2 /tmp/out.json
 cat /tmp/out.json
 
-# 检查 MW 是否变了
+# 检查 MW
 aws fsx describe-file-systems --file-system-ids fs-xxxx --region us-east-2 \
   --query 'FileSystems[0].LustreConfiguration.WeeklyMaintenanceStartTime' --output text
 
-# 测试 restore
+# 手动测试 restore
 aws lambda invoke --function-name fsx-mw-restore-fs-xxxx --region us-east-2 /tmp/out.json
-cat /tmp/out.json
 
-# 测试幂等（再 invoke 一次 skip，应返回 changed=false）
+# 测试幂等（再 invoke skip，应返回 changed=false）
 aws lambda invoke --function-name fsx-mw-skip-fs-xxxx --region us-east-2 /tmp/out.json
 cat /tmp/out.json
+
+# 查看 Scheduler 调度状态
+aws scheduler list-schedules --region us-east-2 \
+  --query 'Schedules[?starts_with(Name,`fsx-mw-`)].{Name:Name,State:State}' --output table
 ```
 
 ### 5. 清理
 
 ```bash
-# 清理单个文件系统的所有资源（含旧版 EventBridge Rules）
+# 清理单个文件系统的所有资源（含旧版 EventBridge Rules / 旧命名 Scheduler）
 python3 fsx_mw_scheduler.py clean --region us-east-2 --fs-id fs-xxxx
 
 # 可选：删除共用 IAM 角色
@@ -147,44 +139,31 @@ aws iam delete-role-policy --role-name fsx-mw-lambda-role --policy-name fsx-mw-l
 aws iam delete-role --role-name fsx-mw-lambda-role
 aws iam delete-role-policy --role-name fsx-mw-scheduler-role --policy-name fsx-mw-scheduler-invoke
 aws iam delete-role --role-name fsx-mw-scheduler-role
-
-# 可选：删除操作用户
-aws iam delete-user-policy --user-name fsx-mw-scheduler --policy-name fsx-mw-scheduler-policy
-aws iam delete-user --user-name fsx-mw-scheduler
 ```
 
 ## 架构图
 
 ```
-EventBridge Scheduler at()           EventBridge Scheduler at()
-(首次精确对齐，触发后自动删除)          (首次精确对齐，触发后自动删除)
-     │                                     │
-     ▼                                     ▼
- Skip Lambda ────────────────────── Restore Lambda
- MW → original − 24h                MW → original
-     ▲                                     ▲
-     │                                     │
-EventBridge Scheduler rate(14d)     EventBridge Scheduler rate(14d)
-StartDate = skip 首次 + 14天         StartDate = restore 首次 + 14天
-(与 skip-init 对齐，不与 restore 冲突)  (与 restore-init 对齐，不与 skip 冲突)
+EventBridge Scheduler                EventBridge Scheduler
+rate(14 days)                        rate(14 days)
+StartDate = MW − 12h                 StartDate = MW + 12h
+       │                                    │
+       ▼                                    ▼
+  Skip Lambda                         Restore Lambda
+  MW → original − 24h                 MW → original
 ```
 
-### 每个文件系统创建的资源
+## 每个文件系统创建的资源
 
-| 资源 | 命名 | 用途 |
+| 资源 | 命名 | 说明 |
 |---|---|---|
-| Lambda | `fsx-mw-skip-{fs-id}` | MW → original − 24h |
-| Lambda | `fsx-mw-restore-{fs-id}` | MW → original |
-| Scheduler | `fsx-mw-skip-init-{fs-id}` | 首次 skip at()，触发后自动删除 |
-| Scheduler | `fsx-mw-restore-init-{fs-id}` | 首次 restore at()，触发后自动删除 |
-| Scheduler | `fsx-mw-skip-cycle-{fs-id}` | rate(14d) skip，StartDate = 首次 +14d |
-| Scheduler | `fsx-mw-restore-cycle-{fs-id}` | rate(14d) restore，StartDate = 首次 +14d |
-| IAM Role | `fsx-mw-lambda-role` | Lambda 执行角色（共用） |
-| IAM Role | `fsx-mw-scheduler-role` | Scheduler 调用 Lambda 角色（共用） |
+| Lambda × 2 | `fsx-mw-skip-{fs-id}`, `fsx-mw-restore-{fs-id}` | 幂等 MW 设置 |
+| Scheduler × 2 | `fsx-mw-skip-{fs-id}`, `fsx-mw-restore-{fs-id}` | rate(14d) + StartDate |
+| IAM Role × 2 | `fsx-mw-lambda-role`, `fsx-mw-scheduler-role` | 共用，所有 FS 共享 |
 
 ## 费用
 
-- Lambda + EventBridge Scheduler + IAM：基本为零（每 14 天 2 次 Lambda 调用 / FS）
+基本为零（每 14 天 2 次 Lambda 调用 / FS + Scheduler 免费层级）。
 
 ## 文件
 
