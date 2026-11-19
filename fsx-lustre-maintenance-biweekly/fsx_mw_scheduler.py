@@ -5,15 +5,20 @@ FSx Lustre Maintenance Window Biweekly Scheduler
 Converts FSx Lustre weekly maintenance into biweekly by shifting the
 maintenance window back and forth with two Lambda functions per file system.
 
-Key design:
-  - Lambda functions are IDEMPOTENT (absolute value, not relative shift).
-  - First trigger uses EventBridge Scheduler at() for precise UTC alignment.
-  - Subsequent triggers use EventBridge Rules rate(14 days).
-  - All times are UTC (same as FSx MW timezone).
+Architecture (per file system):
+  - 2 Lambda functions (skip + restore), idempotent absolute-value MW set
+  - 4 EventBridge Scheduler schedules:
+    - skip-init:    at() one-shot, fires MW−12h, auto-deletes
+    - restore-init: at() one-shot, fires MW+12h, auto-deletes
+    - skip-cycle:   rate(14 days) starting from the SECOND skip fire time
+    - restore-cycle:rate(14 days) starting from the SECOND restore fire time
+
+  The skip and restore fire times are 24h apart, so they never collide.
 
 Usage:
   python3 fsx_mw_scheduler.py list   --region us-east-2 [--output fsx_lustre_list.csv]
   python3 fsx_mw_scheduler.py deploy --region us-east-2 [--csv fsx_lustre_list.csv]
+  python3 fsx_mw_scheduler.py clean  --region us-east-2 --fs-id fs-xxxx
 """
 
 import argparse
@@ -50,6 +55,7 @@ def format_mw(day: int, hour: int, minute: int) -> str:
 
 
 def shift_mw(mw_str: str, hours: int) -> str:
+    """Shift a MW string by ±hours, wrapping within a 7-day week (168h)."""
     day, hour, minute = parse_mw(mw_str)
     total_hours = (day - 1) * 24 + hour + hours
     total_hours = total_hours % 168
@@ -66,7 +72,9 @@ def human_readable_mw(mw_str: str) -> str:
 
 
 def next_occurrence_utc(mw_str: str, offset_hours: int) -> datetime:
-    """Next future UTC datetime for (MW + offset_hours), at least 5 min from now."""
+    """
+    Next future UTC datetime for (MW + offset_hours), at least 5 min from now.
+    """
     shifted = shift_mw(mw_str, offset_hours)
     day, hour, minute = parse_mw(shifted)
     py_weekday = FSX_TO_PY_DAY[day]
@@ -76,6 +84,7 @@ def next_occurrence_utc(mw_str: str, offset_hours: int) -> datetime:
     if days_ahead < 0:
         days_ahead += 7
     candidate = now.replace(hour=hour, minute=minute, second=0, microsecond=0) + timedelta(days=days_ahead)
+    # Must be at least 5 min in the future
     if candidate <= now + timedelta(minutes=5):
         candidate += timedelta(weeks=1)
     return candidate
@@ -183,26 +192,31 @@ def ensure_lambda_role(session, account_id):
     iam = session.client("iam")
     role_arn = f"arn:aws:iam::{account_id}:role/{LAMBDA_ROLE_NAME}"
     trust = json.dumps({"Version": "2012-10-17", "Statement": [
-        {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}
+        {"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"},
+         "Action": "sts:AssumeRole"}
     ]})
     try:
         iam.get_role(RoleName=LAMBDA_ROLE_NAME)
         print(f"   IAM role {LAMBDA_ROLE_NAME} already exists")
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchEntity":
-            iam.create_role(RoleName=LAMBDA_ROLE_NAME, AssumeRolePolicyDocument=trust,
-                           Description="Lambda role for FSx MW scheduler")
+            iam.create_role(
+                RoleName=LAMBDA_ROLE_NAME, AssumeRolePolicyDocument=trust,
+                Description="Lambda role for FSx MW scheduler")
             print(f"   ✅ Created IAM role {LAMBDA_ROLE_NAME}")
             time.sleep(10)
         else:
             raise
-    iam.put_role_policy(RoleName=LAMBDA_ROLE_NAME, PolicyName="fsx-mw-lambda-policy",
+    iam.put_role_policy(
+        RoleName=LAMBDA_ROLE_NAME, PolicyName="fsx-mw-lambda-policy",
         PolicyDocument=json.dumps({"Version": "2012-10-17", "Statement": [
             {"Sid": "Logs", "Effect": "Allow",
-             "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+             "Action": ["logs:CreateLogGroup", "logs:CreateLogStream",
+                        "logs:PutLogEvents"],
              "Resource": "arn:aws:logs:*:*:*"},
             {"Sid": "FSx", "Effect": "Allow",
-             "Action": ["fsx:DescribeFileSystems", "fsx:UpdateFileSystem"], "Resource": "*"},
+             "Action": ["fsx:DescribeFileSystems", "fsx:UpdateFileSystem"],
+             "Resource": "*"},
         ]}))
     return role_arn
 
@@ -212,22 +226,26 @@ def ensure_scheduler_role(session, account_id):
     iam = session.client("iam")
     role_arn = f"arn:aws:iam::{account_id}:role/{SCHEDULER_ROLE_NAME}"
     trust = json.dumps({"Version": "2012-10-17", "Statement": [
-        {"Effect": "Allow", "Principal": {"Service": "scheduler.amazonaws.com"}, "Action": "sts:AssumeRole"}
+        {"Effect": "Allow", "Principal": {"Service": "scheduler.amazonaws.com"},
+         "Action": "sts:AssumeRole"}
     ]})
     try:
         iam.get_role(RoleName=SCHEDULER_ROLE_NAME)
         print(f"   IAM role {SCHEDULER_ROLE_NAME} already exists")
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchEntity":
-            iam.create_role(RoleName=SCHEDULER_ROLE_NAME, AssumeRolePolicyDocument=trust,
-                           Description="EventBridge Scheduler role for FSx MW scheduler")
+            iam.create_role(
+                RoleName=SCHEDULER_ROLE_NAME, AssumeRolePolicyDocument=trust,
+                Description="EventBridge Scheduler role for FSx MW scheduler")
             print(f"   ✅ Created IAM role {SCHEDULER_ROLE_NAME}")
             time.sleep(10)
         else:
             raise
-    iam.put_role_policy(RoleName=SCHEDULER_ROLE_NAME, PolicyName="fsx-mw-scheduler-invoke",
+    iam.put_role_policy(
+        RoleName=SCHEDULER_ROLE_NAME, PolicyName="fsx-mw-scheduler-invoke",
         PolicyDocument=json.dumps({"Version": "2012-10-17", "Statement": [
-            {"Sid": "InvokeLambda", "Effect": "Allow", "Action": "lambda:InvokeFunction",
+            {"Sid": "InvokeLambda", "Effect": "Allow",
+             "Action": "lambda:InvokeFunction",
              "Resource": f"arn:aws:lambda:*:{account_id}:function:fsx-mw-*"},
         ]}))
     return role_arn
@@ -235,7 +253,8 @@ def ensure_scheduler_role(session, account_id):
 
 def create_or_update_lambda(lam, func_name, role_arn, zip_bytes, description):
     try:
-        lam.create_function(FunctionName=func_name, Runtime="python3.12", Role=role_arn,
+        lam.create_function(
+            FunctionName=func_name, Runtime="python3.12", Role=role_arn,
             Handler="lambda_function.lambda_handler", Code={"ZipFile": zip_bytes},
             Timeout=30, MemorySize=128, Description=description)
         print(f"     ✅ Lambda created")
@@ -247,52 +266,36 @@ def create_or_update_lambda(lam, func_name, role_arn, zip_bytes, description):
             raise
 
 
-def setup_rate_rule(events, lam, rule_name, func_name, func_arn, account_id, region, desc):
-    """EventBridge Rules rate(14 days) for ongoing triggers."""
-    events.put_rule(Name=rule_name, ScheduleExpression="rate(14 days)",
-                    State="ENABLED", Description=desc)
-    events.put_targets(Rule=rule_name, Targets=[{"Id": f"target-{rule_name}", "Arn": func_arn}])
-    try:
-        lam.add_permission(FunctionName=func_name, StatementId=f"EB-{rule_name}",
-            Action="lambda:InvokeFunction", Principal="events.amazonaws.com",
-            SourceArn=f"arn:aws:events:{region}:{account_id}:rule/{rule_name}")
-    except ClientError as e:
-        if e.response["Error"]["Code"] != "ResourceConflictException":
-            raise
+def create_or_update_schedule(scheduler, name, expression, func_arn,
+                              scheduler_role_arn, desc, start_date=None,
+                              auto_delete=False):
+    """Create or update an EventBridge Scheduler schedule."""
+    kwargs = dict(
+        Name=name,
+        ScheduleExpression=expression,
+        ScheduleExpressionTimezone="UTC",
+        FlexibleTimeWindow={"Mode": "OFF"},
+        Target={
+            "Arn": func_arn,
+            "RoleArn": scheduler_role_arn,
+        },
+        Description=desc,
+    )
+    if start_date:
+        kwargs["StartDate"] = start_date
+    if auto_delete:
+        kwargs["ActionAfterCompletion"] = "DELETE"
 
-
-def setup_scheduler_at(scheduler, sched_name, at_time, func_arn, scheduler_role_arn, desc):
-    """EventBridge Scheduler one-shot at() for first trigger alignment."""
-    at_expr = f"at({at_time.strftime('%Y-%m-%dT%H:%M:%S')})"
     try:
-        scheduler.create_schedule(
-            Name=sched_name,
-            ScheduleExpression=at_expr,
-            ScheduleExpressionTimezone="UTC",
-            FlexibleTimeWindow={"Mode": "OFF"},
-            Target={
-                "Arn": func_arn,
-                "RoleArn": scheduler_role_arn,
-            },
-            Description=desc,
-            ActionAfterCompletion="DELETE",  # auto-delete after firing
-        )
-        print(f"     ✅ Scheduler one-shot: {sched_name} ({at_expr}) [auto-delete after fire]")
+        scheduler.create_schedule(**kwargs)
+        print(f"     ✅ Scheduler: {name} ({expression})"
+              + (f" StartDate={start_date.isoformat()}" if start_date else "")
+              + (" [auto-delete]" if auto_delete else ""))
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConflictException":
-            scheduler.update_schedule(
-                Name=sched_name,
-                ScheduleExpression=at_expr,
-                ScheduleExpressionTimezone="UTC",
-                FlexibleTimeWindow={"Mode": "OFF"},
-                Target={
-                    "Arn": func_arn,
-                    "RoleArn": scheduler_role_arn,
-                },
-                Description=desc,
-                ActionAfterCompletion="DELETE",
-            )
-            print(f"     ⚠️  Scheduler exists, updated: {sched_name} ({at_expr})")
+            scheduler.update_schedule(**kwargs)
+            print(f"     ⚠️  Scheduler exists, updated: {name} ({expression})"
+                  + (f" StartDate={start_date.isoformat()}" if start_date else ""))
         else:
             raise
 
@@ -314,7 +317,6 @@ def cmd_deploy(args):
     role_arn = ensure_lambda_role(session, account_id)
     sched_role_arn = ensure_scheduler_role(session, account_id)
     lam = session.client("lambda")
-    events = session.client("events")
     scheduler = session.client("scheduler")
 
     for fs in filesystems:
@@ -328,54 +330,127 @@ def cmd_deploy(args):
         print(f"   Original MW : {original_mw} ({human_readable_mw(original_mw)})")
         print(f"   Skipped MW  : {skipped_mw} ({human_readable_mw(skipped_mw)})")
 
-        for label, func_prefix, target_mw, offset in [
-            ("skip",    "fsx-mw-skip",    skipped_mw,  -12),
-            ("restore", "fsx-mw-restore", original_mw, +12),
+        # Calculate fire times:
+        #   skip  fires at MW − 12h (before the maintenance window)
+        #   restore fires at MW + 12h (after the maintenance window)
+        #   They are 24h apart, so they never collide.
+        skip_first = next_occurrence_utc(original_mw, -12)
+        restore_first = next_occurrence_utc(original_mw, +12)
+
+        # The SECOND occurrence (for rate(14d) StartDate) is 14 days after first
+        skip_second = skip_first + timedelta(days=14)
+        restore_second = restore_first + timedelta(days=14)
+
+        for label, func_prefix, target_mw, first_at, cycle_start in [
+            ("skip", "fsx-mw-skip", skipped_mw, skip_first, skip_second),
+            ("restore", "fsx-mw-restore", original_mw, restore_first, restore_second),
         ]:
             func_name = f"{func_prefix}-{fs_id}"
             func_arn = f"arn:aws:lambda:{args.region}:{account_id}:function:{func_name}"
-            fire_time = human_readable_mw(shift_mw(original_mw, offset))
-            first_at = next_occurrence_utc(original_mw, offset)
 
             print(f"\n   Lambda [{label}]: {func_name}")
-            print(f"     Target MW  : {target_mw} ({human_readable_mw(target_mw)})")
-            print(f"     Weekly at  : {fire_time} (MW {'+' if offset > 0 else ''}{offset}h)")
-            print(f"     First fire : {first_at.strftime('%Y-%m-%d %H:%M UTC (%a)')}")
-            print(f"     Then       : rate(14 days) from deploy time")
-            print(f"     Idempotent : yes")
+            print(f"     Target MW   : {target_mw} ({human_readable_mw(target_mw)})")
+            print(f"     First fire  : {first_at.strftime('%Y-%m-%d %H:%M UTC (%a)')} (at() one-shot)")
+            print(f"     Cycle start : {cycle_start.strftime('%Y-%m-%d %H:%M UTC (%a)')} (rate(14d) from here)")
+            print(f"     Idempotent  : yes")
 
-            # Create Lambda
+            # 1. Create/update Lambda
             create_or_update_lambda(
                 lam, func_name, role_arn,
                 create_lambda_zip(fs_id, target_mw, original_mw, args.region, label),
                 f"{label}: MW→{target_mw} for {fs_id} | original={original_mw}"
             )
 
-            # EventBridge Scheduler at() — first trigger (auto-deletes after fire)
-            setup_scheduler_at(
-                scheduler, f"{func_prefix}-init-{fs_id}", first_at, func_arn, sched_role_arn,
-                f"First {label} for {fs_id} at {first_at.isoformat()}"
+            # 2. Scheduler at() — first trigger (auto-deletes after fire)
+            create_or_update_schedule(
+                scheduler,
+                name=f"{func_prefix}-init-{fs_id}",
+                expression=f"at({first_at.strftime('%Y-%m-%dT%H:%M:%S')})",
+                func_arn=func_arn,
+                scheduler_role_arn=sched_role_arn,
+                desc=f"First {label} for {fs_id} at {first_at.isoformat()}",
+                auto_delete=True,
             )
 
-            # EventBridge Rules rate(14 days) — ongoing
-            setup_rate_rule(
-                events, lam, func_name, func_name, func_arn,
-                account_id, args.region,
-                f"Recurring {label} for {fs_id} every 14 days | original={original_mw}"
+            # 3. Scheduler rate(14 days) — ongoing, with StartDate = second occurrence
+            #    This ensures the recurring trigger starts AFTER the init at() has fired,
+            #    and is properly aligned to MW±12h (not deploy time).
+            create_or_update_schedule(
+                scheduler,
+                name=f"{func_prefix}-cycle-{fs_id}",
+                expression="rate(14 days)",
+                func_arn=func_arn,
+                scheduler_role_arn=sched_role_arn,
+                desc=f"Recurring {label} for {fs_id} every 14d from {cycle_start.isoformat()} | original={original_mw}",
+                start_date=cycle_start,
             )
-            print(f"     ✅ EventBridge rate(14 days): {func_name}")
 
     print(f"\n{'='*60}")
     print("🎉 部署完成！")
     print()
     print("📌 调度说明：")
-    print("   1. Scheduler at() 规则：精确在下一个 MW±12h 时间点触发首次 skip/restore")
-    print("      触发后自动删除（ActionAfterCompletion=DELETE）")
-    print("   2. EventBridge rate(14 days) 规则：从部署时间起每 14 天触发后续周期")
-    print("   3. Lambda 是幂等的，重叠触发无副作用")
+    print("   1. at() 一次性规则：精确在下一个 MW±12h 时间点触发首次 skip/restore，触发后自动删除")
+    print("   2. rate(14 days) 周期规则：从第二次 skip/restore 时间点开始，每 14 天触发")
+    print("      skip 和 restore 的 StartDate 相差 24h，永远不会同时触发")
+    print("   3. Lambda 是幂等的，万一重叠触发也无副作用")
     print()
-    print("⚠️  重要：请确保在【上周刚完成 maintenance 之后】部署。")
-    print("   详见 README_ZH.md「部署时机」章节。")
+    print("⚠️  重要：请确保在「上周刚完成 maintenance 之后」部署，详见 README_ZH.md。")
+
+
+# ─── Feature 3: Clean up resources for one FS ─
+
+def cmd_clean(args):
+    session = boto3.Session(region_name=args.region)
+    fs_id = args.fs_id
+    lam = session.client("lambda")
+    scheduler = session.client("scheduler")
+
+    print(f"🧹 Cleaning up resources for {fs_id} in {args.region}")
+
+    for prefix in ["fsx-mw-skip", "fsx-mw-restore"]:
+        # Delete Lambda
+        func_name = f"{prefix}-{fs_id}"
+        try:
+            lam.delete_function(FunctionName=func_name)
+            print(f"   ✅ Deleted Lambda: {func_name}")
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                print(f"   ⏭️  Lambda not found: {func_name}")
+            else:
+                print(f"   ❌ Error deleting Lambda {func_name}: {e}")
+
+        # Delete Scheduler schedules (init + cycle)
+        for suffix in ["init", "cycle"]:
+            sched_name = f"{prefix}-{suffix}-{fs_id}"
+            try:
+                scheduler.delete_schedule(Name=sched_name)
+                print(f"   ✅ Deleted Scheduler: {sched_name}")
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                    print(f"   ⏭️  Scheduler not found: {sched_name}")
+                else:
+                    print(f"   ❌ Error deleting Scheduler {sched_name}: {e}")
+
+    # Also clean up legacy EventBridge Rules (from old version that used Rules rate(14d))
+    events = session.client("events")
+    for prefix in ["fsx-mw-skip", "fsx-mw-restore"]:
+        rule_name = f"{prefix}-{fs_id}"
+        try:
+            # Old version used two different target ID formats; try both
+            for target_id in [f"target-{fs_id}", f"target-{rule_name}"]:
+                try:
+                    events.remove_targets(Rule=rule_name, Ids=[target_id])
+                except ClientError:
+                    pass
+            events.delete_rule(Name=rule_name)
+            print(f"   ✅ Deleted legacy EB Rule: {rule_name}")
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                pass  # no legacy rule, fine
+            else:
+                print(f"   ❌ Error deleting legacy rule {rule_name}: {e}")
+
+    print(f"\n✅ Cleanup complete for {fs_id}")
 
 
 def main():
@@ -383,18 +458,26 @@ def main():
         description="FSx Lustre Maintenance Window Biweekly Scheduler"
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
     p_list = sub.add_parser("list", help="List FSx Lustre → CSV")
     p_list.add_argument("--region", required=True)
     p_list.add_argument("--output", default="fsx_lustre_list.csv")
-    p_deploy = sub.add_parser("deploy", help="Deploy Lambda + EventBridge")
+
+    p_deploy = sub.add_parser("deploy", help="Deploy Lambda + Scheduler")
     p_deploy.add_argument("--region", required=True)
     p_deploy.add_argument("--csv", default="fsx_lustre_list.csv")
+
+    p_clean = sub.add_parser("clean", help="Clean up all resources for one FS")
+    p_clean.add_argument("--region", required=True)
+    p_clean.add_argument("--fs-id", required=True, help="File system ID to clean up")
 
     args = parser.parse_args()
     if args.command == "list":
         cmd_list(args)
     elif args.command == "deploy":
         cmd_deploy(args)
+    elif args.command == "clean":
+        cmd_clean(args)
 
 
 if __name__ == "__main__":

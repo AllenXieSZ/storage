@@ -18,24 +18,10 @@
         "lambda:DeleteFunction",
         "lambda:GetFunction",
         "lambda:InvokeFunction",
-        "lambda:AddPermission",
-        "lambda:RemovePermission",
         "lambda:UpdateFunctionCode",
         "lambda:UpdateFunctionConfiguration"
       ],
       "Resource": "arn:aws:lambda:*:ACCOUNT_ID:function:fsx-mw-*"
-    },
-    {
-      "Sid": "EventBridgeRulesManage",
-      "Effect": "Allow",
-      "Action": [
-        "events:PutRule",
-        "events:PutTargets",
-        "events:DeleteRule",
-        "events:RemoveTargets",
-        "events:DescribeRule"
-      ],
-      "Resource": "arn:aws:events:*:ACCOUNT_ID:rule/fsx-mw-*"
     },
     {
       "Sid": "EventBridgeSchedulerManage",
@@ -44,9 +30,20 @@
         "scheduler:CreateSchedule",
         "scheduler:UpdateSchedule",
         "scheduler:DeleteSchedule",
-        "scheduler:GetSchedule"
+        "scheduler:GetSchedule",
+        "scheduler:ListSchedules"
       ],
       "Resource": "arn:aws:scheduler:*:ACCOUNT_ID:schedule/default/fsx-mw-*"
+    },
+    {
+      "Sid": "EventBridgeRulesCleanup",
+      "Effect": "Allow",
+      "Action": [
+        "events:DeleteRule",
+        "events:RemoveTargets",
+        "events:DescribeRule"
+      ],
+      "Resource": "arn:aws:events:*:ACCOUNT_ID:rule/fsx-mw-*"
     },
     {
       "Sid": "IAMPassRole",
@@ -63,7 +60,9 @@
       "Action": [
         "iam:CreateRole",
         "iam:GetRole",
-        "iam:PutRolePolicy"
+        "iam:PutRolePolicy",
+        "iam:DeleteRole",
+        "iam:DeleteRolePolicy"
       ],
       "Resource": [
         "arn:aws:iam::ACCOUNT_ID:role/fsx-mw-lambda-role",
