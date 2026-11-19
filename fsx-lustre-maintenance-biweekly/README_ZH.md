@@ -12,49 +12,49 @@ FSx for Lustre 运维窗口每周固定执行，无法调整频率。运维期�
 
 | 组件 | 命名 | 作用 |
 |---|---|---|
-| Lambda | `fsx-mw-skip-{fs-id}` | 将 MW 设为 `原始值 − 24h`（幂等） |
-| Lambda | `fsx-mw-restore-{fs-id}` | 将 MW 恢复为原始值（幂等） |
-| Scheduler | `fsx-mw-skip-{fs-id}` | `rate(14 days)` + `StartDate` = 下一个 MW−12h |
-| Scheduler | `fsx-mw-restore-{fs-id}` | `rate(14 days)` + `StartDate` = 下一个 MW+12h |
+| Lambda | `fsx-mw-skip-{fs-id}` | 将运维窗口设为 `原始值 − 24小时`（幂等） |
+| Lambda | `fsx-mw-restore-{fs-id}` | 将运维窗口恢复为原始值（幂等） |
+| Scheduler | `fsx-mw-skip-{fs-id}` | `rate(14 days)` + `StartDate` = 下一个运维窗口−12小时 |
+| Scheduler | `fsx-mw-restore-{fs-id}` | `rate(14 days)` + `StartDate` = 下一个运维窗口+12小时 |
 
 ### 核心机制：`rate(14 days)` + `StartDate`
 
 EventBridge Scheduler 的 `rate()` 表达式支持 `StartDate` 参数——首次触发在 StartDate，之后每 14 天触发一次。
 
-- skip 的 StartDate = MW−12h（维护前 12 小时）
-- restore 的 StartDate = MW+12h（维护后 12 小时）
+- skip 的 StartDate = 运维窗口−12小时（维护前 12 小时）
+- restore 的 StartDate = 运维窗口+12小时（维护后 12 小时）
 - **两者永远相隔 24 小时，不会冲突**
 
 ### 时间线示例
 
-假设 MW = Wed 02:00 UTC，部署在维护执行后那一周：
+假设运维窗口 = Wed 02:00 UTC，部署在维护执行后那一周：
 
 ```
 第 1 周（跳过）：
-  Tue 14:00  skip 首次触发（StartDate）→ MW 改为 Tue 02:00（已过，本周不执行维护）
-  Wed 14:00  restore 首次触发（StartDate）→ MW 恢复为 Wed 02:00
+  Tue 14:00  skip 首次触发（StartDate）→ 运维窗口改为 Tue 02:00（已过，本周不执行维护）
+  Wed 14:00  restore 首次触发（StartDate）→ 运维窗口恢复为 Wed 02:00
 
 第 2 周（正常）：
   无触发（还没到下一个 14 天周期）
-  MW = Wed 02:00 → 正常执行 maintenance ✅
+  运维窗口 = Wed 02:00 → 正常执行维护 ✅
 
 第 3 周（跳过）：
-  Tue 14:00  skip 第二次触发（StartDate + 14d）→ MW 改为 Tue 02:00
-  Wed 14:00  restore 第二次触发（StartDate + 14d）→ MW 恢复为 Wed 02:00
+  Tue 14:00  skip 第二次触发（StartDate + 14天）→ 运维窗口改为 Tue 02:00
+  Wed 14:00  restore 第二次触发（StartDate + 14天）→ 运维窗口恢复为 Wed 02:00
   ...每 14 天循环
 ```
 
 ### 幂等性
 
 Lambda 使用**绝对值设置**（不是相对偏移）：
-- Skip: `MW = 固定目标值`（原始值 − 24h）
-- Restore: `MW = 原始值`
-- MW 已经是目标值时跳过 UpdateFileSystem 调用
+- Skip: `运维窗口 = 固定目标值`（原始值 − 24小时）
+- Restore: `运维窗口 = 原始值`
+- 运维窗口已经是目标值时跳过 UpdateFileSystem 调用
 - 多次触发结果相同，无副作用
 
 ### 所有时间均为 UTC
 
-FSx Lustre MW 时区固定为 UTC，EventBridge Scheduler 也使用 UTC，天然对齐。
+FSx Lustre 运维窗口时区固定为 UTC，EventBridge Scheduler 也使用 UTC，天然对齐。
 
 ## ⚠️ 部署时机（重要）
 
@@ -103,7 +103,7 @@ python3 fsx_mw_scheduler.py list --region us-east-2
 python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
 ```
 
-部署后 MW **不会立即改变**——等 Scheduler 在 StartDate 触发后才会改。
+部署后运维窗口**不会立即改变**——等 Scheduler 在 StartDate 触发后才会改。
 
 ### 4. 验证
 
@@ -112,7 +112,7 @@ python3 fsx_mw_scheduler.py deploy --region us-east-2 --csv fsx_lustre_list.csv
 aws lambda invoke --function-name fsx-mw-skip-fs-xxxx --region us-east-2 /tmp/out.json
 cat /tmp/out.json
 
-# 检查 MW
+# 检查运维窗口
 aws fsx describe-file-systems --file-system-ids fs-xxxx --region us-east-2 \
   --query 'FileSystems[0].LustreConfiguration.WeeklyMaintenanceStartTime' --output text
 
@@ -146,19 +146,19 @@ aws iam delete-role --role-name fsx-mw-scheduler-role
 ```
 EventBridge Scheduler                EventBridge Scheduler
 rate(14 days)                        rate(14 days)
-StartDate = MW − 12h                 StartDate = MW + 12h
+StartDate = 运维窗口 − 12小时                 StartDate = 运维窗口 + 12小时
        │                                    │
        ▼                                    ▼
   Skip Lambda                         Restore Lambda
-  MW → original − 24h                 MW → original
+  运维窗口 → 原始值 − 24小时                 运维窗口 → 原始值
 ```
 
 ## 每个文件系统创建的资源
 
 | 资源 | 命名 | 说明 |
 |---|---|---|
-| Lambda × 2 | `fsx-mw-skip-{fs-id}`, `fsx-mw-restore-{fs-id}` | 幂等 MW 设置 |
-| Scheduler × 2 | `fsx-mw-skip-{fs-id}`, `fsx-mw-restore-{fs-id}` | rate(14d) + StartDate |
+| Lambda × 2 | `fsx-mw-skip-{fs-id}`, `fsx-mw-restore-{fs-id}` | 幂等运维窗口设置 |
+| Scheduler × 2 | `fsx-mw-skip-{fs-id}`, `fsx-mw-restore-{fs-id}` | rate(14天) + StartDate |
 | IAM Role × 2 | `fsx-mw-lambda-role`, `fsx-mw-scheduler-role` | 共用，所有 FS 共享 |
 
 ## 费用
