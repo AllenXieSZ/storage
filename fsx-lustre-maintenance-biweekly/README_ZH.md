@@ -131,7 +131,7 @@ aws scheduler list-schedules --region us-east-2 \
 ### 5. 清理
 
 ```bash
-# 清理单个文件系统的所有资源（含旧版 EventBridge Rules / 旧命名 Scheduler）
+# 清理单个文件系统的所有资源
 python3 fsx_mw_scheduler.py clean --region us-east-2 --fs-id fs-xxxx
 
 # 可选：删除共用 IAM 角色
